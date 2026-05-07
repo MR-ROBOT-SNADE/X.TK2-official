@@ -137,7 +137,7 @@
                 <div id="hero-slider" class="hero-section">
 
                     <!--Ảnh số 1 chạy-->
-                    <div class="slide active" style="background-image: url('images/anh_so_1.jpg');">
+                    <div class="slide active" style="background-image: url('images/anh_so_1.jpeg');">
                         <div class="slide-overlay"></div>
                         <div class="slide-text">WEBSITE NỘI BỘ XƯỞNG THIÊU KẾT 2</div>
                     </div>
@@ -149,7 +149,7 @@
                     </div>
 
                     <!--ẢNh số 3 là background-->
-                    <div class="slide" style="background-image: url('images/anh_so_3.jpg');">
+                    <div class="slide" style="background-image: url('images/anh_so_3.jpeg');">
                         <div class="slide-overlay"></div>
                         <div class="slide-text" style="text-align: center;">THỰC HIỆN TỐT 5S LÀ TRÁCH NHIỆM MỖI NGÀY-MỖI CA KÍP</div>
                     </div>
@@ -385,37 +385,132 @@
                 </div>
             </div>
             <!--Khu vực hiển thị các thông tin liên quan đến biểu đồ thể hiện tiêu hao chất trợ dung, như vôi và dolomite-->
-            <div id="tieu-hao-tro-dung" class="panel-content chart-group" style="display: none; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;">
-                <div class="fluxconsume-chart-lime-tk3" style="flex: 1; min-width: 400px; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
-                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">TIÊU HAO QUY ĐỔI VÔI NUNG TK3</h3>
-                    <canvas id="flux-chart-lime-tk3"
-                        style="width: 100%; height: 400px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
-                    </canvas><!--Thẻ canvas thay cho thẻ div cũ, dùng để display thư viện và nhận dữ liệu nạp vào từ js-->
+            <div id="tieu-hao-tro-dung" class="panel-content chart-group" style="display: none; flex-direction: column; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;">
+                <div id="sorter-lime" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Từ ngày: </label>
+                        <input type="date" id="start-lime" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Đến ngày: </label>
+                        <input type="date" id="end-lime" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn ca/kíp: </label>
+                        <select id="shift-lime" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Tất cả các ca</option>
+                            <option value="A">Kíp A</option>
+                            <option value="B">Kíp B</option>
+                            <option value="C">Kip C</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn dây chuyền: </label>
+                        <select id="sinterline-lime" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Dây chuyền 3 + 4</option>
+                            <option value="TK3">Dây chuyền 3</option>
+                            <option value="TK4">Dây chuyền 4</option>
+                        </select>
+                    </div>
+                    <button onclick="applyUniversalFilter('lime')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
+                    <button onclick="clearUniversalFilter('lime')" style="padding: 5px 15px; cursor: pointer; background: #95a5a6; color: white; border: none; border-radius: 4px; font-weight: bold;">Xoá lọc</button>
+                </div>
+                <div class="fluxconsume-chart-lime" style="width: 100%; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">TIÊU HAO QUY ĐỔI VÔI NUNG</h3>
+                    <div style="position: relative; height: 550px; width: 100%;">
+                        <canvas id="flux-chart-lime"
+                            style="width: 100%; height: 550px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
+                        </canvas><!--Thẻ canvas thay cho thẻ div cũ, dùng để display thư viện và nhận dữ liệu nạp vào từ js-->
+                    </div>
                 </div>
 
-                <div class="fluxconsume-chart-dolomite-tk3" style="flex: 1; min-width: 400px; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
-                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">TIÊU HAO QUY ĐỔI ĐÁ DOLOMITE TK3</h3>
-                    <canvas id="flux-chart-dolomite-tk3"
-                        style="width: 100%; height: 400px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
-                    </canvas><!--Thẻ canvas thay cho thẻ div cũ, dùng để display thư viện và nhận dữ liệu nạp vào từ js-->
+                <div id="sorter-dolomite" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Từ ngày: </label>
+                        <input type="date" id="start-dolomite" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Đến ngày: </label>
+                        <input type="date" id="end-dolomite" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn ca/kíp: </label>
+                        <select id="shift-dolomite" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Tất cả các ca</option>
+                            <option value="A">Kíp A</option>
+                            <option value="B">Kíp B</option>
+                            <option value="C">Kip C</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn dây chuyền: </label>
+                        <select id="sinterline-dolomite" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Dây chuyền 3 + 4</option>
+                            <option value="TK3">Dây chuyền 3</option>
+                            <option value="TK4">Dây chuyền 4</option>
+                        </select>
+                    </div>
+                    <button onclick="applyUniversalFilter('dolomite')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
+                    <button onclick="clearUniversalFilter('dolomite')" style="padding: 5px 15px; cursor: pointer; background: #95a5a6; color: white; border: none; border-radius: 4px; font-weight: bold;">Xoá lọc</button>
+                </div>
+                <div class="fluxconsume-chart-dolomite" style="width: 100%; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">TIÊU HAO QUY ĐỔI ĐÁ DOLOMITE</h3>
+                    <div style="position: relative; height: 550px; width: 100%;">
+                        <canvas id="flux-chart-dolomite"
+                            style="width: 100%; height: 550px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
+                        </canvas><!--Thẻ canvas thay cho thẻ div cũ, dùng để display thư viện và nhận dữ liệu nạp vào từ js-->
+                    </div>
                 </div>
             </div>
+            
+
             <!--Tương tự như các thẻ tiêu hao trợ dung và than nói trên-->
             <div id="tieu-hao-dien" class="panel-content chart-group" style="display: none; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;">
-                <div class="electriconsume-chart-tk3" style="flex: 1; min-width: 400px; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
-                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">TIÊU HAO ĐIỆN TK3 (DSX)</h3>
-                    <canvas id="electric-chart-tk3"
-                        style="width: 100%; height: 400px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
-                    </canvas>
+                <div id="sorter-dien" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Từ ngày: </label>
+                        <input type="date" id="start-dien" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Đến ngày: </label>
+                        <input type="date" id="end-dien" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn ca/kíp: </label>
+                        <select id="shift-dien" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Tất cả các ca</option>
+                            <option value="A">Kíp A</option>
+                            <option value="B">Kíp B</option>
+                            <option value="C">Kip C</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn dây chuyền: </label>
+                        <select id="sinterline-dien" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Dây chuyền 3 + 4</option>
+                            <option value="TK3">Dây chuyền 3</option>
+                            <option value="TK4">Dây chuyền 4</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Loại điện luỹ kế: </label>
+                        <select id="electype-dien" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Hiển thị tất cả</option>
+                            <option value="normal">Chỉ Điện thường</option>
+                            <option value="dsx">Chỉ Điện trừ DSX</option>
+                        </select>
+                    </div>
+                    <button onclick="applyUniversalFilter('dien')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
+                    <button onclick="clearUniversalFilter('dien')" style="padding: 5px 15px; cursor: pointer; background: #95a5a6; color: white; border: none; border-radius: 4px; font-weight: bold;">Xoá lọc</button>
                 </div>
-
-                <div class="electriconsume-chart-tk4" style="flex: 1; min-width: 400px; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
-                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">TIÊU HAO ĐIỆN TK4 (DSX)</h3>
-                    <canvas id="electric-chart-tk4"
-                        style="width: 100%; height: 400px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
+                <div class="electriconsume-chart-full" style="width: 100%; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">TIÊU HAO ĐIỆN</h3>
+                    <div style="position: relative; height: 550px; width: 100%;">
+                    <canvas id="electric-chart"
+                        style="width: 100%; height: 550px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
                     </canvas>
+                    </div>
                 </div>
-            </div>
             <!----------------------------------------------------------->
             <div id ="tieu-hao-quang" class="panel-content chart-group" style="display: none; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;">
                 <div class="feoreconsume-chart-tk3" style="flex: 1; min-width: 400px; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
@@ -799,7 +894,7 @@
         </section>
     </div>
 <footer>
-    <p>Copyright &copy; 2026 - Sản phẩm phát triển phục vụ riêng cho portfolio Xưởng Thiêu Kết 2 - Không phục vụ mục đích thương mại</p>
+    <p>Copyright &copy; 2026 - Sản phẩm phát triển phục vụ riêng cho Xưởng Thiêu Kết 2 - Không phục vụ mục đích thương mại</p>
     <p>Thông tin chi tiết về sản phẩm liên hệ với KTV phòng kỹ thuật nhà máy Thiêu kết - Vê Viên</p>
 </footer>
 
@@ -809,8 +904,8 @@
     </div>
 <script src="js/api/api_config.js?v=1.0"></script>
 <script src="js/api/api_loaded.js?v=1.1"></script>
-<script src="js/components/chart_core.js?v=1.2"></script>
-<script src="js/components/chart_cook.js?v=1.1"></script>
+<script src="js/components/chart_core.js?v=1.2.1"></script>
+<script src="js/components/chart_cook.js?v=1.1.1"></script>
 <script src="js/components/sidebar.js?v=2"></script>
 <script src="js/main/main.js?v=2"></script>
 </body>
