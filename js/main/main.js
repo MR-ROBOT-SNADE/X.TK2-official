@@ -76,7 +76,7 @@ document.addEventListener("DOMContentLoaded", () => {
         loaderDiv.className = 'sidebar-local-loader';
         loaderDiv.innerHTML = `
             <div class="modern-spinner"></div>
-            <div class="loader-text">ĐANG PHÂN TÍCH DỮ LIỆU...</div>
+            <div class="loader-text">ĐANG TẢI DỮ LIỆU...</div>
         `;
         container.appendChild(loaderDiv);
         return loaderDiv;
