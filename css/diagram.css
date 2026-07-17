@@ -1,0 +1,25 @@
+.sintering-diagram-wrapper {
+    /* Chiều cao TỰ ĐỘNG theo tỉ lệ canvas — aspect-ratio PHẢI KHỚP với STAGE
+       (1746 x 656 trong pixiStage.jsx). Đổi STAGE thì sửa số này cho khớp,
+       nếu không canvas sẽ méo hoặc dư lề. */
+    width: 100%;
+    margin: 0 auto;
+    aspect-ratio: 1746 / 656;
+
+    position: relative;
+    z-index: 10;
+
+    /* Đã bỏ hẳn nền xám + viền để không lộ "phông mờ" khi nội dung chưa phủ kín. */
+    background-color: transparent;
+
+    overflow: hidden;
+    overscroll-behavior: none;
+    touch-action: none;
+}
+
+/* Canvas Pixi lấp đầy trọn khung wrapper ở mọi kích thước màn hình */
+.sintering-diagram-wrapper canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+}

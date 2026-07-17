@@ -17,15 +17,15 @@ document.addEventListener("DOMContentLoaded", () => {
         if (targetSection) {
             targetSection.style.display = 'block';
             if (typeof updateSidebar === 'function') {
-                updateSidebar(currentHash);
+                updateSidebarVisibility(currentHash);
             }
         }
     }
     initPage();
     
-    allSections.forEach(sec => sec.style.display = 'none');
+    /*  allSections.forEach(sec => sec.style.display = 'none');
     const homeSection = document.getElementById('trang-chu');
-    if(homeSection) homeSection.style.display = 'block';
+    if(homeSection) homeSection.style.display = 'block'; */
 
     // ===== LUỒNG 1: XỬ LÝ THANH ĐIỀU HƯỚNG TRÊN CÙNG (NAVBAR) =====
     allNavLinks.forEach(link => {

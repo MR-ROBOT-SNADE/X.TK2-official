@@ -121,6 +121,9 @@
     transition: 0.4s ease-in-out;
     overflow-y: auto;
     box-shadow: 4px 0 10px rgba(0,0,0,0.2);
+
+    will-change: transform;
+    transform: translateZ(0);
 }
 
 .side-nav-drawer.open {

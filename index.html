@@ -16,18 +16,13 @@
     <!--Quy định script vẽ biểu đồ nằm ở script nào trong .js-->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
-    <!--Khu vực react quản lý để tạo sơ đồ công nghệ động-->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <link src="stylesheet" href="https://unpkg.com/reactflow@11.11.3/dist/style.css"/>
-    <script src="https://unpkg.com/reactflow@11.11.3/dist/umd/index.js"></script>
     <!--Quy định file đầu vào quy định định dạng style của trang web-->
     <link rel="icon" href="images/logo-hoa-phat-3.jpg">
     <link rel="stylesheet" href="css/base.css?v=1.3">
     <link rel="stylesheet" href="css/components.css?v=1.4">
     <link rel="stylesheet" href="css/layout.css?v=1.4">
     <link rel="stylesheet" href="css/navigation.css?v=1.0">
+    <link rel="stylesheet" href="css/diagram.css?v=1.0">
 </head>
 
 <!---->
@@ -208,7 +203,9 @@
             </div>
             <!--Phần nội dung tách biệt với phần title-->
             <div class="panel-content">
-                <div id="react-sodo-root"></div>
+                <div id="react-sodo-boot" class="sintering-diagram-wrapper">
+
+                </div>
             </div>
         </section>
 
@@ -1341,6 +1338,6 @@
 <script src="js/components/chart_cook.js?v=1.1.2"></script>
 <script src="js/components/sidebar.js?v=2"></script>
 <script src="js/main/main.js?v=2"></script>
-<script src="js/sections/FlowDiagram.jsx"></script>
+<script type="module" src="js/components/SinteringDiagram/DiagramApp.jsx"></script>
 </body>
 </html>
