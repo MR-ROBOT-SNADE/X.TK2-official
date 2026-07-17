@@ -1,0 +1,26 @@
+#   1. Dependencies
+#   Dont ever track this directory, create by npm install
+
+#   2. Vite's build folder
+#   Create when bash npm run
+dist/
+dist-ssr/
+build/
+
+#   3. Cloudflare's Cached
+#   wrangler and account do not to be shared
+.wrangler/
+
+#   4. Env variables
+#   API key, 
+.env
+.env.local
+functions/
+.env.development.local
+.env.test.local
+.env.production.local
+
+#   5. Editor environment/ OS
+.vscode/
+.DS_Store
+Thumbs.db
