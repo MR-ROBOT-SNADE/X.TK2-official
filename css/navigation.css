@@ -11,7 +11,13 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 5%;
+
+    /* CHIỀU CAO CHỐT CỨNG 40px = ĐÚNG BẰNG .nav-bar{top:40px} phía dưới.
+       Trước đây chỉ đặt padding nên thanh cao ~36px, chừa lại KHE HỞ ~4px giữa
+       hai thanh cố định; cuộn trang là thấy sơ đồ chạy lấp ló qua khe đó.
+       Chốt cứng 40px thì hai thanh khít nhau tuyệt đối, không còn khe. */
+    height: 40px;
+    padding: 0 5%;
     font-size: 13px;
     font-weight: bold;
     letter-spacing: 0.5px;
@@ -30,9 +36,10 @@
 /* ------------------------------------------------------------------------------------ */
 
 .nav-bar {
-    background-color: rgba(0, 51, 161, 0.85);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    /* NỀN ĐỤC HOÀN TOÀN. Trước đây nền là rgba(...,0.85) + backdrop-filter blur
+       nên toàn bộ sơ đồ cuộn phía dưới HIỆN MỜ XUYÊN QUA thanh menu. Đổi sang
+       màu đặc và bỏ blur -> phần trên luôn sạch, không lòi nội dung nào ra. */
+    background-color: var(--primary-blue);
     display: flex;
     align-items: center;
     padding: 0 5%;

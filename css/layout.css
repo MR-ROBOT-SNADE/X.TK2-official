@@ -55,7 +55,10 @@
 
 .section-header {
     position: sticky;
-    top: 85px;
+    /* 85px -> 100px = ĐÚNG chiều cao 2 thanh cố định (40px top-bar + 60px
+       nav-bar). Để 85px thì lúc cuộn, tiêu đề mục CHUI VÀO GẦM thanh menu 15px
+       và ló ra ở mép trên. */
+    top: 100px;
     background-color: inherit;
     z-index: 10;
     padding: 20px 0 10px 0;

@@ -1,20 +1,100 @@
+/* =============================================================================
+ * SƠ ĐỒ CÔNG NGHỆ — khung hiển thị canvas Pixi
+ * Nguyên tắc: canvas LẤP KÍN bề ngang khung trang, không chừa dải trắng 2 bên.
+ * ===========================================================================*/
+
+/* --- Riêng mục sơ đồ: TIÊU ĐỀ KHÔNG DÍNH, VÀ MỤC TỰ CHỪA CHỖ CHO 2 THANH CỐ ĐỊNH.
+       Trước đây tiêu đề để position:sticky (kế thừa layout.css). Sticky có tác
+       dụng phụ tiện lợi là tự "nhảy" xuống dưới 2 thanh cố định, nên không ai
+       nhận ra rằng trang KHÔNG hề chừa chỗ cho 2 thanh đó. Cái giá phải trả:
+       tiêu đề là dải TRẮNG ĐỤC cao ~70px, z-index 10, luôn nổi trên khung sơ đồ
+       (z-index 0) -> che mất MÉP TRÊN sơ đồ, đúng chỗ dãy silo và nhà nghiền
+       than nằm (canvas y 18..96, chỉ chiếm 7% trên cùng).
+       Nay đổi về static thì phải TỰ CHỪA 100px, không thì tiêu đề chui vào gầm
+       thanh menu, chỉ còn thấy mỗi vạch vàng.
+       Đồng thời bóp gọn tiêu đề lại để nhường chiều cao cho sơ đồ. --- */
+#so-do-cong-nghe {
+    padding-top: 104px;      /* 40px top-bar + 60px nav-bar + 4px thoáng */
+    padding-bottom: 18px;    /* vừa đủ thở, không để dải trắng thừa trước chân trang */
+
+    /* Bỏ lề phải 5% mà .panel-section (layout.css) áp cho mọi mục, để khung sơ
+       đồ áp SÁT BIÊN PHẢI cửa sổ. Lề trái giữ nguyên 5% cho tiêu đề mục thẳng
+       hàng với các mục khác.
+       Muốn chừa một chút cho thoáng thì đổi 0 thành ví dụ 16px. */
+    padding-right: 0;
+}
+
+#so-do-cong-nghe .section-header {
+    position: static;
+    padding: 0 0 6px;
+    margin-bottom: 10px;
+}
+
+#so-do-cong-nghe .section-header h2 {
+    font-size: 22px;
+    margin-bottom: 8px;
+}
+
+
 .sintering-diagram-wrapper {
-    /* Chiều cao TỰ ĐỘNG theo tỉ lệ canvas — aspect-ratio PHẢI KHỚP với STAGE
-       (1746 x 656 trong pixiStage.jsx). Đổi STAGE thì sửa số này cho khớp,
-       nếu không canvas sẽ méo hoặc dư lề. */
-    width: 100%;
-    margin: 0 auto;
-    aspect-ratio: 1746 / 656;
+
+    /* --- CỠ KHUNG: ƯU TIÊN LỌT TRỌN MÀN HÌNH, KHÔNG PHẢI LẤP KÍN BỀ NGANG ---
+       Trước đây để width:100% nên bề cao suy ra theo tỉ lệ LUÔN vượt quá phần
+       màn hình còn trống (ví dụ màn 22" 1920x1080: sơ đồ cao 1064px trong khi
+       chỗ trống chỉ 890px). Người dùng buộc phải cuộn, mà cuộn thì mép trên sơ
+       đồ chui vào gầm 2 thanh cố định -> mất dải silo + nhà nghiền than.
+       Mỗi màn hình lại vượt một kiểu nên chỗ mất cũng khác nhau — đúng hiện
+       tượng "laptop 15.6 inch thì thấy, màn 22 inch thì mất".
+
+       Cách tính mới: lấy bề rộng LỚN NHẤT mà TRỌN chiều cao sơ đồ vẫn lọt trong
+       phần màn hình còn trống. Không phải cuộn nữa thì không gì che được.
+         --sd-chrome : chiều cao bị chiếm mất = 104 (chừa 2 thanh cố định)
+                       + 54 (tiêu đề mục đã bóp gọn) + 14 (lề dưới) = 172px.
+                       MUỐN SƠ ĐỒ TO HƠN NỮA thì giảm số này, đổi lại sẽ phải
+                       cuộn một chút và mép trên sơ đồ có thể chui vào gầm thanh
+                       menu — đúng lỗi cũ. Cần to hẳn thì bấm nút phóng to toàn
+                       màn hình ở góc sơ đồ, vừa to vừa không mất gì.
+         --sd-min    : sàn, màn hình quá thấp thì thôi chấp nhận cuộn còn hơn
+                       để sơ đồ bé không đọc nổi. */
+    width: var(--sd-w);
+    max-width: 100%;
+    aspect-ratio: var(--stage-w) / var(--stage-h);
+
+    /* Nằm trong .sintering-diagram-layout (flex): không nở ra, nhưng CHO PHÉP co
+       lại nếu khung cha hẹp (co lại thì aspect-ratio vẫn giữ đúng tỉ lệ).
+       align-self:flex-start là BẮT BUỘC — xem lời giải thích ở .sintering-diagram-layout. */
+    flex: 0 1 auto;
+    align-self: flex-start;
+    margin-inline: 0;
 
     position: relative;
-    z-index: 10;
 
-    /* Đã bỏ hẳn nền xám + viền để không lộ "phông mờ" khi nội dung chưa phủ kín. */
-    background-color: transparent;
+    /* BẮT BUỘC nhỏ hơn .section-header (z-index 10 trong layout.css). Tiêu đề là
+       thanh sticky, nếu wrapper để >= 10 thì canvas (đứng sau trong DOM) sẽ vẽ
+       đè lên chữ tiêu đề khi cuộn. */
+    z-index: 0;
 
+    /* Khung "thẻ" mảnh cho ra dáng bản vẽ kỹ thuật. */
+    background: linear-gradient(180deg, #fff 0%, #fbfcfe 100%);
+    border: 1px solid var(--border-color, #ecf0f1);
+
+    /* Áp sát mép phải nên bỏ viền + bo góc bên đó cho liền mạch với mép cửa sổ;
+       ba cạnh còn lại vẫn giữ dáng "thẻ" bản vẽ. */
+    border-right: 0;
+    border-radius: 10px 0 0 10px;
+    box-shadow: 0 1px 2px #0f172a0a, 0 8px 24px -12px #0f172a1f;
+
+    /* overflow:hidden chỉ để bo góc cắt gọn canvas. */
     overflow: hidden;
-    overscroll-behavior: none;
-    touch-action: none;
+
+    /* PHẢI là 'auto' — KHÔNG được để 'none'.
+       overflow:hidden biến khung này thành một "scroll container"; nếu đặt
+       overscroll-behavior:none thì trình duyệt CHẶN việc chuyền cú lăn chuột
+       lên trang cha => rê chuột vào sơ đồ là không cuộn trang được nữa. */
+    overscroll-behavior: auto;
+
+    /* Cho phép mọi cử chỉ chạm mặc định (vuốt để cuộn trang trên di động). */
+    touch-action: auto;
 }
 
 /* Canvas Pixi lấp đầy trọn khung wrapper ở mọi kích thước màn hình */
@@ -22,4 +102,701 @@
     display: block;
     width: 100% !important;
     height: 100% !important;
+
+    /* Pixi TỰ ĐẶT INLINE `touch-action: none` lên thẻ canvas khi bật hệ sự kiện
+       -> trên di động đặt ngón tay vào sơ đồ là không vuốt cuộn được.
+       Chỉ !important mới thắng được style inline đó. */
+    touch-action: auto !important;
+
+    /* ĐÃ BẬT TƯƠNG TÁC (rê chuột vào hạng mục -> hiện bảng thông tin).
+       Trước đây để 'none' cho mọi sự kiện đi thẳng xuống trang; nay canvas phải
+       nhận được pointerover/pointertap thì mới bắt được hạng mục.
+       Cuộn trang KHÔNG bị ảnh hưởng: Pixi không bắt sự kiện 'wheel', còn vuốt
+       chạm đã được touch-action:auto ở trên trả lại cho trình duyệt. */
+    pointer-events: auto;
+}
+
+/* --- Màn hình rất rộng: chặn trần để sơ đồ không phình quá khổ. --- */
+@media (min-width: 2200px) {
+    .sintering-diagram-wrapper {
+        max-width: 2000px;
+    }
+}
+
+/* --- Máy tính bảng / điện thoại: giữ bề rộng tối thiểu đọc được, cho CUỘN NGANG. --- */
+@media (max-width: 900px) {
+    .panel-content:has(.sintering-diagram-wrapper) {
+        overflow-x: auto;
+        /* chỉ chặn chuyền theo TRỤC X; trục Y vẫn 'auto' để vuốt dọc vẫn cuộn trang. */
+        overscroll-behavior-x: contain;
+        overscroll-behavior-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .sintering-diagram-wrapper {
+        width: 880px;
+        max-width: none;
+        /* Màn nhỏ thì cuộn ngang, căn TRÁI mới hợp lý (đè luật dồn phải ở trên). */
+        margin-inline: 0;
+        border-right: 1px solid var(--border-color, #ecf0f1);
+        border-radius: 10px;
+    }
+}
+
+
+/* =============================================================================
+ * BẢNG THÔNG TIN HẠNG MỤC (pop-up khi rê chuột vào thiết bị trên sơ đồ)
+ * Bảng là HTML thường nằm CHỒNG lên canvas, neo theo khung .sintering-diagram-host
+ * (chính là thẻ bọc canvas do pixiStage.jsx dựng ra, đã đặt position:relative).
+ * ===========================================================================*/
+.sintering-diagram-host {
+    position: relative;
+}
+
+.sd-pop {
+    position: absolute;
+    z-index: 30;
+    width: 340px;
+    max-width: calc(100% - 20px);
+
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+
+    background: #fff;
+    border: 1px solid #dfe6ee;
+    border-top: 3px solid var(--warning-yellow, #f39c12);
+    border-radius: 10px;
+    box-shadow: 0 18px 40px -12px rgba(15, 23, 42, .35), 0 2px 6px rgba(15, 23, 42, .08);
+
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-main, #2c3e50);
+
+    /* Bảng PHẢI nhận chuột (để bấm nút play video) dù nằm trên canvas. */
+    pointer-events: auto;
+    animation: sdPopIn .16s ease-out;
+}
+
+.sd-pop.is-pinned {
+    border-top-color: var(--primary-blue, #0033a1);
+    box-shadow: 0 18px 40px -12px rgba(0, 51, 161, .4), 0 0 0 2px rgba(0, 51, 161, .12);
+}
+
+@keyframes sdPopIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: none; }
+}
+
+/* ---- Đầu bảng ---- */
+.sd-pop__head {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 10px 8px 12px;
+    border-bottom: 1px solid #eef2f6;
+    background: linear-gradient(180deg, #fbfcfe, #fff);
+}
+
+.sd-pop__titles { flex: 1; min-width: 0; }
+
+.sd-pop__group {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .6px;
+    text-transform: uppercase;
+    color: var(--warning-yellow, #f39c12);
+}
+
+.sd-pop__name {
+    margin: 1px 0 0;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--primary-blue, #0033a1);
+}
+
+.sd-pop__line {
+    display: inline-block;
+    margin-top: 4px;
+    padding: 1px 7px;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: #4a5b6d;
+    background: #eef2f6;
+    border-radius: 20px;
+}
+
+.sd-pop__close {
+    flex: 0 0 auto;
+    width: 24px;
+    height: 24px;
+    line-height: 1;
+    font-size: 19px;
+    color: #94a3b3;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color .15s ease, color .15s ease;
+}
+
+.sd-pop__close:hover { background: #fdecea; color: var(--danger-red, #e74c3c); }
+
+/* ---- Thân bảng (cuộn được nếu nội dung dài) ---- */
+.sd-pop__body {
+    padding: 10px 12px 12px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    max-height: 62vh;
+}
+
+/* ---- Video ---- */
+.sd-pop__video {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    background: #0f172a;
+    border-radius: 7px;
+    overflow: hidden;
+}
+
+.sd-pop__video video,
+.sd-pop__video iframe {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    object-fit: cover;
+}
+
+/* ---- Ô "chưa có tài nguyên" ---- */
+.sd-pop__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    height: 100%;
+    padding: 10px;
+    text-align: center;
+    color: #8fa0b3;
+    background: repeating-linear-gradient(45deg, #f6f8fa, #f6f8fa 9px, #eef2f6 9px, #eef2f6 18px);
+    border: 1px dashed #cfd9e3;
+    border-radius: 7px;
+    font-size: 12px;
+}
+
+.sd-pop__empty--thin {
+    height: auto;
+    margin-top: 8px;
+    padding: 9px 10px;
+}
+
+.sd-pop__empty-ico { font-size: 20px; opacity: .55; }
+
+.sd-pop__empty code {
+    font-size: 10.5px;
+    color: #7c8ea1;
+    word-break: break-all;
+}
+
+/* ---- Dải ảnh ---- */
+.sd-pop__gallery {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.sd-pop__thumb {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 62px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid #e6ecf2;
+    cursor: zoom-in;
+    transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.sd-pop__thumb:hover {
+    transform: scale(1.06);
+    box-shadow: 0 6px 14px rgba(15, 23, 42, .18);
+}
+
+/* ---- Mô tả ---- */
+.sd-pop__desc {
+    margin: 10px 0 0;
+    font-size: 12.5px;
+    color: #46586b;
+}
+
+/* ---- Bảng thông số ---- */
+.sd-pop__specs { margin-top: 10px; }
+
+.sd-pop__specs-title {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .6px;
+    text-transform: uppercase;
+    color: var(--text-muted, #7f8c8d);
+    margin-bottom: 4px;
+}
+
+.sd-pop__specs table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+}
+
+.sd-pop__specs th,
+.sd-pop__specs td {
+    padding: 5px 8px;
+    text-align: left;
+    border-bottom: 1px solid #eef2f6;
+    vertical-align: top;
+}
+
+.sd-pop__specs th {
+    width: 52%;
+    font-weight: 500;
+    color: #64748b;
+}
+
+.sd-pop__specs td { font-weight: 700; color: var(--text-main, #2c3e50); }
+
+.sd-pop__specs tr:last-child th,
+.sd-pop__specs tr:last-child td { border-bottom: none; }
+
+/* ---- Chân bảng ---- */
+.sd-pop__foot {
+    padding: 6px 12px 8px;
+    border-top: 1px solid #eef2f6;
+    background: #fbfcfe;
+    font-size: 10.5px;
+    color: #94a3b3;
+}
+
+/* ---- Màn hình nhỏ: bảng hẹp lại cho vừa khung sơ đồ ---- */
+@media (max-width: 900px) {
+    .sd-pop { width: 280px; font-size: 12px; }
+    .sd-pop__body { max-height: 54vh; }
+}
+
+
+/* =============================================================================
+ * PHÓNG TO TOÀN MÀN HÌNH
+ * -----------------------------------------------------------------------------
+ * Ở chế độ thường, sơ đồ bị chặn bởi chiều cao màn hình còn trống: phải để trọn
+ * sơ đồ lọt trong đó thì mới không bị 2 thanh cố định che mất mép trên. Trên màn
+ * 1920x1080 con số đó chỉ khoảng 1290px bề ngang.
+ * Bấm nút phóng to thì không còn thanh nào, sơ đồ dùng TRỌN màn hình -> rộng
+ * ~1754px trên cùng màn đó (hơn 36%), mà vẫn thấy đủ mọi hạng mục.
+ * ===========================================================================*/
+/* Cụm nút điều khiển ở góc phải trên sơ đồ: TẠM DỪNG và PHÓNG TO */
+.sd-tools {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 20;
+    display: flex;
+    gap: 6px;
+}
+
+.sd-btn,
+.sd-fullscreen-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 11px;
+
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--primary-blue, #0033a1);
+    background: rgba(255, 255, 255, .92);
+    border: 1px solid #dfe6ee;
+    border-radius: 7px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, .12);
+    cursor: pointer;
+    opacity: .55;
+    transition: opacity .18s ease, background-color .18s ease, box-shadow .18s ease;
+}
+
+.sintering-diagram-wrapper:hover .sd-btn,
+.sintering-diagram-wrapper:hover .sd-fullscreen-btn { opacity: 1; }
+
+.sd-btn:hover,
+.sd-fullscreen-btn:hover {
+    background: #fff;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, .2);
+}
+
+.sd-btn__ico,
+.sd-fullscreen-btn__ico { font-size: 14px; line-height: 1; }
+
+/* --- Khi đang ở chế độ toàn màn hình --- */
+.sintering-diagram-wrapper:fullscreen {
+    width: 100vw;
+    height: 100vh;
+    max-width: none;
+    aspect-ratio: auto;         /* bỏ tỉ lệ cố định, để thẻ con lo tỉ lệ */
+    border: 0;
+    border-radius: 0;
+    background: #fff;
+    margin-inline: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Thẻ bọc canvas giữ ĐÚNG tỉ lệ sơ đồ và lấp tối đa màn hình.
+   Cần !important vì pixiStage.jsx đặt width/height 100% ngay trên thẻ (style
+   inline luôn thắng CSS thường). */
+.sintering-diagram-wrapper:fullscreen .sintering-diagram-host {
+    width: min(100vw, calc(100vh * var(--stage-w) / var(--stage-h))) !important;
+    height: min(100vh, calc(100vw * var(--stage-h) / var(--stage-w))) !important;
+}
+
+
+/* =============================================================================
+ * BỐ CỤC 2 CỘT: BẢNG DANH MỤC  |  SƠ ĐỒ
+ * -----------------------------------------------------------------------------
+ * Sơ đồ giữ nguyên bề rộng đã tính (bị chặn bởi chiều cao màn hình), bảng danh
+ * mục ăn hết phần trống còn lại bên trái. justify-content:flex-end đẩy cả cụm
+ * áp sát mép phải, nên nếu bảng chạm trần max-width thì chỗ thừa dồn sang trái.
+ *
+ * ĐỔI BÊN: muốn bảng nằm bên PHẢI và sơ đồ bên TRÁI thì đổi
+ *      flex-direction: row;        ->  row-reverse
+ *      justify-content: flex-end;  ->  flex-start
+ * và trong diagram.css đổi #so-do-cong-nghe { padding-right: 0 } thành
+ * padding-left: 0.
+ * ===========================================================================*/
+.sintering-diagram-layout {
+    /* --- Tỉ lệ khung: PHẢI KHỚP STAGE trong pixiStage.jsx (2220 x 1367).
+           Đổi STAGE thì chỉ cần sửa 2 số dưới đây. --- */
+    --stage-w: 2220;
+    --stage-h: 1367;
+
+    /* Chiều cao bị chiếm mất = 104 (chừa 2 thanh cố định) + 54 (tiêu đề mục)
+       + 14 (lề dưới). Giảm số này thì sơ đồ to ra nhưng phải cuộn. */
+    --sd-chrome: 172px;
+
+    /* Bề rộng lớn nhất mà TRỌN chiều cao sơ đồ vẫn lọt trong màn hình. */
+    --sd-fit: calc((100vh - var(--sd-chrome)) * var(--stage-w) / var(--stage-h));
+
+    /* Sàn: dưới mức này thì thôi chấp nhận cuộn còn hơn để sơ đồ bé không đọc
+       nổi. Để 900px thì màn 15.6" (cao ~660-690px khả dụng) bị sàn chặn -> sơ đồ
+       cao hơn màn hình -> phải cuộn -> mép trên lại chui vào gầm thanh menu.
+       Hạ xuống 720px thì gần như mọi màn đều lọt trọn; cần to thì đã có nút
+       phóng to toàn màn hình. */
+    --sd-min: 720px;
+
+    /* --sd-w / --sd-h KHÔNG được chứa % : chúng dùng cho CẢ bề rộng (khung sơ
+       đồ) lẫn chiều cao (bảng danh mục), mà % trong `height` lại quy chiếu theo
+       chiều cao thẻ cha -> sai hoàn toàn. Việc chặn theo bề ngang khung cha đã
+       có `max-width:100%` trên khung sơ đồ lo. */
+    --sd-w: max(var(--sd-min), var(--sd-fit));
+    --sd-h: calc(var(--sd-w) * var(--stage-h) / var(--stage-w));
+
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+
+    /* PHẢI là flex-start, TUYỆT ĐỐI KHÔNG để `stretch` (mặc định của flex).
+       Với stretch, hai cột bị kéo bằng chiều cao cột cao nhất. Bảng danh mục 24
+       dòng cao ~1140px nên nó kéo khung sơ đồ giãn theo -> chiều cao trở thành
+       số cố định, aspect-ratio bị bỏ qua, canvas (height:100%) bị kéo dài ra ->
+       SƠ ĐỒ MÉO. Đo trên màn 22" thấy vành làm mát vòng 159x187 thay vì tròn,
+       tức giãn dọc 17,6%. */
+    align-items: flex-start;
+
+    gap: 16px;
+    width: 100%;
+}
+
+.sd-side {
+    flex: 1 1 0;
+    min-width: 260px;
+    max-width: 620px;
+
+    /* Cao ĐÚNG BẰNG khung sơ đồ bên cạnh -> hai cột thẳng hàng trên dưới, và
+       danh mục 24 dòng tự cuộn BÊN TRONG thay vì kéo dài cả trang. */
+    height: var(--sd-h);
+
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;              /* cho phép phần danh mục co lại và tự cuộn */
+}
+
+/* --- Thẻ chung của 2 khối trong bảng --- */
+.sd-card {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 12px 14px 12px;
+
+    background: linear-gradient(180deg, #fff 0%, #fbfcfe 100%);
+    border: 1px solid var(--border-color, #ecf0f1);
+    border-top: 3px solid var(--warning-yellow, #f39c12);
+    border-radius: 10px;
+    box-shadow: 0 1px 2px #0f172a0a, 0 8px 24px -12px #0f172a1f;
+}
+
+/* Khối danh mục ăn hết chiều cao còn lại rồi tự cuộn bên trong. */
+.sd-card--grow { flex: 1 1 auto; }
+
+/* Khối KHÔNG co giãn (khung mô tả luồng) phải chấp nhận bị bó lại, nếu không
+   nội dung dài sẽ đẩy cột trái TRÀN xuống dưới đáy sơ đồ. Cho nó tối đa 40%
+   chiều cao cột rồi tự cuộn bên trong. */
+.sd-side > .sd-card:not(.sd-card--grow) {
+    flex: 0 1 auto;
+    min-height: 0;
+    max-height: 40%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.sd-card__title {
+    margin: 0 0 10px;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: .3px;
+    text-transform: uppercase;
+    color: var(--primary-blue, #0033a1);
+}
+
+.sd-card__sub {
+    display: block;
+    margin-top: 3px;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--text-muted, #7f8c8d);
+}
+
+/* --- Khung chờ soạn nội dung --- */
+.sd-card__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    min-height: 70px;
+    padding: 12px;
+    text-align: center;
+
+    color: #8fa0b3;
+    font-size: 12.5px;
+    background: repeating-linear-gradient(45deg, #f6f8fa, #f6f8fa 9px, #eef2f6 9px, #eef2f6 18px);
+    border: 1px dashed #cfd9e3;
+    border-radius: 8px;
+}
+
+.sd-card__empty code { font-size: 10.5px; color: #7c8ea1; word-break: break-all; }
+
+/* --- Nội dung mô tả luồng công nghệ --- */
+.sd-flow { font-size: 13px; line-height: 1.6; color: #46586b; }
+.sd-flow__lead { margin: 0 0 8px; font-weight: 700; color: var(--text-main, #2c3e50); }
+.sd-flow__p { margin: 0 0 8px; }
+.sd-flow__ul { margin: 0; padding-left: 18px; }
+.sd-flow__ul li { margin-bottom: 4px; }
+
+/* --- Danh mục hạng mục --- */
+.sd-items {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: none;
+}
+
+.sd-items__row {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 6px 8px;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: background-color .14s ease, box-shadow .14s ease;
+}
+
+.sd-items__row:hover,
+.sd-items__row.is-active {
+    background: #fff7e8;
+    box-shadow: inset 0 0 0 1px var(--warning-yellow, #f39c12);
+}
+
+.sd-items__no {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    background: var(--primary-blue, #0033a1);
+    border-radius: 6px;
+}
+
+.sd-items__row:hover .sd-items__no,
+.sd-items__row.is-active .sd-items__no { background: var(--warning-yellow, #f39c12); }
+
+.sd-items__body { flex: 1 1 auto; min-width: 0; }
+
+.sd-items__name {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--text-main, #2c3e50);
+}
+
+.sd-items__meta {
+    display: block;
+    margin-top: 1px;
+    font-size: 10.5px;
+    color: var(--text-muted, #7f8c8d);
+}
+
+.sd-items__tag {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 0 6px;
+    font-size: 9.5px;
+    font-weight: 700;
+    line-height: 15px;
+    color: #4a5b6d;
+    background: #eef2f6;
+    border-radius: 20px;
+}
+
+.sd-items__tag--branch { color: #8a5a00; background: #fdf0d5; }
+
+.sd-items__hint {
+    margin: 8px 0 0;
+    padding-top: 8px;
+    border-top: 1px solid #eef2f6;
+    font-size: 10.5px;
+    color: #94a3b3;
+}
+
+/* --- Toàn màn hình: giấu bảng, sơ đồ chiếm trọn --- */
+.sintering-diagram-wrapper:fullscreen ~ .sd-side,
+.sintering-diagram-layout:has(.sintering-diagram-wrapper:fullscreen) .sd-side { display: none; }
+
+/* --- Màn hẹp: xếp dọc, sơ đồ TRÊN, bảng danh mục XUỐNG DƯỚI --- */
+@media (max-width: 1200px) {
+    .sintering-diagram-layout {
+        flex-direction: column-reverse;   /* sơ đồ đứng trước vì nằm sau trong DOM */
+        gap: 14px;
+    }
+
+    .sd-side {
+        max-width: none;
+        min-width: 0;
+        height: auto;           /* xếp dọc thì không ghim theo chiều cao sơ đồ nữa */
+    }
+
+    .sd-items { max-height: 340px; }
+}
+
+
+/* =============================================================================
+ * KHUNG VIDEO MÔ PHỎNG 3D QUY TRÌNH (nằm dưới mục Luồng công nghệ)
+ * ===========================================================================*/
+.sd-vid {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    background: #0f172a;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.sd-vid video {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    object-fit: cover;
+}
+
+.sd-vid__ico { font-size: 20px; opacity: .55; }
+
+
+/* --- Khung CHỜ NẠP VIDEO: dựng cho ra dáng một trình phát thật --- */
+.sd-vid__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    height: 100%;
+    color: #94a3b3;
+    background:
+        radial-gradient(ellipse at center, #1e293b 0%, #0f172a 70%);
+}
+
+.sd-vid__play {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    padding-left: 5px;
+
+    font-size: 24px;
+    color: #cbd5e1;
+    background: rgba(255, 255, 255, .08);
+    border: 2px solid rgba(255, 255, 255, .28);
+    border-radius: 50%;
+}
+
+.sd-vid__msg { font-size: 14px; font-weight: 600; color: #cbd5e1; }
+
+.sd-vid__path {
+    padding: 3px 9px;
+    font-size: 11.5px;
+    color: #94a3b3;
+    background: rgba(255, 255, 255, .06);
+    border-radius: 5px;
+    word-break: break-all;
+}
+
+
+/* =============================================================================
+ * KHUNG NGOÀI CÙNG: hàng trên là [bảng danh mục | sơ đồ], hàng dưới là dải
+ * MÔ PHỎNG 3D chạy hết bề ngang.
+ * ===========================================================================*/
+.sd-root {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+}
+
+.sd-root > .sd-card:not(.sd-player) { width: 100%; }   /* mặc định: hết bề ngang */
+
+/* Khung phát video ở dải dưới: rộng ĐÚNG 1/3 BỀ NGANG MÀN HÌNH, canh giữa.
+   Trước đây kéo hết bề ngang nên 16:9 cao gần 1000px, chiếm cả màn hình. */
+.sd-root > .sd-player {
+    /* TRẢI RỘNG HẾT BỀ NGANG khung trang — mép phải thẳng hàng với sơ đồ phía
+       trên (mục này đã bỏ lề phải), mép trái ăn theo lề 5% chung của trang.
+       Trên màn 1920: 1824 x 1026px. */
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    margin-top: 26px;      /* tách khỏi sơ đồ phía trên */
+    margin-bottom: 0;      /* CẮT dải trắng thừa dưới khung */
 }
