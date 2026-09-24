@@ -3,11 +3,66 @@
 Chart.register(ChartDataLabels);
 let chartInstances = {}, isFlashing = false;
 
-setInterval(() => {
-    if (document.hidden) return;
-    isFlashing = !isFlashing;
-    Object.values(chartInstances).forEach(c => c && c.update('none'));
-}, 500);
+
+/* =============================================================================
+ * NHẤP NHÁY CẢNH BÁO VƯỢT ĐỊNH MỨC
+ * -----------------------------------------------------------------------------
+ * Bản cũ: setInterval 500 ms vẽ lại TOÀN BỘ chartInstances, kể cả 19/21 biểu đồ
+ * đang bị display:none. Bản này chỉ vẽ lại những biểu đồ vừa ĐANG MỞ vừa THỰC SỰ
+ * có cột vượt định mức — bình thường là không có cái nào, và khi đó bộ hẹn giờ
+ * không tồn tại chứ không phải "chạy rồi thoát sớm".
+ *
+ * "Khối nào đang mở" do DieuPhoi trong chart_cook.js nắm giữ (một nguồn duy
+ * nhất), nên ở đây không đọc offsetParent — đọc offsetParent trong vòng nhịp là
+ * một phép đọc bố cục, đúng thứ đang cần tránh.
+ * ===========================================================================*/
+const canhBaoVuot = new Set();   // canvasId đang có cột vượt định mức
+let idNhipNhay = null;
+
+/** Gọi sau mỗi new Chart() có định mức. cacDay: mảng các mảng giá trị (TK3, TK4). */
+function updateTickingList(canvasId, cacDay, dinhMuc) {
+    const day = Array.isArray(cacDay) && Array.isArray(cacDay[0]) ? cacDay : [cacDay];
+    const vuot = !!dinhMuc && day.some(function (m) {
+        return m && m.some(function (v, i) {
+            return v != null && dinhMuc[i] != null && Number(v) > Number(dinhMuc[i]);
+        });
+    });
+    if (vuot) canhBaoVuot.add(canvasId); else canhBaoVuot.delete(canvasId);
+    chinhNhipNhay();
+}
+
+/** Canvas cần nhấp nháy NGAY LÚC NÀY = (đang mở) ∩ (có cảnh báo). */
+function canvasCanNhay() {
+    if (document.hidden || canhBaoVuot.size === 0) return [];
+    /* Chưa có DieuPhoi (thứ tự script đổi, hoặc đang thử lẻ) -> không đoán bừa,
+       cứ nhấp nháy mọi biểu đồ có cảnh báo. An toàn hơn là im lặng bỏ sót. */
+    const dangMo = (window.DieuPhoi && window.DieuPhoi.canvasDangMo)
+        ? window.DieuPhoi.canvasDangMo() : null;
+    if (!dangMo) return Array.from(canhBaoVuot);
+    return dangMo.filter(function (id) { return canhBaoVuot.has(id); });
+}
+
+function chinhNhipNhay() {
+    const can = canvasCanNhay().length > 0;
+    if (can && !idNhipNhay) {
+        idNhipNhay = setInterval(function () {
+            const ds = canvasCanNhay();
+            if (!ds.length) { chinhNhipNhay(); return; }   // hết việc -> tự tắt
+            isFlashing = !isFlashing;
+            ds.forEach(function (id) {
+                const c = chartInstances[id];
+                if (c) c.update('none');
+            });
+        }, 500);
+    } else if (!can && idNhipNhay) {
+        clearInterval(idNhipNhay);
+        idNhipNhay = null;
+    }
+}
+window.chinhNhipNhay = chinhNhipNhay;
+
+/* Chuyển tab: dừng HẲN bộ hẹn giờ thay vì để nó chạy không mỗi 500 ms. */
+document.addEventListener('visibilitychange', chinhNhipNhay);
 
 const getCSS = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const getUI = (id) => document.getElementById(id) ? document.getElementById(id).value : "";
@@ -78,6 +133,22 @@ function getTrendFlashColor(ctx) {
 }
 /* Options chung sử dụng cho các biểu đồ cùng dạng combo clustered column + line*/
 function getCommonChartOptions(yPrimaryTitle, ySecondaryTitle = null, isSecondaryVisible = true) {
+
+    /* Tính MỘT LẦN cho mỗi mảng nhãn, thay vì mỗi nhãn mỗi khung hình. */
+    const NGUONG_HIEN_NHAN = 15;   // trên bao nhiêu ngày thì thôi hiện nhãn số
+    let nhanCu = null;
+    let ketQua = true;
+
+    function nenHienNhan(chart) {
+        const nhan = chart.data.labels || [];
+
+        if (nhan !== nhanCu) {
+            nhanCu = nhan;
+            ketQua = new Set(nhan.map(l => String(l).split(' - ')[0].trim()))
+                        .size <= NGUONG_HIEN_NHAN;
+        }
+        return ketQua;
+    }
     let scales = {
         y_primary : { type: 'linear', position: 'left', title: { display: true, text: yPrimaryTitle }, grace: '5%', min : 0.00 }
     }
@@ -95,18 +166,12 @@ function getCommonChartOptions(yPrimaryTitle, ySecondaryTitle = null, isSecondar
         plugins: {
             datalabels: {
                 display: (ctx) => {
-                    const lbls = ctx.chart.data.labels || [];
-                    const uniqueDays = new Set(lbls.map(l => String(l).split(' - ')[0].trim())).size;
+                    if (!nenHienNhan(ctx.chart)) return false;
+                    if (ctx.dataset.datalabels && ctx.dataset.datalabels.display === false) return false;
                     const datasetType = ctx.dataset.type || ctx.chart.config.type;
-
-                    const typeCondition = ctx.chart.config.type === 'bar' ? (datasetType === 'bar') : (datasetType === 'line');
-
-                    if (ctx.dataset.datalabels && ctx.dataset.datalabels.display === false) {
-                        return false;
-                    }
-                    return uniqueDays <= 15 && typeCondition;
+                    return ctx.chart.config.type === 'bar' ? datasetType === 'bar' : datasetType === 'line';
                 },
-                align: (ctx) => ctx.dataset.label.includes('TK4') ? 'bottom' : 'top', anchor: 'end', offset: 8, font: { weight: 'bold', size: 11 },
+                align: (ctx) => ctx.dataset.label.includes('TK4') ? 'bottom' : 'top', anchor: 'end', offset: 8,
                 backgroundColor: 'rgba(255, 255, 255, 0.85)', borderRadius: 3, padding: { top: 2, bottom: 2, left: 4, right: 4 },
                 font: { weight: 'bold', size: 10, family: 'Roboto'}
             },
@@ -306,6 +371,9 @@ function drawCoalConsumeChart(canvasId, labels, dataNhietriTK3, dataNhietriTK4, 
         },
         options: getCommonChartOptions('TH luỹ kế tháng', 'TH ngày')   
     });
+
+    /* Ghi nhận có cột nào vượt định mức không -> quyết định nhấp nháy. */
+    updateTickingList(canvasId, [dataNhietriTK3, dataNhietriTK4], dataTrungbinh);
 }
 /* Vẽ biểu đồ tiêu hao trợ dung, tiếp tục */
 
@@ -425,6 +493,9 @@ function drawElectricConsumeChart(canvasId, labels, dataElecTK3, dataElecTK4, da
         },
         options: getCommonChartOptions('Tiêu hao luỹ kế tháng', 'Tiêu hao ngày')
     });
+
+    /* Ghi nhận có cột nào vượt định mức không -> quyết định nhấp nháy. */
+    updateTickingList(canvasId, [dataElecTK3, dataElecTK4], dataDinhMuc);
 }
 
 function drawIronOreConsumeChart(canvasId, labels, dataOreTK3, dataOreTK4, lineFilter = 'all') {
@@ -508,6 +579,9 @@ function drawCOConsumeChart(canvasId, labels, dataCOTK3, dataCOTK4, dataDinhMuc,
         },
         options: getCommonChartOptions('Tiêu hao luỹ kế', 'Tiêu hao theo ngày')
     });
+
+    /* Ghi nhận có cột nào vượt định mức không -> quyết định nhấp nháy. */
+    updateTickingList(canvasId, [dataCOTK3, dataCOTK4], dataDinhMuc);
 }
 
 function drawReturnFinesRate(canvasId, labels, dataHoiTK3, dataHoiTK4, dataTichluyTK3, dataTichluyTK4, lineFilter = 'all') {
@@ -940,4 +1014,113 @@ function drawUniversalComboChart(canvasId, labels, config, lineFilter = 'all') {
         data: { labels: labels || [], datasets: datasets },
         options: getCommonChartOptions(config.yPrimaryTitle || 'Trục Line', config.ySecondaryTitle || 'Trục Bar')
     });
+
+    /* Ghi nhận có cột nào vượt định mức không -> quyết định nhấp nháy. */
+    updateTickingList(canvasId, [config.bar && config.bar.dataTK3, config.bar && config.bar.dataTK4],
+        config.avg && config.avg.data);
+}
+/* =============================================================================
+ * ĐỌC SỐ VÀ NGÀY TỪ BẢNG TÍNH — dùng cho dải chỉ số tổng quan trang chủ
+ * -----------------------------------------------------------------------------
+ * Vì sao không dùng lại cách cũ `Number(v.replace(',', '.'))`:
+ * cách đó chỉ đổi DẤU PHẨY ĐẦU TIÊN nên gãy với mọi định dạng có ngăn hàng nghìn
+ *      "5,854.00"   -> "5.854.00"  -> NaN
+ *      "5.930,000"  -> NaN
+ *      "313,000.00" -> NaN
+ * Bảng tính của xưởng đang xuất ra CẢ HAI kiểu (kiểu Mỹ và kiểu Việt) tuỳ ô,
+ * nên cần đọc được cả hai.
+ *
+ * Thậm chí trong CÙNG một sheet, mỗi cột một kiểu (TK4: sản lượng "5.930,000",
+ * "6236,451", "6299"; hệ số biến thiên "0,047"; cỡ hạt "97.23").
+ *
+ * QUY TẮC:
+ *   1) Có cả '.' và ',' -> dấu ĐỨNG SAU là thập phân, dấu kia là ngăn hàng nghìn.
+ *   2) Một loại dấu, xuất hiện NHIỀU lần ("1.234.567") -> ngăn hàng nghìn.
+ *   3) Một dấu duy nhất -> là THẬP PHÂN nếu không thể là ngăn hàng nghìn:
+ *        - sau dấu không đúng 3 chữ số        "85,48"    -> 85,48
+ *        - phần nguyên là 0 hoặc trống         "0,047"    -> 0,047
+ *        - phần nguyên dài hơn 3 chữ số        "6236,451" -> 6236,451
+ *          (ngăn hàng nghìn thật thì phải viết "6,236,451")
+ *   4) Còn lại mới thật sự mơ hồ ("1,500": 1,5 hay 1500?) -> theo dauThapPhan của
+ *      CỘT (xem sheetDauThapPhanCot); không có gợi ý thì coi là ngăn hàng nghìn.
+ *
+ * LỖI ĐÃ GẶP: bản cũ chỉ xét "đúng 3 chữ số sau dấu" nên đọc "6236,451" (TK4 ca A
+ * 16/09) thành 6.236.451 tấn -> luỹ kế tháng vọt lên 6,6 triệu tấn, tỉ lệ đạt
+ * 1.070%, hệ số lợi dụng TK4 43,8. Và "0,047" thành 47.
+ * ===========================================================================*/
+function sheetNumber(v, dauThapPhan) {
+    if (v === undefined || v === null) return null;
+    if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+    let t = v.toString().trim().replace(/\s/g, '');
+    if (t === '') return null;
+    t = t.replace(/[^\d.,-]/g, '');            // bỏ đơn vị, ký tự lạ
+    if (t === '' || t === '-') return null;
+
+    const cham = t.lastIndexOf('.');
+    const phay = t.lastIndexOf(',');
+    let tp = '';                               // dấu thập phân, '' = số nguyên
+
+    if (cham >= 0 && phay >= 0) {
+        tp = cham > phay ? '.' : ',';
+    } else if (cham >= 0 || phay >= 0) {
+        const dau = cham >= 0 ? '.' : ',';
+        if (sheetLaDauThapPhan(t, dau, dauThapPhan)) tp = dau;
+    }
+
+    const nghin = tp === '.' ? ',' : tp === ',' ? '.' : null;
+    if (nghin) t = t.split(nghin).join('');
+    else t = t.split('.').join('').split(',').join('');
+    if (tp) t = t.replace(tp, '.');
+
+    const n = Number(t);
+    return Number.isFinite(n) ? n : null;
+}
+
+/** Chuỗi chỉ có MỘT loại dấu `dau`: dấu đó là thập phân (true) hay ngăn hàng nghìn? */
+function sheetLaDauThapPhan(t, dau, goiY) {
+    const phan = t.replace(/^-/, '').split(dau);
+    if (phan.length > 2) return false;                     // quy tắc 2
+    const nguyen = phan[0], le = phan[1];
+    if (le.length !== 3) return true;                      // quy tắc 3
+    if (/^0*$/.test(nguyen) || nguyen.length > 3) return true;
+    if (goiY) return goiY === dau;                         // quy tắc 4
+    return false;
+}
+
+/** Dò xem một CỘT dùng dấu nào làm thập phân, dựa trên các ô KHÔNG mơ hồ trong
+ *  cột đó. Trả ',' / '.' / null (không đủ căn cứ). Dùng làm gợi ý cho sheetNumber
+ *  khi gặp ô mơ hồ kiểu "1,500". */
+function sheetDauThapPhanCot(rows, cot) {
+    if (!rows || !cot) return null;
+    const phieu = { ',': 0, '.': 0 };
+    for (let i = 0; i < rows.length; i++) {
+        const v = rows[i][cot];
+        if (v === undefined || v === null || typeof v === 'number') continue;
+        const t = v.toString().replace(/[^\d.,-]/g, '');
+        const cham = t.lastIndexOf('.'), phay = t.lastIndexOf(',');
+        if (cham < 0 && phay < 0) continue;
+        if (cham >= 0 && phay >= 0) { phieu[cham > phay ? '.' : ',']++; continue; }
+        const dau = cham >= 0 ? '.' : ',';
+        const khac = dau === '.' ? ',' : '.';
+        const phan = t.replace(/^-/, '').split(dau);
+        if (phan.length > 2) phieu[khac]++;
+        else if (sheetLaDauThapPhan(t, dau, null)) phieu[dau]++;
+    }
+    if (phieu[','] === phieu['.']) return null;
+    return phieu[','] > phieu['.'] ? ',' : '.';
+}
+
+/* Đọc ngày kiểu dd/mm/yyyy (định dạng bảng tính đang dùng). Trả {d,m,y} hoặc null. */
+function sheetDate(v) {
+    if (!v) return null;
+    const m = v.toString().trim().match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})$/);
+    if (!m) return null;
+    const d = +m[1], th = +m[2], y = +m[3];
+    if (d < 1 || d > 31 || th < 1 || th > 12) return null;
+    return { d: d, m: th, y: y };
+}
+
+/* Số ngày của một tháng (có xét năm nhuận). */
+function soNgayTrongThang(thang, nam) {
+    return new Date(nam, thang, 0).getDate();
 }

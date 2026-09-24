@@ -334,12 +334,23 @@ moduleConfigs.push({
         customTK4: { key: 'VTCTK4', sheetCol: "V (than coke)" }
     }
 });
-/* Nghe sự kiện bên api_loaded để kích hoạt load dữ liệu từ gg sheet, không thay đổi gì */
-document.addEventListener('TK3DataReady', () => { appState.isTK3Ready = true; processAllModulesData(); });
-document.addEventListener('TK4DataReady', () => { appState.isTK4Ready = true; processAllModulesData(); });
+/* Nghe sự kiện bên api_loaded để kích hoạt load dữ liệu từ gg sheet, không thay đổi gì. Cập nhật ngày 07/09/2026 để giảm tải CPU*/
+let hen = 0;
+
+function henXuLy() {
+    clearTimeout(hen);
+    hen = setTimeout(processAllModulesData, 50);
+}
+document.addEventListener('TK3DataReady', () => { appState.isTK3Ready = true; henXuLy(); });
+document.addEventListener('TK4DataReady', () => { appState.isTK4Ready = true; henXuLy(); });
 
 function processAllModulesData() {
     if (!appState.isTK3Ready || !appState.isTK4Ready) return;
+
+    /* Dải chỉ số tổng quan trang chủ — đủ cả 2 dây mới tính */
+    try { ribbonVe(); } catch (e) { console.error('[Dải chỉ số]', e); }
+    try { kpiVe(); } catch (e) { console.error('[Mục sản lượng]', e); }
+    try { veBieuDoSanLuong(); } catch (e) { console.error('[Biểu đồ sản lượng]', e); }
 
     moduleConfigs.forEach(mod => {
 
@@ -376,55 +387,117 @@ function processAllModulesData() {
     });
 
     console.info("Đã hợp nhất toàn bộ hệ thống biểu đồ vào window.AppChartData");
-    setupIntersectionObservers();
+
+    ganMotLan();          /* gắn trình nghe — chỉ chạy đúng một lần trong đời trang */
+    DieuPhoi.duLieuMoi(); /* thay cho vòng vẽ háo hức 20 biểu đồ */
+}
+
+/* =============================================================================
+ * BỘ ĐIỀU PHỐI BIỂU ĐỒ
+ * -----------------------------------------------------------------------------
+ * Thay cho BỐN cơ chế cũ cùng đi trả lời một câu hỏi "biểu đồ nào đang hiện?":
+ * vòng vẽ háo hức, IntersectionObserver, cờ gắn-một-lần, và offsetParent trong
+ * vòng nhấp nháy.
+ *
+ * Chỉ cần một nguồn duy nhất, vì showSubContent() ẩn TẤT CẢ .chart-group rồi
+ * hiện đúng MỘT khối — trạng thái đó là xác định và đồng bộ, không phải đoán.
+ *
+ * BA CỬA VÀO, và chỉ ba:
+ *   moKhoi(id)     <- main.js gọi khi người dùng mở một khối
+ *   duLieuMoi()    <- cuối processAllModulesData(), khi dữ liệu đổi
+ *   canvasDangMo() <- chart_core.js hỏi để biết nhấp nháy cái nào
+ * ===========================================================================*/
+
+/* Bảng tra DUY NHẤT. Trước đây danh sách này nằm ở 3 nơi và đã lệch nhau:
+   vòng háo hức ghi 'QTH' trong khi chartConfigs chỉ có QTHTK3/QTHTK4, nên hai
+   biểu đồ quặng trung hoà chưa từng được vòng đó vẽ. */
+const KHOI_BIEU_DO = {
+    'tieu-hao-than':              ['nhietri', 'ccd'],
+    'tieu-hao-tro-dung':          ['lime', 'dolomite'],
+    'tieu-hao-dien':              ['dien'],
+    'tieu-hao-quang':             ['feOre'],
+    'tieu-hao-khi-than':          ['CO'],
+    'ti-le-quang-hoi':            ['HLC', 'HN'],
+    'chat-luong-quang-trung-hoa': ['QTHTK3', 'QTHTK4'],
+    'chat-luong-quang-hoi':       ['CLHLC'],
+    'chat-luong-than':            ['CoHatThanNghien', 'CoHatThanCoke', 'ChatLuongThan'],
+    'chat-luong-quang-thieu-ket': ['ChemicalQTK', 'PhysicalQTK'],
+    'co-hat-quang-thieu-ket':     ['CoHatQTK'],
+    'do-kiem':                    ['DoKiemQTK'],
+    'chat-luong-voi-nung':        ['burntLime'],
+    'chat-luong-dolomite-nung':   ['burntDolomite'],
+};
+
+const DieuPhoi = {
+    khoiDangMo: null,    /* id khối .chart-group đang hiện */
+    daVe:   new Set(),   /* khối đã vẽ ít nhất một lần */
+    khoiCu: new Set(),   /* khối đã vẽ NHƯNG dữ liệu đã đổi -> cần vẽ lại */
+
+    /* Vẽ khối đang mở. Đã vẽ và dữ liệu chưa đổi thì không làm gì. */
+    veKhoiDangMo: function () {
+        const id = this.khoiDangMo;
+        if (!id || !KHOI_BIEU_DO[id]) return;
+
+        const chuaVe = !this.daVe.has(id);
+        if (!chuaVe && !this.khoiCu.has(id)) return;
+
+        KHOI_BIEU_DO[id].forEach(function (loai) {
+            /* Lần đầu -> đặt bộ lọc mặc định. Vẽ lại -> GIỮ NGUYÊN bộ lọc người
+               dùng đang chọn; dùng nhầm clearUniversalFilter ở đây sẽ giật mất
+               khoảng ngày họ vừa đặt. */
+            if (chuaVe) clearUniversalFilter(loai);
+            else        applyUniversalFilter(loai);
+        });
+
+        this.daVe.add(id);
+        this.khoiCu.delete(id);
+    },
+
+    /* Người dùng mở một khối. Gọi ĐỒNG BỘ ngay sau display:flex. */
+    moKhoi: function (idKhoi) {
+        this.khoiDangMo = KHOI_BIEU_DO[idKhoi] ? idKhoi : null;
+        this.veKhoiDangMo();
+        if (typeof chinhNhipNhay === 'function') chinhNhipNhay();
+    },
+
+    /* Dữ liệu mới về. Đánh dấu mọi khối là cũ, nhưng CHỈ vẽ lại khối đang mở;
+       khối đang ẩn chờ tới lúc được mở. Đây là chỗ mà bản sửa cũ thiếu, khiến
+       biểu đồ đóng băng ở dữ liệu bản nhớ sau lần xem đầu. */
+    duLieuMoi: function () {
+        const self = this;
+        this.daVe.forEach(function (id) { self.khoiCu.add(id); });
+        this.veKhoiDangMo();
+        if (typeof chinhNhipNhay === 'function') chinhNhipNhay();
+    },
+
+    /* chart_core.js hỏi: canvas nào đang nằm trong khối đang mở? */
+    canvasDangMo: function () {
+        if (!this.khoiDangMo || !KHOI_BIEU_DO[this.khoiDangMo]) return [];
+        return KHOI_BIEU_DO[this.khoiDangMo]
+            .map(function (t) { return chartConfigs[t] && chartConfigs[t].canvasId; })
+            .filter(Boolean);
+    },
+};
+window.DieuPhoi = DieuPhoi;
+window.KHOI_BIEU_DO = KHOI_BIEU_DO;
+
+/* Trình nghe chỉ được gắn MỘT LẦN. processAllModulesData() chạy tới 3 lần mỗi
+   khi mở trang (bản nhớ, TK3 mới, TK4 mới); gắn trong đó sẽ chồng 3 listener,
+   khiến mỗi lần đổi ngày biểu đồ vẽ lại 3 lượt. */
+let daGanMotLan = false;
+function ganMotLan() {
+    if (daGanMotLan) return;
+    daGanMotLan = true;
 
     const startCoHat = document.getElementById('start-CoHatThan');
     if (startCoHat) {
-        startCoHat.addEventListener('change', () => {
+        startCoHat.addEventListener('change', function () {
             syncShiftDropdown();
-            applyUniversalFilter('CoHatThan'); // Tự xoay biểu đồ ngay và luôn
+            applyUniversalFilter('CoHatThan');
         });
     }
-    syncShiftDropdown(); // Mồi chạy lần đầu tiên khi vừa load web xong
-    // ========================================================
-
-    ['nhietri', 'ccd', 'lime', 'dolomite', 'dien', 'feOre', 'CO', 'HLC', 'HN', 'QTH', 'CLHLC', 'CoHatThanNghien', 'CoHatThanCoke', 'ChatLuongThan', 'ChemicalQTK', 'PhysicalQTK', 
-    'CoHatQTK', 'DoKiemQTK', 'burntLime', 'burntDolomite'].forEach(type => {
-        applyUniversalFilter(type);
-    });
+    syncShiftDropdown();   /* mồi chạy lần đầu */
 }
-
-function setupIntersectionObservers() {
-    const observerTargets = [
-        { id: 'tieu-hao-than',              types: ['nhietri', 'ccd'] },
-        { id: 'tieu-hao-tro-dung',          types: ['lime','dolomite'] },
-        { id: 'tieu-hao-dien',              types: ['dien'] },
-        { id: 'tieu-hao-quang',             types: ['feOre'] },
-        { id: 'tieu-hao-khi-than',          types: ['CO'] },
-        { id: 'ti-le-quang-hoi',            types: ['HLC','HN'] },
-        { id: 'chat-luong-quang-trung-hoa', types: ['QTHTK3', 'QTHTK4'] },
-        { id: 'chat-luong-quang-hoi',       types: ['CLHLC'] },
-        { id: 'chat-luong-than',            types: ['CoHatThanNghien', 'CoHatThanCoke', 'ChatLuongThan'] },
-        { id: 'chat-luong-quang-thieu-ket', types: ['ChemicalQTK','PhysicalQTK'] },
-        { id: 'co-hat-quang-thieu-ket',     types: ['CoHatQTK'] },
-        { id: 'do-kiem',                    types: ['DoKiemQTK'] },
-        { id: 'chat-luong-voi-nung',        types: ['burntLime'] },
-        { id: 'chat-luong-dolomite-nung',   types: ['burntDolomite']}
-    ];
-    observerTargets.forEach(target => {
-        const container = document.getElementById(target.id);
-        if (!container) return;
-
-        const observer = new IntersectionObserver((entries) => {
-            if (entries[0].isIntersecting) {
-                target.types.forEach(type => clearUniversalFilter(type));
-                observer.disconnect();
-            }
-        });
-        observer.observe(container);
-    });
-}
-
 
 /* HỆ THỐNG LỌC XÀI CHUNG CHO TOÀN BỘ CÁC BIỂU ĐỒ */
 const chartConfigs = {
@@ -860,4 +933,706 @@ function syncShiftDropdown(chartType) {
     } else {
         shiftSelect.value = 'all';
     }
+}
+
+/* =============================================================================
+ * DẢI CHỈ SỐ TỔNG QUAN TRANG CHỦ — 3 ô: sản lượng, % đạt, hệ số lợi dụng
+ * -----------------------------------------------------------------------------
+ * Tất cả tính cho THÁNG HIỆN TẠI theo lịch máy: từ ngày 01 tới hôm nay, cộng
+ * dồn CẢ HAI dây chuyền TK3 + TK4. Sang tháng mới là tự nhảy, không phải sửa gì.
+ *
+ * Chạy sau khi cả TK3 và TK4 tải xong (gọi ở cuối processAllModulesData).
+ * ===========================================================================*/
+
+const RIBBON_CFG = {
+    /* --- Tên cột trong bảng tính. Khai NHIỀU tên cũng được, lấy tên đầu tiên
+           tìm thấy, nên đổi tên cột trong sheet vẫn chạy. --- */
+    cols: {
+        ngay:   ['Thời gian (Sản lượng)'],
+        ca:     ['Ca/kíp (Sản lượng)'],
+        sanLuong: ['Sản lượng (sản lượng)', 'Sản lượng'],
+        keHoach:  ['Sản lượng kế hoạch'],
+
+        /* Giờ máy KHÔNG chạy — công thức trừ CẢ HAI loại:
+             gioDung   : dừng đình trệ (sự cố, hỏng hóc)
+             gioDungKH : dừng theo kế hoạch (sửa chữa định kỳ, cắt điện…)
+           Tên cột của loại thứ hai CHƯA XÁC MINH ĐƯỢC — mấy tên dưới là phỏng
+           đoán. Mở F12 -> Console gõ  xemCotSanLuong()  để in tên cột thật rồi
+           chép vào đây. Không khớp tên nào thì phần đó tính bằng 0 và Console
+           sẽ báo rõ, chứ không âm thầm ra số sai. */
+        gioDung:   ['Thời gian dừng', 'Thời gian dừng đình trệ',
+                    'Thời gian đình trệ', 'Giờ dừng đình trệ'],
+        gioDungKH: ['Thời gian dừng kế hoạch', 'Giờ dừng kế hoạch',
+                    'Thời gian dừng KH', 'Dừng kế hoạch'],
+    },
+
+    /* --- CÔNG THỨC HỆ SỐ LỢI DỤNG — TÍNH RIÊNG TỪNG DÂY ------------------
+     *   hệ số(TK) = sản lượng của DÂY ĐÓ từ ngày 01 tới HÔM NAY (đủ 3 ca)
+     *             / [ dienTich x ( gioMoiNgay x soNgay − tổng giờ dừng ) ]
+     *
+     *   HAI VẾ CÙNG MỘT MỐC THỜI GIAN: tử số, số ngày và giờ dừng đều tính từ
+     *   ngày 01 tới hôm nay. Trước đây số ngày lấy trọn tháng còn giờ dừng chỉ
+     *   tới hôm nay nên hai vế lệch nhau, hệ số bị kéo thấp xuống.
+     *
+     *   dienTich   : 360 — diện tích của MỘT máy thiêu kết (m²)
+     *   gioMoiNgay : 24
+     *   soNgay     : 'daQua'    = số ngày từ 01 tới HÔM NAY  <-- đang dùng
+     *                'coSoLieu' = tới ngày CUỐI CÙNG CÓ SẢN LƯỢNG. Dùng khi
+     *                             sheet chưa nhập kịp ngày hôm nay, tránh việc
+     *                             cộng thêm một ngày trống làm hệ số tụt.
+     *                'caThang'  = trọn tháng (cách tính cũ, giữ lại để đối chiếu)
+     *   tranHopLe  : 1.5 — trần kỹ thuật t/m²·h, vượt là số liệu có vấn đề
+     *   sanHopLe   : 0   — bằng hoặc dưới mức này cũng coi là bất thường
+     * ------------------------------------------------------------------- */
+    heSo: {
+        dienTich: 360,
+        gioMoiNgay: 24,
+        soNgay: 'daQua',
+        tranHopLe: 1.5,
+        sanHopLe: 0,
+    },
+
+    /* Số chữ số thập phân của từng ô */
+    lamTron: { sanLuong: 0, dat: 1, heSo: 3 },
+};
+
+/** Tìm tên cột đầu tiên thực sự có trong dữ liệu. */
+function ribbonCot(rows, ten) {
+    if (!rows || !rows.length) return null;
+    const keys = Object.keys(rows[0]);
+    return ten.find(function (n) { return keys.indexOf(n) >= 0; }) || null;
+}
+
+/** In toàn bộ tên cột của một dây để đối chiếu — gõ trong Console F12.
+ *  Đừng tin tên cột đoán mò: chạy hàm này rồi chép tên THẬT vào RIBBON_CFG.cols. */
+function xemCotSanLuong(day) {
+    const rows = (String(day).toUpperCase() === 'TK4')
+        ? window.masterSheetDataTK4 : window.masterSheetDataTK3;
+    if (!rows || !rows.length) {
+        console.warn('[Dải chỉ số] Chưa có dữ liệu để xem tên cột.');
+        return [];
+    }
+    const keys = Object.keys(rows[0]);
+    console.table(keys.map(function (k, i) {
+        return { STT: i, 'Tên cột': k, 'Ví dụ dòng 1': rows[0][k] };
+    }));
+    return keys;
+}
+window.xemCotSanLuong = xemCotSanLuong;
+
+/* =============================================================================
+ * KIỂM TRA TÍNH HỢP LỆ CỦA HỆ SỐ LỢI DỤNG
+ * -----------------------------------------------------------------------------
+ * Trần kỹ thuật của máy thiêu kết là 1,5 t/m²·h. Ra cao hơn thì KHÔNG phải là
+ * xưởng chạy giỏi mà là số liệu sai — thường do một trong ba nguyên nhân:
+ *      - cộng sản lượng của cả hai dây rồi chia cho diện tích một máy
+ *      - thiếu cột giờ dừng nên mẫu số bị to giả (hoặc ngược lại, nhỏ giả)
+ *      - đơn vị sản lượng trong sheet không phải tấn
+ * Hàm này chặn ở khâu hiển thị: số vẫn hiện để anh soi, nhưng bị đánh dấu đỏ
+ * kèm lý do, thay vì lặng lẽ đưa lên bảng như số đúng.
+ * ===========================================================================*/
+function kiemTraHeSoLoiDung(hs) {
+    const H = RIBBON_CFG.heSo;
+
+    if (hs === null || hs === undefined || !isFinite(hs)) {
+        return { ok: false, ma: 'thieu',
+                 loi: 'Chưa tính được — thiếu sản lượng hoặc mẫu số ≤ 0' };
+    }
+    if (hs <= H.sanHopLe) {
+        return { ok: false, ma: 'am',
+                 loi: 'Hệ số ≤ ' + H.sanHopLe + ' — xem lại cột sản lượng và giờ dừng' };
+    }
+    if (hs > H.tranHopLe) {
+        return { ok: false, ma: 'vuot',
+                 loi: 'Vượt trần kỹ thuật ' + H.tranHopLe.toLocaleString('vi-VN')
+                      + ' t/m²·h — số liệu nhiều khả năng sai, kiểm tra lại '
+                      + 'sản lượng, diện tích ' + H.dienTich + ' m² và giờ dừng' };
+    }
+    return { ok: true, ma: 'dat', loi: '' };
+}
+window.kiemTraHeSoLoiDung = kiemTraHeSoLoiDung;
+
+/** Quét một dây chuyền, gom số liệu CỦA THÁNG ĐANG XÉT.
+ *  Ngày trong bảng tính chỉ ghi ở DÒNG ĐẦU của mỗi ngày (ô gộp), các dòng ca
+ *  sau để trống -> phải nhớ ngày gần nhất mà gán tiếp, giống extractChartData.
+ *
+ *  ngayToiDa CHỈ ÁP CHO GIỜ DỪNG, không đụng tới sản lượng: giờ dừng cộng
+ *  tới hết hôm nay, còn sản lượng / kế hoạch / số ca vẫn quét trọn tháng Y NHƯ
+ *  BẢN CŨ — các ô Kế hoạch, Sản lượng đã đạt, Tỉ lệ đạt và biểu đồ không
+ *  được phép đổi số. */
+function ribbonQuet(rows, thang, nam, ngayToiDa) {
+    const C = RIBBON_CFG.cols;
+    const cNgay = ribbonCot(rows, C.ngay);
+    const cCa = ribbonCot(rows, C.ca);
+    const cSL = ribbonCot(rows, C.sanLuong);
+    const cKH = ribbonCot(rows, C.keHoach);
+    const cDung = ribbonCot(rows, C.gioDung);
+    const cDungKH = ribbonCot(rows, C.gioDungKH);
+
+    if (!cSL) return null;                       // thiếu cột sản lượng thì chịu
+
+    /* Mỗi cột một kiểu số (TK3 "5,854.00", TK4 "5.930,000") — dò dấu thập phân
+       của từng cột một lần để đọc đúng các ô mơ hồ. Xem sheetNumber(). */
+    const tpSL = sheetDauThapPhanCot(rows, cSL);
+    const tpKH = sheetDauThapPhanCot(rows, cKH);
+    const tpDung = sheetDauThapPhanCot(rows, cDung);
+    const tpDungKH = sheetDauThapPhanCot(rows, cDungKH);
+
+    let tongSL = 0, tongDung = 0, tongDungKH = 0, keHoach = 0, soCa = 0;
+    /* Tử số của hệ số lợi dụng cắt tới hôm nay, tách riêng khỏi tongSL trọn
+       tháng để các ô Kế hoạch / Sản lượng đã đạt / Tỉ lệ đạt giữ nguyên số. */
+    let tongSLToiNay = 0, ngayCuoiCoSL = 0;
+    let ngayHienTai = null;
+
+    rows.forEach(function (row) {
+        if (cNgay && row[cNgay] && row[cNgay].toString().trim() !== '') {
+            const d = sheetDate(row[cNgay]);
+            if (d) ngayHienTai = d;
+        }
+        if (!ngayHienTai) return;
+        if (ngayHienTai.m !== thang || ngayHienTai.y !== nam) return;
+
+        /* Kế hoạch ghi MỘT LẦN ở dòng ngày 01 của MỖI tháng (8/2026: 313.000,
+           9/2026: 310.000…), nên phải đọc SAU khi lọc tháng. Bản cũ đọc trước
+           bộ lọc, lấy ô kế hoạch đầu tiên của cả sheet -> tháng 9 vẫn hiện số
+           của tháng 8 (313k x 2 = 626k). Đọc trước dòng kiểm tra ca vì dòng
+           ngày 01 của tháng chưa chạy có thể chưa điền ca. */
+        if (cKH && !keHoach) {
+            const kh = sheetNumber(row[cKH], tpKH);
+            if (kh) keHoach = kh;
+        }
+
+        if (cCa && !row[cCa]) return;            // dòng không phải một ca
+
+        const sl = sheetNumber(row[cSL], tpSL);
+        if (sl !== null) { tongSL += sl; soCa += 1; }
+
+        /* TỪ ĐÂY TRỞ XUỐNG chỉ phục vụ hệ số lợi dụng. Ngày chưa tới thì dừng
+           ở đây — giờ dừng điền sẵn cho cuối tháng mà cộng vào từ giữa tháng
+           thì mẫu số tụt, hệ số vọt lên sai. */
+        if (ngayToiDa && ngayHienTai.d > ngayToiDa) return;
+
+        if (sl !== null) {
+            tongSLToiNay += sl;
+            if (ngayHienTai.d > ngayCuoiCoSL) ngayCuoiCoSL = ngayHienTai.d;
+        }
+
+        if (cDung) {
+            const gd = sheetNumber(row[cDung], tpDung);
+            if (gd !== null) tongDung += gd;
+        }
+        if (cDungKH) {
+            const gk = sheetNumber(row[cDungKH], tpDungKH);
+            if (gk !== null) tongDungKH += gk;
+        }
+    });
+
+    return { tongSL: tongSL, tongSLToiNay: tongSLToiNay,
+             tongDung: tongDung, tongDungKH: tongDungKH,
+             ngayCuoiCoSL: ngayCuoiCoSL,
+             keHoach: keHoach, soCa: soCa,
+             thieuCot: { ngay: !cNgay, keHoach: !cKH,
+                         dung: !cDung, dungKH: !cDungKH } };
+}
+
+/* =============================================================================
+ * HỆ SỐ LỢI DỤNG CỦA MỘT DÂY
+ * -----------------------------------------------------------------------------
+ * Ví dụ tháng 8, hôm nay 26/8:
+ *
+ *      sản lượng dây đó, cộng đủ 3 ca, từ 1/8 tới 26/8
+ *   ----------------------------------------------------------------
+ *      360 x ( 24 x 26 ngày − tổng giờ dừng cả 3 ca từ 1/8 tới 26/8 )
+ *
+ * BA CHỖ CẦN NHỚ:
+ *   1. 360 m² là diện tích của MỘT máy thiêu kết -> tử số cũng phải là sản
+ *      lượng của MỘT máy. Gộp TK3 + TK4 rồi chia 360 là ra 2,135, cao gần gấp
+ *      đôi trần kỹ thuật 1,5 — đó là lỗi của bản đầu.
+ *   2. Cả ba vế (sản lượng, số ngày, giờ dừng) cùng chốt ở HÔM NAY. Lấy số
+ *      ngày trọn tháng mà sản lượng chỉ tới hôm nay thì mẫu số phình ra, hệ số
+ *      tụt xuống rồi bò lên dần tới cuối tháng.
+ *   3. Giờ dừng gộp CẢ đình trệ lẫn dừng kế hoạch — sheet hiện chỉ có một cột
+ *      "Thời gian dừng" nên phần dừng kế hoạch bằng 0, có thêm cột thì tự cộng.
+ * ===========================================================================*/
+/** Giờ dừng cộng dồn hay ra số lẻ dài kiểu 0.5199999999999995 — cắt còn 2 số
+ *  lẻ cho dòng chú thích khỏi rối, phép tính vẫn dùng số gốc. */
+function hsGio(v) {
+    return (Math.round((v || 0) * 100) / 100).toLocaleString('vi-VN', {
+        maximumFractionDigits: 2 });
+}
+
+function heSoMotDay(dat, thang, nam) {
+    const H = RIBBON_CFG.heSo;
+    const homNay = new Date().getDate();
+
+    let soNgay;
+    if (H.soNgay === 'caThang') {
+        soNgay = soNgayTrongThang(thang, nam);
+    } else if (H.soNgay === 'coSoLieu') {
+        soNgay = (dat && dat.ngayCuoiCoSL) ? dat.ngayCuoiCoSL : homNay;
+    } else {
+        soNgay = homNay;                     // 'daQua' — mặc định
+    }
+
+    if (!dat) {
+        return { heSo: null, tongSL: 0, soNgay: soNgay, gioDung: 0,
+                 gioChay: 0, mauSo: 0, moTaMauSo: 'Không có dữ liệu dây này' };
+    }
+
+    /* Tổng giờ dừng = đình trệ + dừng kế hoạch, cộng đủ 3 ca từ ngày 01 */
+    const gioDung = (dat.tongDung || 0) + (dat.tongDungKH || 0);
+    const gioChay = H.gioMoiNgay * soNgay - gioDung;
+    const mauSo = H.dienTich * gioChay;
+
+    return {
+        heSo: mauSo > 0 ? dat.tongSLToiNay / mauSo : null,
+        tongSL: dat.tongSLToiNay,
+        soNgay: soNgay, gioDung: gioDung, gioChay: gioChay, mauSo: mauSo,
+        moTaMauSo: Math.round(dat.tongSLToiNay).toLocaleString('vi-VN') + ' tấn ÷ ['
+            + H.dienTich + ' × (' + H.gioMoiNgay + ' × ' + soNgay + ' ngày − '
+            + hsGio(gioDung) + 'h dừng) = ' + Math.round(mauSo).toLocaleString('vi-VN') + ']',
+    };
+}
+
+/** Tính toàn bộ chỉ số của tháng hiện tại. */
+function ribbonTinh() {
+    const now = new Date();
+    const thang = now.getMonth() + 1;
+    const nam = now.getFullYear();
+    const ngayChot = now.getDate();          // cộng tới hết hôm nay
+
+    const a = ribbonQuet(window.masterSheetDataTK3, thang, nam, ngayChot);
+    const b = ribbonQuet(window.masterSheetDataTK4, thang, nam, ngayChot);
+    if (!a && !b) return null;
+
+    const tongSL = (a ? a.tongSL : 0) + (b ? b.tongSL : 0);
+    const tongKH = (a ? a.keHoach : 0) + (b ? b.keHoach : 0);
+    const mau = a || b;
+
+    return {
+        thang: thang, nam: nam, ngayChot: ngayChot,
+        soNgay: heSoMotDay(a || b, thang, nam).soNgay,
+        ngayCuoiCoSL: Math.max(a ? a.ngayCuoiCoSL : 0, b ? b.ngayCuoiCoSL : 0),
+        tongSL: tongSL,
+        tongKH: tongKH,
+        dat: tongKH > 0 ? (tongSL / tongKH) * 100 : null,
+
+        /* Hệ số lợi dụng TÍNH RIÊNG từng dây */
+        tk3: heSoMotDay(a, thang, nam),
+        tk4: heSoMotDay(b, thang, nam),
+
+        soCa: (a ? a.soCa : 0) + (b ? b.soCa : 0),
+        thieuCot: {
+            ngay: mau.thieuCot.ngay,
+            keHoach: mau.thieuCot.keHoach,
+            dung: (!a || a.thieuCot.dung) && (!b || b.thieuCot.dung),
+            dungKH: (!a || a.thieuCot.dungKH) && (!b || b.thieuCot.dungKH),
+        },
+    };
+}
+
+/** Ghi số vào một ô, GIỮ NGUYÊN thẻ <span> đơn vị đứng sau. */
+function ribbonGhi(id, giaTri, soLe) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const unit = el.querySelector('span');
+    if (giaTri === null || !isFinite(giaTri)) {
+        el.textContent = '--';
+    } else {
+        el.textContent = giaTri.toLocaleString('vi-VN', {
+            minimumFractionDigits: soLe, maximumFractionDigits: soLe
+        });
+    }
+    if (unit) el.appendChild(unit);
+}
+
+/** Đổ số ra dải chỉ số. */
+function ribbonVe() {
+    const kq = ribbonTinh();
+    if (!kq) {
+        console.warn('[Dải chỉ số] Không tìm thấy cột "' + RIBBON_CFG.cols.sanLuong[0]
+            + '". Xem tên cột thật bằng: xemCotSanLuong()');
+        return;
+    }
+
+    const R = RIBBON_CFG.lamTron;
+    ribbonGhi('tong-san-luong', kq.tongSL, R.sanLuong);
+    ribbonGhi('tb-loi', kq.dat, R.dat);
+    ribbonVeHeSo(kq);
+
+    /* Đổi tiêu đề ô đầu cho đúng nghĩa và ghi rõ đang là tháng nào —
+       khỏi phải sửa index.html mỗi tháng. */
+    const h = document.querySelector('#tong-san-luong');
+    const box = h && h.closest ? h.closest('.stat-box') : null;
+    const tieuDe = box ? box.querySelector('h3') : null;
+    if (tieuDe) tieuDe.textContent = 'TỔNG SẢN LƯỢNG THÁNG ' + kq.thang + '/' + kq.nam;
+
+    if (kq.thieuCot.keHoach) {
+        console.warn('[Dải chỉ số] Thiếu cột "' + RIBBON_CFG.cols.keHoach[0]
+            + '" -> ô % đạt để trống.');
+    }
+    if (kq.thieuCot.dung) {
+        console.warn('[Dải chỉ số] Không thấy cột giờ dừng (thử: '
+            + RIBBON_CFG.cols.gioDung.join(' | ')
+            + ') -> mẫu số đang tính với giờ dừng = 0, hệ số sẽ THẤP hơn thực tế. '
+            + 'Gõ xemCotSanLuong() để lấy tên cột thật.');
+    }
+    if (kq.thieuCot.dungKH) {
+        /* Sheet hiện chỉ có MỘT cột "Thời gian dừng" gộp cả đình trệ lẫn dừng
+           kế hoạch — đúng như công thức đang dùng, nên đây chỉ là ghi chú. */
+        console.info('[Dải chỉ số] Không có cột giờ dừng kế hoạch riêng — '
+            + 'đang coi cột "' + RIBBON_CFG.cols.gioDung[0] + '" là TỔNG giờ dừng. '
+            + 'Nếu sau này tách làm hai cột thì khai tên cột thứ hai vào '
+            + 'RIBBON_CFG.cols.gioDungKH, chương trình tự cộng thêm.');
+    }
+
+    /* Nhật ký đầy đủ để đối chiếu tay với bảng tính */
+    [['TK3', kq.tk3], ['TK4', kq.tk4]].forEach(function (c) {
+        const d = c[1];
+        if (!d) return;
+        const kt = kiemTraHeSoLoiDung(d.heSo);
+        const dong = '[Hệ số lợi dụng ' + c[0] + '] '
+            + (d.heSo === null ? '--' : d.heSo.toFixed(3)) + ' t/m²·h = '
+            + Math.round(d.tongSL).toLocaleString('vi-VN') + ' / ['
+            + RIBBON_CFG.heSo.dienTich + ' x (' + RIBBON_CFG.heSo.gioMoiNgay
+            + ' x ' + d.soNgay + ' ngày - ' + hsGio(d.gioDung) + 'h dừng)] — '
+            + (kt.ok ? 'HỢP LỆ' : 'KHÔNG HỢP LỆ: ' + kt.loi);
+        if (kt.ok) console.info(dong); else console.warn(dong);
+    });
+
+    console.info('[Dải chỉ số] Tháng ' + kq.thang + '/' + kq.nam
+        + ' — ' + kq.soCa + ' ca, sản lượng ' + Math.round(kq.tongSL).toLocaleString('vi-VN')
+        + ' / kế hoạch ' + Math.round(kq.tongKH).toLocaleString('vi-VN')
+        + ' (cộng tới hết ngày ' + kq.ngayChot + ')');
+}
+
+/** Ô hệ số lợi dụng trên trang chủ: một ô nhưng HAI số, TK3 và TK4 đứng cạnh
+ *  nhau. Đơn vị chuyển lên tiêu đề cho khỏi lặp hai lần. */
+function ribbonVeHeSo(kq) {
+    const el = document.getElementById('he-so-loi-dung');
+    if (!el) return;
+
+    const box = el.closest ? el.closest('.stat-box') : null;
+    const tieuDe = box ? box.querySelector('h3') : null;
+    if (tieuDe) {
+        /* Đơn vị tách thành span riêng để CSS giữ chữ thường "t/m²·h" — h3 đang
+           in hoa toàn bộ, để chung thì thành "T/M²·H" khó đọc. */
+        tieuDe.textContent = 'HỆ SỐ LỢI DỤNG THÁNG ';
+        const dv = document.createElement('span');
+        dv.className = 'heso-donvi';
+        dv.textContent = '(t/m²·h)';
+        tieuDe.appendChild(dv);
+    }
+
+    const R = RIBBON_CFG.lamTron;
+    el.classList.add('heso-doi');
+    el.innerHTML = '';
+
+    [['TK3', kq.tk3], ['TK4', kq.tk4]].forEach(function (c) {
+        const d = c[1];
+        const hs = d ? d.heSo : null;
+        const kt = kiemTraHeSoLoiDung(hs);
+
+        const o = document.createElement('span');
+        o.className = 'heso-mot' + (kt.ok ? '' : ' is-loi');
+        o.title = kt.ok ? (d ? d.moTaMauSo : '') : kt.loi;
+
+        const ten = document.createElement('b');
+        ten.textContent = c[0] + (kt.ok ? '' : ' ⚠');
+        const so = document.createElement('i');
+        so.textContent = (hs === null || !isFinite(hs)) ? '--'
+            : hs.toLocaleString('vi-VN', {
+                minimumFractionDigits: R.heSo, maximumFractionDigits: R.heSo });
+
+        o.appendChild(ten);
+        o.appendChild(so);
+        el.appendChild(o);
+    });
+}
+
+/* =============================================================================
+ * MỤC "SẢN LƯỢNG" (#san-luong-theo-thang) — 4 thẻ chỉ số tháng này
+ * -----------------------------------------------------------------------------
+ * Dùng LẠI ribbonTinh() nên số liệu luôn khớp với dải chỉ số trang chủ: cùng
+ * cột, cùng cách cộng từ ngày 01 tới hôm nay, cùng gộp TK3 + TK4.
+ *
+ * Thẻ HỆ SỐ LỢI DỤNG do JS tự dựng thêm (index.html chưa có) — hiện là KHUNG
+ * TRỐNG chờ anh đưa nội dung vào, xem RIBBON_CFG.heSo để chỉnh công thức.
+ * ===========================================================================*/
+
+/** Ghi một ô chỉ số, giữ hậu tố (ví dụ dấu %) nếu có. */
+function kpiGhi(id, chuoi) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = chuoi;
+}
+
+const kpiSo = function (v, le) {
+    return (v === null || !isFinite(v)) ? '--'
+        : v.toLocaleString('vi-VN', { minimumFractionDigits: le, maximumFractionDigits: le });
+};
+
+/** Dựng khung một thẻ hệ số lợi dụng. Có rồi thì thôi, gọi lại không đẻ thêm. */
+function kpiDungTheHeSo(grid, ma, ten) {
+    if (document.getElementById('kpi-heso-' + ma)) return;
+    const card = document.createElement('div');
+    card.className = 'kpi-card kpi-card--heso';
+    card.innerHTML = '<h3>Hệ số lợi dụng ' + ten + '</h3>'
+        + '<div id="kpi-heso-' + ma + '" class="kpi-value heso">--'
+        + '<span class="kpi-unit">t/m²·h</span></div>'
+        + '<div id="kpi-heso-' + ma + '-note" class="kpi-trend">Đang cập nhật...</div>';
+    grid.appendChild(card);
+}
+
+/** Đổ số vào một thẻ hệ số lợi dụng, kèm dòng giải thích mẫu số hoặc báo lỗi. */
+function kpiVeMotHeSo(ma, d) {
+    const R = RIBBON_CFG.lamTron;
+    const kt = kiemTraHeSoLoiDung(d ? d.heSo : null);
+
+    const el = document.getElementById('kpi-heso-' + ma);
+    if (el) {
+        el.textContent = kpiSo(d ? d.heSo : null, R.heSo);
+        const u = document.createElement('span');
+        u.className = 'kpi-unit';
+        u.textContent = 't/m²·h';
+        el.appendChild(u);
+        el.classList.toggle('is-loi', !kt.ok);
+    }
+
+    const note = document.getElementById('kpi-heso-' + ma + '-note');
+    if (note) {
+        note.textContent = kt.ok ? (d ? d.moTaMauSo : '') : kt.loi;
+        note.className = 'kpi-trend' + (kt.ok ? '' : ' is-cham');
+    }
+}
+
+function kpiVe() {
+    const sec = document.getElementById('san-luong-theo-thang');
+    if (!sec) return;
+
+    /* --- SỬA CẤU TRÚC: index.html để 2 trong 3 thẻ NẰM NGOÀI lưới nên hàng bị
+       vỡ, thẻ tràn hết bề ngang. Gom hết vào lưới cho ngay ngắn.
+       (Sửa gốc trong index.html cũng được, xem phần trả lời.) --- */
+    const grid = sec.querySelector('.kpi-grid');
+    if (grid) {
+        sec.querySelectorAll(':scope > .kpi-card').forEach(function (c) { grid.appendChild(c); });
+    }
+
+    /* --- Thẻ HỆ SỐ LỢI DỤNG: TÁCH RIÊNG TK3 VÀ TK4 ---
+       Bản cũ gộp một thẻ: lấy sản lượng của CẢ HAI dây chia cho diện tích của
+       MỘT máy (360 m²) nên con số phình lên gần gấp đôi — 2,135 t/m²·h trong
+       khi trần kỹ thuật chỉ 1,5. Dọn thẻ cũ rồi dựng hai thẻ mới. */
+    const theCu = document.getElementById('kpi-heso');
+    if (theCu && theCu.closest) {
+        const khungCu = theCu.closest('.kpi-card');
+        if (khungCu) khungCu.remove();
+    }
+    if (grid) {
+        kpiDungTheHeSo(grid, 'tk3', 'Thiêu kết 3');
+        kpiDungTheHeSo(grid, 'tk4', 'Thiêu kết 4');
+    }
+
+    const kq = ribbonTinh();
+    if (!kq) return;
+
+    const R = RIBBON_CFG.lamTron;
+    kpiGhi('kpi-target', kpiSo(kq.tongKH || null, 0));
+    kpiGhi('kpi-actual', kpiSo(kq.tongSL, R.sanLuong));
+    kpiGhi('kpi-percen', kq.dat === null ? '--%' : kpiSo(kq.dat, R.dat) + '%');
+
+    /* Thanh tiến độ: chặn 0..100 để không tràn khung khi vượt kế hoạch */
+    const bar = document.getElementById('kpi-progress-bar');
+    if (bar) {
+        const pct = kq.dat === null ? 0 : Math.max(0, Math.min(100, kq.dat));
+        bar.style.width = pct.toFixed(1) + '%';
+        bar.classList.toggle('is-vuot', kq.dat !== null && kq.dat >= 100);
+    }
+
+    /* Dòng nhận xét: so sản lượng thực tế với TIẾN ĐỘ ĐÁNG LẼ phải đạt tới hôm
+       nay, chứ không so với kế hoạch cả tháng — giữa tháng mới có ý nghĩa. */
+    const el = document.getElementById('kpi-trend');
+    if (el) {
+        if (!kq.tongKH) {
+            el.textContent = 'Chưa có sản lượng kế hoạch trong bảng tính';
+            el.className = 'kpi-trend';
+        } else {
+            const ngayTrongThang = soNgayTrongThang(kq.thang, kq.nam);
+            const homNay = new Date().getDate();
+            const dangLe = kq.tongKH * (homNay / ngayTrongThang);
+            const lech = dangLe > 0 ? ((kq.tongSL - dangLe) / dangLe) * 100 : 0;
+            const dat = lech >= 0;
+            el.textContent = 'Đến hết ngày ' + homNay + '/' + kq.thang + ' — '
+                + (dat ? 'vượt tiến độ ' : 'chậm tiến độ ')
+                + Math.abs(lech).toFixed(1) + '% (đáng lẽ '
+                + Math.round(dangLe).toLocaleString('vi-VN') + ' tấn)';
+            el.className = 'kpi-trend ' + (dat ? 'is-tot' : 'is-cham');
+        }
+    }
+
+    /* --- Hệ số lợi dụng: mỗi dây một thẻ, kèm kết quả kiểm tra hợp lệ --- */
+    kpiVeMotHeSo('tk3', kq.tk3);
+    kpiVeMotHeSo('tk4', kq.tk4);
+}
+
+/* =============================================================================
+ * BIỂU ĐỒ SẢN LƯỢNG THÁNG NÀY (đặt dưới 4 thẻ chỉ số của mục SẢN LƯỢNG)
+ * -----------------------------------------------------------------------------
+ *   - CỘT   : sản lượng TỪNG NGÀY của TK3 và TK4 (cộng 3 ca trong ngày)
+ *   - ĐƯỜNG : luỹ kế cả xưởng, cộng dồn từ ngày 01 tới hôm nay
+ *   - ĐƯỜNG ĐỎ: mục tiêu (sản lượng kế hoạch tháng của cả 2 dây)
+ *
+ * HAI TRỤC là bắt buộc: cột mỗi ngày ~18 nghìn tấn, còn luỹ kế lên tới hơn 600
+ * nghìn — để chung một trục thì mấy cột bẹp dí thành một vạch sát đáy.
+ *   trục TRÁI  : sản lượng ngày (cột)
+ *   trục PHẢI  : luỹ kế + mục tiêu (đường)
+ *
+ * Không có bộ chọn ngày: luôn hiển thị trọn tháng hiện tại.
+ * ===========================================================================*/
+
+/** Gom sản lượng THEO NGÀY của một dây chuyền, trong tháng đang xét. */
+function slTheoNgay(rows, thang, nam) {
+    const C = RIBBON_CFG.cols;
+    const cNgay = ribbonCot(rows, C.ngay);
+    const cCa = ribbonCot(rows, C.ca);
+    const cSL = ribbonCot(rows, C.sanLuong);
+    const map = {};
+    if (!cSL) return map;
+    const tpSL = sheetDauThapPhanCot(rows, cSL);
+
+    let ngay = null;
+    rows.forEach(function (row) {
+        if (cNgay && row[cNgay] && row[cNgay].toString().trim() !== '') {
+            const d = sheetDate(row[cNgay]);
+            if (d) ngay = d;
+        }
+        if (!ngay || ngay.m !== thang || ngay.y !== nam) return;
+        if (cCa && !row[cCa]) return;
+        const v = sheetNumber(row[cSL], tpSL);
+        if (v === null) return;
+        map[ngay.d] = (map[ngay.d] || 0) + v;
+    });
+    return map;
+}
+
+let slChartInstance = null;
+
+function veBieuDoSanLuong() {
+    const sec = document.getElementById('san-luong-theo-thang');
+    if (!sec || typeof Chart === 'undefined') return;
+
+    /* Tạo sẵn khung vẽ nếu index.html chưa có — khỏi phải sửa HTML */
+    let box = document.getElementById('sanluong-chart-box');
+    if (!box) {
+        box = document.createElement('div');
+        box.id = 'sanluong-chart-box';
+        box.className = 'chart-container sanluong-chart';
+        box.innerHTML = '<h3 class="sanluong-chart__title"></h3>'
+            + '<div class="sanluong-chart__canvas"><canvas id="sanluong-chart"></canvas></div>';
+        sec.appendChild(box);
+    }
+
+    const now = new Date();
+    const thang = now.getMonth() + 1, nam = now.getFullYear();
+    const soNgay = soNgayTrongThang(thang, nam);
+
+    const m3 = slTheoNgay(window.masterSheetDataTK3, thang, nam);
+    const m4 = slTheoNgay(window.masterSheetDataTK4, thang, nam);
+
+    /* TRỤC NGÀY: luôn từ NGÀY 01 tới HÔM NAY của tháng hiện tại.
+       Không lấy "ngày cuối có số liệu" nữa: sang tháng mới, ngày 01/09 chỉ hiện
+       đúng một cột 1/9, không dính gì của tháng 8. Ngày nào chưa có số thì để
+       TRỐNG (null) — cột bên phải trống dần chứ không tụt về 0. */
+    const homNay = now.getDate();
+
+    const nhan = [], tk3 = [], tk4 = [], luyKe = [];
+    let cong = 0, coSo = false;
+    for (let d = 1; d <= homNay; d++) {
+        nhan.push(d + '/' + thang);
+        const a = m3[d], b = m4[d];
+        const coNgay = (a !== undefined) || (b !== undefined);
+
+        tk3.push(a === undefined ? null : a);
+        tk4.push(b === undefined ? null : b);
+
+        if (coNgay) {
+            cong += (a || 0) + (b || 0);
+            coSo = true;
+        }
+        /* Luỹ kế chỉ vẽ tới ngày CÓ số liệu; ngày sau để null cho đường dừng lại,
+           không kéo ngang giả tạo tới cuối tháng. */
+        luyKe.push(coNgay ? cong : null);
+    }
+    if (!coSo) return;                      // cả tháng chưa có số nào
+
+    const kq = ribbonTinh();
+    const mucTieu = kq && kq.tongKH ? kq.tongKH : null;
+
+    const tieuDe = box.querySelector('.sanluong-chart__title');
+    if (tieuDe) tieuDe.textContent = 'SẢN LƯỢNG THÁNG ' + thang + '/' + nam
+        + ' — theo ngày và luỹ kế';
+
+    const ds = [
+        {
+            type: 'line', label: 'Luỹ kế cả xưởng', data: luyKe,
+            borderColor: '#27ae60', backgroundColor: 'rgba(39,174,96,.10)',
+            borderWidth: 3, tension: 0.3, pointRadius: 2, fill: true,
+            spanGaps: false,                 /* ngày trống thì ĐỨT, không nối tắt */
+            yAxisID: 'y_luyke', order: 1, datalabels: { display: false }
+        },
+        {
+            type: 'bar', label: 'Thiêu kết 3', data: tk3,
+            backgroundColor: 'rgba(26,79,214,.85)', yAxisID: 'y_ngay', order: 3,
+            datalabels: { display: false }
+        },
+        {
+            type: 'bar', label: 'Thiêu kết 4', data: tk4,
+            backgroundColor: 'rgba(243,156,18,.85)', yAxisID: 'y_ngay', order: 4,
+            datalabels: { display: false }
+        }
+    ];
+
+    if (mucTieu) {
+        ds.splice(1, 0, {
+            type: 'line', label: 'Mục tiêu tháng',
+            data: nhan.map(function () { return mucTieu; }),
+            borderColor: '#e74c3c', borderWidth: 2,   /* liền nét, bỏ borderDash */
+            pointRadius: 0, fill: false, tension: 0,
+            yAxisID: 'y_luyke', order: 2, datalabels: { display: false }
+        });
+    }
+
+    if (slChartInstance) slChartInstance.destroy();
+    slChartInstance = new Chart(document.getElementById('sanluong-chart').getContext('2d'), {
+        type: 'bar',
+        data: { labels: nhan, datasets: ds },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                y_ngay: {
+                    type: 'linear', position: 'left', min: 0, grace: '10%',
+                    title: { display: true, text: 'Sản lượng ngày (tấn)' }
+                },
+                y_luyke: {
+                    type: 'linear', position: 'right', min: 0,
+                    /* Nới trần để đường mục tiêu không dính sát mép trên */
+                    suggestedMax: mucTieu ? mucTieu * 1.08 : undefined,
+                    title: { display: true, text: 'Luỹ kế / mục tiêu (tấn)' },
+                    grid: { drawOnChartArea: false }
+                }
+            },
+            plugins: {
+                legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 10 } },
+                datalabels: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function (c) {
+                            const v = c.parsed.y;
+                            return c.dataset.label + ': '
+                                + (v === null ? '--' : Math.round(v).toLocaleString('vi-VN')) + ' tấn';
+                        }
+                    }
+                }
+            }
+        }
+    });
 }

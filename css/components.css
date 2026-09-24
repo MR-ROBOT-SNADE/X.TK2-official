@@ -1,3 +1,5 @@
+/* XTK2-PERSONNEL v6 — components.css
+   Đi cặp với personnel v6 */
 /* ===========================================
         CÁC THÀNH PHẦN GIAO DIỆN XƯỞNG
    =========================================== */
@@ -146,6 +148,75 @@
     color: var(--text-muted);
 }
 
+/* Ô HỆ SỐ LỢI DỤNG (trang chủ): hai cột TK3 | TK4, mỗi cột nhãn nhỏ phía trên
+   và số lớn phía dưới — do ribbonVeHeSo() trong chart_cook.js dựng.*/
+.stat-box h3 .heso-donvi {
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.stat-box .number.heso-doi {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 4px 0;
+}
+
+.stat-box .number .heso-mot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 28px;
+    font-size: 1rem;
+    color: var(--primary-blue);
+}
+
+.stat-box .number .heso-mot + .heso-mot {
+    border-left: 1px solid var(--border-color);
+}
+
+.stat-box .number .heso-mot b {
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    line-height: 1.2;
+    color: var(--text-muted);
+}
+
+.stat-box .number .heso-mot i {
+    font-style: normal;
+    font-size: 2.6rem;
+    font-weight: 300;
+    line-height: 1.15;
+}
+
+/* Vượt trần kỹ thuật / số liệu bất thường: tô đỏ, lý do nằm trong title khi rê chuột */
+.stat-box .number .heso-mot.is-loi,
+.stat-box .number .heso-mot.is-loi b {
+    color: var(--danger-red);
+}
+
+/* Màn hình hẹp: 3 ô xếp dọc. Để hàng ngang thì ô tràn ra ngoài (414px mà trang
+   rộng thành 667px), trình duyệt điện thoại nới cả trang theo, kéo luôn thanh
+   menu cố định rộng ra và đẩy nút ☰ MENU ra khỏi màn hình. */
+@media (max-width: 768px) {
+    .stats-ribbon {
+        flex-direction: column;
+        width: 94%;
+    }
+    .stat-box {
+        padding: 20px 16px;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .stat-box:last-child {
+        border-bottom: none;
+    }
+    .stat-box .number {
+        font-size: 2.4rem;
+    }
+}
+
 .hightlight-green {color: var(--success-green) !important; font-weight: 500 !important;}
 .status-ok { color: var(--text-main) !important; font-size: 1.8rem !important; font-weight: 700 !important;}
 
@@ -274,3 +345,926 @@
 }
 
 /* -------------------------------------------------------------------- */
+
+/* =============================================================================
+ * SƠ ĐỒ TỔ CHỨC NHÂN SỰ THEO CA KÍP (#kip-A / #kip-B / #kip-C)
+ * -----------------------------------------------------------------------------
+ * .personnel-grid gốc dựng cho 2 thẻ lớn (quản đốc, phó quản đốc). Trang ca kíp
+ * cần cả hàng quản lý lẫn hai tổ phân nhánh, nên JS gắn thêm class
+ * .personnel-grid--org để đổi hẳn sang bố cục dưới đây.
+ * ===========================================================================*/
+/* Hai cột: thanh tìm/lọc bên TRÁI, nội dung LẤP ĐẦY phần còn lại bên phải. */
+.personnel-grid--org {
+    display: grid;
+    grid-template-columns: 284px minmax(0, 1fr);
+    gap: 22px;
+    align-items: start;
+    padding: 6px 0 40px;
+}
+
+.ns-main {
+    min-width: 0;
+    /* Cột nội dung LUÔN cao ít nhất bằng phần màn hình còn lại. Lọc xong còn
+       một hai người, nếu cột này co lại thấp hơn thanh bên thì khối chứa cũng
+       co theo và sticky không còn chỗ giữ -> thanh bên bị ép lên. */
+    min-height: calc(100vh - var(--ns-offset, 232px));
+}
+
+@media (max-width: 1100px) {
+    .personnel-grid--org { grid-template-columns: 1fr; }
+}
+
+.personnel-summary {
+    margin: 0 0 20px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--primary-blue);
+}
+
+.org-title {
+    margin: 0 0 18px;
+    padding-bottom: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--primary-blue);
+    border-bottom: 2px solid var(--warning-yellow);
+}
+
+/* ---- HÀNG QUẢN LÝ KÍP: 3 ô ảnh tròn, cân giữa ---- */
+.org-lead {
+    margin: 0 0 22px;
+    padding: 20px 26px 24px;
+    background: var(--white);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+}
+
+.org-lead__row {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 34px;
+}
+
+.person-card--hero { max-width: 300px; padding: 10px; }
+
+.person-card--hero .person-avatar {
+    width: 210px;
+    height: 210px;
+    border-width: 6px;
+    margin-bottom: 20px;
+}
+
+.person-card--hero .person-info h4 { font-size: 22px; }
+.person-card--hero .person-info .role { font-size: 15px; margin-bottom: 16px; }
+
+/* ---- HAI TỔ ĐẶT CẠNH NHAU ---- */
+.org-teams {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+    gap: 22px;
+    align-items: start;
+}
+
+.org-team {
+    padding: 18px 20px 22px;
+    background: var(--white);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+}
+
+/* Vạch màu phân biệt hai tổ */
+.org-team--phoi-lieu { border-top: 4px solid var(--primary-blue); }
+.org-team--thieu-ket { border-top: 4px solid var(--warning-yellow); }
+.org-team--khac { border-top: 4px solid var(--text-muted); margin-top: 30px; }
+
+/* Hộp trên: tổ trưởng + tổ phó */
+.org-team__head {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 18px;
+}
+
+/* ---- NHÁNH: thân dọc ở giữa, các HỘP VỊ TRÍ toả hai bên ----
+   Trước đây mỗi tổ viên là MỘT nhánh riêng -> cây dài lê thê, đầy khoảng trắng.
+   Nay mỗi VỊ TRÍ LÀM VIỆC là một hộp, mọi người cùng vị trí nằm gọn bên trong,
+   nên vẫn giữ dáng rẽ hai bên mà đặc hơn hẳn. */
+.org-branch {
+    position: relative;
+    margin-top: 22px;
+    padding-top: 18px;
+
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px 40px;
+    align-items: start;
+}
+
+/* Thân cây chạy dọc chính giữa */
+.org-branch::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 12px;
+    left: 50%;
+    width: 2px;
+    margin-left: -1px;
+    background: var(--border-color);
+}
+
+/* Hộp một vị trí làm việc */
+.org-group {
+    position: relative;
+    padding: 12px 12px 14px;
+    background: #fbfcfe;
+    border: 1px solid var(--border-color);
+    border-radius: 11px;
+}
+
+/* Vạch ngang nối hộp với thân cây */
+.org-group::after {
+    content: '';
+    position: absolute;
+    top: 26px;
+    width: 20px;
+    height: 2px;
+    background: var(--border-color);
+}
+
+.org-group:nth-child(odd)::after { right: -20px; }
+.org-group:nth-child(even)::after { left: -20px; }
+
+.org-group__title {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin: 0 0 10px;
+    padding-bottom: 7px;
+
+    font-size: 12.5px;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--primary-blue);
+    border-bottom: 1px solid #eef2f6;
+}
+
+.org-group__count {
+    flex: 0 0 auto;
+    min-width: 20px;
+    padding: 1px 6px;
+    font-size: 10.5px;
+    color: #fff;
+    background: var(--secondary-blue);
+    border-radius: 20px;
+    text-align: center;
+}
+
+/* Lưới người trong hộp — xếp sát nhau, tự xuống dòng */
+.org-group__list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+    gap: 8px;
+}
+
+/* Trong hộp đã có tên vị trí ở tiêu đề -> BỎ dòng vị trí trên từng thẻ,
+   tiết kiệm rất nhiều chiều cao. */
+.org-group .person-card--mini {
+    width: auto;
+    padding: 9px 5px 10px;
+}
+
+.org-group .person-card--mini .role { display: none; }
+.org-group .person-card--mini .person-info h4 { font-size: 12px; line-height: 1.25; }
+.org-group .person-card--mini .status { font-size: 10px; padding: 3px 8px; }
+.org-group .person-card--mini .person-avatar { margin-bottom: 8px; }
+
+.org-group--empty { grid-column: 1 / -1; }
+
+@media (max-width: 900px) {
+    .org-branch { grid-template-columns: 1fr; gap: 14px; }
+    .org-branch::before { display: none; }
+    .org-group::after { display: none; }
+}
+
+
+.org-tree .person-card { display: inline-flex; text-align: center; }
+
+/* ---- Thẻ nhân sự cỡ vừa và cỡ nhỏ ---- */
+.person-card--compact,
+.person-card--mini {
+    max-width: none;
+    padding: 16px 14px;
+    background: var(--white);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+}
+
+.person-card--compact:hover,
+.person-card--mini:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 24px -12px rgba(15, 23, 42, .28);
+}
+
+.person-card--compact { width: 178px; }
+.person-card--mini { width: 156px; padding: 13px 11px; }
+
+.person-card--compact .person-avatar {
+    width: 92px; height: 92px; border-width: 4px; margin-bottom: 13px;
+}
+
+.person-card--mini .person-avatar {
+    width: 70px; height: 70px; border-width: 3px; margin-bottom: 10px;
+}
+
+.person-card--compact .person-info h4 { font-size: 16px; margin-bottom: 4px; word-break: break-word; }
+.person-card--mini .person-info h4 { font-size: 14px; margin-bottom: 3px; word-break: break-word; }
+
+.person-card--compact .person-info .role { font-size: 12.5px; margin-bottom: 11px; line-height: 1.4; }
+.person-card--mini .person-info .role { font-size: 11.5px; margin-bottom: 9px; line-height: 1.4; }
+
+.person-card--compact .status { padding: 5px 13px; font-size: 12px; }
+.person-card--mini .status { padding: 4px 11px; font-size: 11px; }
+
+/* ---- Ô TRỐNG dành sẵn ---- */
+.person-card--empty {
+    border-style: dashed;
+    border-color: #cfd9e3;
+    background: repeating-linear-gradient(45deg, #fafbfc, #fafbfc 9px, #f2f5f8 9px, #f2f5f8 18px);
+    box-shadow: none;
+}
+
+.person-card--empty:hover { transform: none; box-shadow: none; }
+.person-card--empty .person-info h4 { color: #9aa9b8; font-weight: 500; }
+
+.person-avatar--slot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    font-weight: 300;
+    color: #b6c2cf;
+    background: #f2f5f8;
+    border-style: dashed !important;
+    border-color: #cfd9e3 !important;
+    object-fit: initial;
+}
+
+/* Chưa có ảnh chân dung -> hiện 2 chữ đầu của mã nhân viên */
+.person-avatar--empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--white);
+    background: linear-gradient(160deg, var(--secondary-blue), var(--primary-blue));
+    object-fit: initial;
+}
+
+.person-card--hero .person-avatar--empty { font-size: 62px; }
+.person-card--compact .person-avatar--empty { font-size: 28px; }
+.person-card--mini .person-avatar--empty { font-size: 22px; }
+
+/* ---- Khung báo chưa có dữ liệu ---- */
+.personnel-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 74px;
+    margin-bottom: 24px;
+    padding: 16px 20px;
+    text-align: center;
+
+    color: #8fa0b3;
+    font-size: 13.5px;
+    background: repeating-linear-gradient(45deg, #f6f8fa, #f6f8fa 9px, #eef2f6 9px, #eef2f6 18px);
+    border: 1px dashed #cfd9e3;
+    border-radius: 10px;
+}
+
+.personnel-empty code { font-size: 11.5px; color: #7c8ea1; word-break: break-all; }
+
+/* ---- Màn hẹp: cây bỏ kiểu xương cá, xếp thẳng một cột ---- */
+@media (max-width: 760px) {
+    .org-lead__row { gap: 26px; }
+    .person-card--hero .person-avatar { width: 150px; height: 150px; }
+
+    .org-tree::before { left: 22px; }
+    .org-tree__item,
+    .org-tree__item:nth-child(odd),
+    .org-tree__item:nth-child(even) {
+        width: 100%;
+        margin-left: 0;
+        padding: 9px 0 9px 48px;
+        text-align: left;
+    }
+    .org-tree__item::after,
+    .org-tree__item:nth-child(odd)::after,
+    .org-tree__item:nth-child(even)::after { left: 22px; right: auto; width: 26px; }
+}
+
+
+/* =============================================================================
+ * KHUNG AVATAR THEO CẤP — KIM CƯƠNG / VÀNG / BẠC
+ * -----------------------------------------------------------------------------
+ * Cấp 1 — QUẢN LÝ KÍP                 : KIM CƯƠNG (trắng xanh, lấp lánh)
+ * Cấp 2 — KTV VẬN HÀNH, TỔ TRƯỞNG/PHÓ : VÀNG
+ * Cấp 3 — TỔ VIÊN                     : BẠC
+ *
+ * CÁCH DỰNG VÀNH: đặt viền TRONG SUỐT rồi vẽ hai lớp nền chồng nhau —
+ *     lớp trong (padding-box) = nền ảnh/chữ
+ *     lớp ngoài (border-box)  = dải màu kim loại, chỉ lộ ra ở phần viền
+ * Nhờ vậy vành sáng tối luân phiên như kim loại đánh bóng thật, mà KHÔNG cần
+ * thêm thẻ HTML hay file ảnh nào. Bo tròn 50% cắt gọn cả hai lớp.
+ * Ba lớp box-shadow: quầng sáng ngoài + viền chân tóc + bóng đổ tạo khối.
+ * ===========================================================================*/
+
+/* --- CẤP 1: KIM CƯƠNG --- */
+.person-avatar--t1 {
+    width: 128px !important;
+    height: 128px !important;
+    border: 6px solid transparent !important;
+    background-image:
+        linear-gradient(155deg, #1552d8 0%, #0b3fae 55%, #062c85 100%),
+        conic-gradient(from 205deg,
+            #ffffff 0%,   #2b6f96 4%,   #ffffff 8%,   #1e5a7d 13%,
+            #eaf7ff 17%,  #ffffff 21%,  #2f7ba3 26%,  #ffffff 31%,
+            #7fc3e6 35%,  #17506f 40%,  #ffffff 45%,  #d8f1ff 49%,
+            #2b6f96 54%,  #ffffff 59%,  #1e5a7d 64%,  #bfe6ff 68%,
+            #ffffff 73%,  #2f7ba3 78%,  #ffffff 83%,  #7fc3e6 88%,  #ffffff 93%,  #245f83 97%,  #ffffff 100%);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    box-shadow:
+        0 0 0 1px #0f172a2e,
+        0 6px 14px -8px #0f172a5c;
+}
+
+/* --- CẤP 2: VÀNG --- */
+.person-avatar--t2 {
+    width: 88px !important;
+    height: 88px !important;
+    border: 5px solid transparent !important;
+    background-image:
+        linear-gradient(155deg, #1552d8 0%, #0b3fae 55%, #062c85 100%),
+        conic-gradient(from 205deg,
+            #fff8dc 0%,   #8a6510 5%,   #ffe9a3 10%,  #b8860b 15%,
+            #fffbe8 20%,  #d4a017 26%,  #7a5a0d 31%,  #ffe89a 36%,
+            #f5cd52 42%,  #9c7412 47%,  #fffdf0 52%,  #c9971c 58%,
+            #6f520c 63%,  #ffe07a 68%,  #f0c64a 74%,  #8a6510 79%,
+            #fff3c4 85%,  #b8860b 91%,  #ffe9a3 96%,  #fff8dc 100%);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    box-shadow:
+        0 0 0 1px #0f172a2e,
+        0 5px 12px -8px #0f172a52;
+}
+
+/* --- CẤP 3: BẠC --- */
+.person-avatar--t3 {
+    width: 62px !important;
+    height: 62px !important;
+    border: 4px solid transparent !important;
+    background-image:
+        linear-gradient(155deg, #1552d8 0%, #0b3fae 55%, #062c85 100%),
+        conic-gradient(from 205deg,
+            #ffffff 0%,   #6b7885 5%,   #ffffff 11%,  #8e9aa7 16%,
+            #f2f5f8 22%,  #5f6b78 28%,  #ffffff 34%,  #9aa7b4 40%,
+            #e8edf2 46%,  #6b7885 52%,  #ffffff 58%,  #848f9c 64%,
+            #f7f9fb 70%,  #5f6b78 76%,  #ffffff 82%,  #a4b0bd 88%,
+            #eef2f6 94%,  #ffffff 100%);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    box-shadow:
+        0 0 0 1px #0f172a26,
+        0 4px 10px -7px #0f172a4d;
+}
+
+/* Ảnh thật đè lên lớp nền trong, chỉ chừa vành kim loại ở phần viền */
+img.person-avatar--t1,
+img.person-avatar--t2,
+img.person-avatar--t3 { object-fit: cover; }
+
+/* Rê chuột: nhấc nhẹ, KHÔNG loè sáng — giữ vẻ sắc nét */
+.person-avatar--t1:hover,
+.person-avatar--t2:hover,
+.person-avatar--t3:hover {
+    transform: translateY(-2px) scale(1.03);
+    box-shadow: 0 0 0 1px #0f172a3d, 0 10px 20px -10px #0f172a70;
+}
+
+/* Ô TRỐNG: giữ đúng cỡ và vành của cấp nhưng nhạt đi cho biết là chỗ dành sẵn */
+.person-avatar--slot.person-avatar--t1,
+.person-avatar--slot.person-avatar--t2,
+.person-avatar--slot.person-avatar--t3 {
+    background-image:
+        repeating-linear-gradient(45deg, #f6f8fa, #f6f8fa 7px, #eef2f6 7px, #eef2f6 14px),
+        conic-gradient(from 205deg, #dfe5ec, #f7fafc 25%, #d5dde6 50%, #f7fafc 75%, #dfe5ec);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    box-shadow: 0 0 0 1px #0f172a1a;
+    opacity: .8;
+}
+
+.person-avatar--slot:hover { transform: none !important; box-shadow: 0 0 0 1px #0f172a1a !important; }
+
+/* Tên người: đậm dần theo cấp */
+.person-card--t1 .person-info h4 { color: var(--primary-blue, #0033a1); }
+.person-card--t2 .person-info h4 { color: var(--text-main, #2c3e50); }
+.person-card--t3 .person-info h4 { color: #4a5b6d; }
+
+/* Thẻ cấp 1 nổi hơn một chút cho ra thứ bậc */
+.person-card--t1 { position: relative; }
+
+/* ---- HÀNG KỸ THUẬT VIÊN VẬN HÀNH (ngay dưới hàng quản lý kíp) ---- */
+.org-row {
+    /* KHÔNG đặt max-width: phải rộng đúng bằng .org-lead và .org-teams thì ba
+       khối mới thẳng mép nhau. Sót lại trần 1180px là khung này hụt vào trong. */
+    margin: 0 0 22px;
+    padding: 18px 20px 20px;
+
+    background: var(--white, #fff);
+    border: 1px solid var(--border-color, #ecf0f1);
+    border-top: 4px solid var(--secondary-blue, #1a4fd6);
+    border-radius: 14px;
+    box-shadow: 0 1px 2px #0f172a0a, 0 10px 28px -18px #0f172a2e;
+}
+
+.org-row__list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 18px;
+}
+
+
+/* =============================================================================
+ * DÒNG ĐẾM NHÂN SỰ NẰM TRONG TIÊU ĐỀ MỤC
+ * -----------------------------------------------------------------------------
+ * layout.css cho .section-header là position:sticky — nhờ vậy tiêu đề luôn nổi
+ * dưới 2 thanh cố định, không bao giờ bị che. PHẢI GIỮ NGUYÊN tính dính này;
+ * bỏ đi là tiêu đề "TỔ CHỨC - NHÂN SỰ KÍP A" chui vào gầm thanh menu.
+ * Chốt top:100px = đúng chiều cao 2 thanh cố định (40 + 60). layout.css bản cũ
+ * để 85px khiến tiêu đề tụt 15px vào gầm thanh menu.
+ * ===========================================================================*/
+#kip-A .section-header,
+#kip-B .section-header,
+#kip-C .section-header {
+    position: sticky;
+    top: 100px;
+}
+
+#kip-A,
+#kip-B,
+#kip-C {
+    scroll-margin-top: 104px;   /* bấm link #kip-A thì dừng ngay dưới 2 thanh */
+}
+
+/* Dòng đếm: đặt cạnh vạch vàng, trong lòng tiêu đề dính. */
+.section-header .personnel-summary {
+    display: inline-block;
+    margin: 10px 0 0;
+    padding: 6px 13px;
+
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--primary-blue, #0033a1);
+
+    background: #f4f8ff;
+    border: 1px solid #d8e4f7;
+    border-left: 4px solid var(--primary-blue, #0033a1);
+    border-radius: 8px;
+}
+
+
+/* =============================================================================
+ * THANH BÊN TRÁI — TÌM VÀ LỌC NHÂN SỰ
+ * ===========================================================================*/
+/* MỐC CHỪA CHỖ dùng chung cho thanh bên và cho mọi cú cuộn tới khối:
+   100px hai thanh cố định + ~132px tiêu đề mục dính (đã gồm dòng đếm).
+   Đổi chiều cao tiêu đề thì sửa ĐÚNG một số này. */
+.personnel-grid--org { --ns-offset: 232px; }
+
+.ns-side {
+    position: sticky;
+    top: var(--ns-offset);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: calc(100vh - var(--ns-offset) - 24px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 4px;
+}
+
+@media (max-width: 1100px) {
+    .ns-side { position: static; max-height: none; overflow: visible; }
+}
+
+.ns-box {
+    padding: 12px 13px 13px;
+    background: var(--white);
+    border: 1px solid var(--border-color);
+    border-radius: 11px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+}
+
+.ns-box__title {
+    margin: 0 0 9px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .8px;
+    color: var(--text-muted);
+}
+
+/* --- Ô tìm --- */
+.ns-search {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 9px 12px;
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--text-main);
+    background: #f7f9fc;
+    border: 1px solid #dfe6ee;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color .15s ease, background-color .15s ease;
+}
+
+.ns-search:focus {
+    background: #fff;
+    border-color: var(--secondary-blue);
+    box-shadow: 0 0 0 3px rgba(26, 79, 214, .12);
+}
+
+/* --- Nút lọc trạng thái --- */
+.ns-st {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    margin-bottom: 5px;
+    padding: 7px 10px;
+
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-main);
+    text-align: left;
+
+    background: #f7f9fc;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color .14s ease, border-color .14s ease;
+}
+
+.ns-st:last-child { margin-bottom: 0; }
+.ns-st:hover { background: #eef3fa; }
+
+.ns-st.is-on {
+    color: var(--primary-blue);
+    background: #eaf1ff;
+    border-color: var(--secondary-blue);
+}
+
+.ns-st__num {
+    flex: 0 0 auto;
+    min-width: 22px;
+    padding: 1px 7px;
+    font-size: 11px;
+    color: #fff;
+    background: #9aa7b4;
+    border-radius: 20px;
+    text-align: center;
+}
+
+.ns-st--on .ns-st__num { background: var(--success-green, #27ae60); }
+.ns-st--off .ns-st__num { background: #b0bcc8; }
+.ns-st.is-on .ns-st__num { background: var(--primary-blue); }
+
+/* --- Danh sách khu vực --- */
+.ns-box--areas { padding-bottom: 8px; }
+
+.ns-area {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    margin-bottom: 3px;
+    padding: 6px 9px;
+
+    font-family: inherit;
+    font-size: 12.5px;
+    color: var(--text-main);
+    text-align: left;
+
+    background: transparent;
+    border: 0;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: background-color .14s ease;
+}
+
+.ns-area:hover { background: #f0f4fa; }
+.ns-area.is-on { background: #eaf1ff; color: var(--primary-blue); }
+
+/* Cấp 1 = khối lớn, cấp 2 = vị trí bên trong tổ */
+.ns-area--l1 { font-weight: 700; margin-top: 7px; }
+.ns-area--l1:first-of-type { margin-top: 0; }
+
+.ns-area--l2 {
+    padding-left: 20px;
+    font-size: 12px;
+    color: #5b6b7c;
+}
+
+.ns-area--l2 .ns-area__name::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 1px;
+    margin-right: 7px;
+    vertical-align: middle;
+    background: #b8c4d0;
+}
+
+.ns-area__name { min-width: 0; }
+
+.ns-area__num {
+    flex: 0 0 auto;
+    min-width: 20px;
+    padding: 1px 6px;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--primary-blue);
+    background: #eef2f6;
+    border-radius: 20px;
+    text-align: center;
+}
+
+.ns-hint {
+    margin: 0;
+    padding: 0 3px;
+    font-size: 11px;
+    line-height: 1.5;
+    color: #94a3b3;
+}
+
+/* --- Kết quả lọc + ẩn thẻ --- */
+.ns-result {
+    margin: 0 0 12px;
+    padding: 8px 13px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--primary-blue);
+    background: #eaf1ff;
+    border-radius: 8px;
+}
+
+.is-hidden { display: none !important; }
+
+/* Khung báo lỗi / chưa có dữ liệu: trải hết 2 cột, không chen vào cột thanh bên */
+.personnel-grid--org > .personnel-empty { grid-column: 1 / -1; }
+
+/* Nháy viền khối vừa nhảy tới */
+.is-flash {
+    animation: nsFlash 1.4s ease-out;
+}
+
+@keyframes nsFlash {
+    0%   { box-shadow: 0 0 0 0 rgba(26, 79, 214, .5); }
+    35%  { box-shadow: 0 0 0 5px rgba(26, 79, 214, .18); }
+    100% { box-shadow: 0 0 0 0 rgba(26, 79, 214, 0); }
+}
+
+
+/* =============================================================================
+ * CHỪA CHỖ KHI CUỘN TỚI MỘT KHỐI
+ * -----------------------------------------------------------------------------
+ * Bấm một khu vực ở thanh bên -> scrollIntoView đưa MÉP TRÊN khối lên sát mép
+ * trên cửa sổ, tức chui thẳng vào gầm 2 thanh cố định + tiêu đề mục dính, mất
+ * luôn tên và ảnh của mấy người đầu.
+ * scroll-margin-top bảo trình duyệt dừng SỚM đúng bấy nhiêu pixel.
+ * ===========================================================================*/
+.org-lead,
+.org-row,
+.org-team,
+.org-group,
+.ns-main {
+    scroll-margin-top: var(--ns-offset, 232px);
+}
+
+
+/* =============================================================================
+ * HÀNG QUẢN LÝ KÍP — LẤP ĐẦY BỀ NGANG KHUNG
+ * -----------------------------------------------------------------------------
+ * Trước đây 3 thẻ xếp dọc, canh giữa, mỗi thẻ trần 300px -> trên khung rộng
+ * ~1370px thì hở gần 500px hai bên, nhìn trống huơ.
+ * Nay: lưới 3 cột đều nhau, mỗi thẻ nằm NGANG (ảnh trái, thông tin phải) và có
+ * nền riêng — vừa lấp kín bề ngang vừa ra dáng thẻ nhân sự.
+ * Đặt CUỐI file để đè các luật cỡ cũ ở trên.
+ * ===========================================================================*/
+.org-lead__row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px;
+    align-items: stretch;
+    justify-content: initial;
+}
+
+.org-lead__row .person-card--hero {
+    max-width: none;
+    width: auto;
+
+    /* Nằm ngang: ảnh bên trái, tên - chức vụ - trạng thái bên phải */
+    flex-direction: row;
+    align-items: center;
+    text-align: left;
+    gap: 18px;
+    padding: 18px 20px;
+
+    background: linear-gradient(135deg, #f7faff 0%, #eef4ff 100%);
+    border: 1px solid #dde7f7;
+    border-radius: 14px;
+}
+
+.org-lead__row .person-card--hero:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 26px -14px rgba(15, 23, 42, .28);
+}
+
+/* Ảnh giữ nguyên cỡ cấp 1, không co lại khi cột hẹp */
+.org-lead__row .person-card--hero .person-avatar {
+    flex: 0 0 auto;
+    margin-bottom: 0;
+}
+
+.org-lead__row .person-card--hero .person-info {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.org-lead__row .person-card--hero .person-info h4 {
+    font-size: 19px;
+    line-height: 1.25;
+    margin-bottom: 6px;
+}
+
+.org-lead__row .person-card--hero .person-info .role {
+    font-size: 14px;
+    margin-bottom: 12px;
+}
+
+/* Ô trống cũng giữ đúng dáng ngang cho hàng khỏi so le */
+.org-lead__row .person-card--empty {
+    background: repeating-linear-gradient(45deg, #fafbfd, #fafbfd 9px, #f2f5f9 9px, #f2f5f9 18px);
+    border-style: dashed;
+}
+
+/* Màn hẹp: về lại xếp dọc, canh giữa cho cân */
+@media (max-width: 780px) {
+    .org-lead__row .person-card--hero {
+        flex-direction: column;
+        text-align: center;
+        gap: 12px;
+    }
+    .org-lead__row .person-card--hero .person-info { flex: 0 0 auto; }
+}
+
+
+/* =============================================================================
+ * MỤC "SẢN LƯỢNG" (#san-luong-theo-thang) — thẻ chỉ số + thanh tiến độ
+ * -----------------------------------------------------------------------------
+ * index.html đã có sẵn markup (.kpi-grid, .kpi-card, .progress-bar…) nhưng
+ * TRƯỚC ĐÂY KHÔNG CÓ MỘT LUẬT CSS NÀO — nên thanh tiến độ tràn hết bề ngang và
+ * các thẻ xếp lộn xộn. Đây là phần định dạng còn thiếu.
+ * ===========================================================================*/
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 18px;
+    align-items: stretch;
+}
+
+.kpi-card {
+    display: flex;
+    flex-direction: column;
+    padding: 18px 20px 20px;
+
+    background: var(--white, #fff);
+    border: 1px solid var(--border-color, #ecf0f1);
+    border-top: 4px solid var(--primary-blue, #0033a1);
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 10px 26px -18px rgba(15, 23, 42, .18);
+}
+
+.kpi-card h3 {
+    margin: 0 0 10px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .6px;
+    text-transform: uppercase;
+    color: var(--text-muted, #7f8c8d);
+}
+
+.kpi-value {
+    font-size: 30px;
+    font-weight: 800;
+    line-height: 1.15;
+    color: var(--primary-blue, #0033a1);
+    word-break: break-word;
+}
+
+.kpi-value .kpi-unit {
+    margin-left: 6px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-muted, #7f8c8d);
+}
+
+.kpi-value.target { color: var(--text-main, #2c3e50); }
+.kpi-value.actual { color: var(--secondary-blue, #1a4fd6); }
+.kpi-value.persent { color: var(--success-green, #27ae60); }
+.kpi-value.heso { color: var(--warning-yellow, #f39c12); }
+
+.kpi-trend {
+    margin-top: 8px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--text-muted, #7f8c8d);
+}
+
+.kpi-trend.is-tot { color: var(--success-green, #27ae60); font-weight: 700; }
+.kpi-trend.is-cham { color: var(--danger-red, #e74c3c); font-weight: 700; }
+
+/* Thẻ đang chờ nội dung: viền nét đứt cho biết chưa hoàn chỉnh */
+.kpi-card--cho {
+    border-top-color: var(--warning-yellow, #f39c12);
+    border-style: dashed;
+    border-top-style: solid;
+    background: repeating-linear-gradient(45deg, #fdfdfe, #fdfdfe 10px, #f7f9fc 10px, #f7f9fc 20px);
+}
+
+/* --- Thanh tiến độ --- */
+.progress-bar-container {
+    margin-top: 12px;
+    height: 12px;
+    background: #eef2f6;
+    border-radius: 20px;
+    overflow: hidden;          /* CHẶN thanh tràn ra ngoài khung */
+}
+
+.progress-bar {
+    height: 100%;
+    width: 0;                  /* JS đặt lại theo % thực tế */
+    background: linear-gradient(90deg, var(--secondary-blue, #1a4fd6), var(--primary-blue, #0033a1));
+    border-radius: 20px;
+    transition: width .6s ease;
+}
+
+.progress-bar.is-vuot {
+    background: linear-gradient(90deg, #2ecc71, #27ae60);
+}
+
+
+/* --- Biểu đồ sản lượng tháng, đặt dưới 4 thẻ chỉ số --- */
+.sanluong-chart {
+    margin-top: 22px;
+    padding: 18px 20px 20px;
+
+    background: var(--white, #fff);
+    border: 1px solid var(--border-color, #ecf0f1);
+    border-top: 4px solid var(--secondary-blue, #1a4fd6);
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 10px 26px -18px rgba(15, 23, 42, .18);
+}
+
+.sanluong-chart__title {
+    margin: 0 0 14px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .6px;
+    color: var(--primary-blue, #0033a1);
+}
+
+/* Chốt chiều cao: Chart.js cần khung có chiều cao thật mới vẽ được,
+   maintainAspectRatio:false mà thẻ cha cao 0 thì biểu đồ mất tiêu. */
+.sanluong-chart__canvas {
+    position: relative;
+    height: 420px;
+}
+
+@media (max-width: 900px) {
+    .sanluong-chart__canvas { height: 320px; }
+}

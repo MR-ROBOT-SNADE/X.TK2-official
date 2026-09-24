@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Graphics, useTick, Container, Sprite, Text } from '@pixi/react';
 import * as PIXI from 'pixi.js';
 
@@ -64,7 +64,7 @@ const randomItem = (arr) => arr[Math.floor(Math.random() * arr.length)];
  * CONTAINER 1: NHÀ NGHIỀN THAN
  * ===========================================================================*/
 const CRUSHER = {
-    iconPath: 'images/icons/Nha_Nghien_Than.png',
+    iconPath: 'images/icons/Nha_Nghien_Than.webp',
     size: 120,          // Icon vuông 120x120
     labelGap: 10,       // Khoảng cách từ đáy icon xuống nhãn
 };
@@ -4178,8 +4178,8 @@ export const WaterRecircStation = ({
  *   <PowerPlant>   — NHÀ TRẠM, vẽ như các nhà khác.
  * ===========================================================================*/
 
-/* MÀU ĐƯỜNG HƠI — đổi từ xanh sang ĐỎ cho đúng nghĩa "hơi quá nhiệt". Khai một
-   chỗ, dùng chung cho cả ống ngoài trời lẫn ống góp trong nhà trạm phát điện. */
+/* MÀU ĐƯỜNG HƠI — ĐỎ cho đúng nghĩa "hơi quá nhiệt". Khai một chỗ, dùng chung
+   cho cả ống ngoài trời lẫn ống góp trong nhà trạm phát điện. */
 const STEAM_CORE = COLORS.statusBad;     // 0xe74c3c — lòng ống
 const STEAM_CASING = 0xc0392b;           // đỏ sẫm  — vỏ bảo ôn
 
@@ -4410,15 +4410,13 @@ export const PowerPlant = ({
 
 /* =============================================================================
  * BĂNG CẤP LIỆU VÀO DÃY SILO PHỐI LIỆU (nhìn từ trên xuống)
- * Một băng tải chạy dọc phía TRÊN cả dãy silo, mỗi nhóm vật liệu có ống rót
- * riêng thả xuống đúng cột silo của mình — cùng kiểu với 3 ống tải than sẵn có
- * rót vào silo 15, 16, 17.
- * Đầu trái băng cắm vào Trạm S2, tức chính là tuyến quặng hồi thiêu kết quay
- * lại dãy phối liệu.
- * Vẽ TRƯỚC dãy silo nên các ống rót bị silo che chân, nhìn như rót vào trong.
+ * Tuyến quặng hồi nguội từ Trạm S2 chạy dọc phía TRÊN dãy silo, rót vào 4 CỘT
+ * SILO CUỐI (21, 20, 19, 18) rồi hết — cùng kiểu với 3 ống tải than sẵn có rót
+ * vào silo 15, 16, 17.
+ * Vẽ TRƯỚC dãy silo nên chân các ống rót bị silo che, nhìn như rót vào trong.
  * ===========================================================================*/
 export const SiloFeedLine = ({
-    y, height = 30, xStart, xEnd,
+    y, height = 20, xStart, xEnd,
     groups,                  // [{ color, xs: [...] }]
     chuteTopY, chuteBottomY, chuteW = 11,
 }) => {
@@ -4452,8 +4450,7 @@ export const SiloFeedLine = ({
         /* 2b) LỚP LIỆU TĨNH phủ kín mặt băng — dùng ĐÚNG mật độ hạt của các
                băng tải chính (BELT.particleDensity) nên nhìn dày dặn khớp với
                băng vào Trạm S2. Vẽ MỘT LẦN trong drawBase nên dù vài nghìn hạt
-               cũng không tốn thêm khung hình nào; phần chạy động chỉ là mấy
-               chục hạt ở lớp trên. */
+               cũng không tốn thêm khung hình nào. */
         const bedCount = Math.round((xEnd - xStart) * BELT.particleDensity);
         g.lineStyle(0);
         for (let i = 0; i < bedCount; i++) {
@@ -4466,19 +4463,14 @@ export const SiloFeedLine = ({
         }
         g.lineStyle(2, COLORS.machineDark, 0.85);
         g.drawRect(xStart, y, xEnd - xStart, height);
-        // 2 ray dẫn hướng
+
+        // 2 ray dẫn hướng + con lăn đỡ
         g.lineStyle(1.6, COLORS.machineDark, 0.35);
-        g.moveTo(xStart, y + 5); g.lineTo(xEnd, y + 5);
-        g.moveTo(xStart, y + height - 5); g.lineTo(xEnd, y + height - 5);
-        // con lăn đỡ
-        g.lineStyle(1.2, COLORS.machineDark, 0.3);
-        for (let rx = xStart + 24; rx < xEnd - 10; rx += 48) {
-            g.moveTo(rx, y + 3); g.lineTo(rx, y + height - 3);
-        }
+        g.moveTo(xStart, y + 4); g.lineTo(xEnd, y + 4);
+        g.moveTo(xStart, y + height - 4); g.lineTo(xEnd, y + height - 4);
     }, [y, height, xStart, xEnd, groups, chuteTopY, chuteBottomY, chuteW]);
 
-    /* Liệu chạy trên băng: mỗi nhóm một dòng hạt, chạy TỪ TRÁI SANG PHẢI rồi
-       biến mất ở đúng ống rót của nhóm mình. */
+    /* Liệu chạy trên băng: chạy TỪ TRÁI SANG PHẢI rồi biến mất ở ống rót cuối. */
     const grains = useMemo(() => {
         const out = [];
         groups.forEach((grp, gi) => {
@@ -4488,7 +4480,6 @@ export const SiloFeedLine = ({
                     gi, drop,
                     t: Math.random(),
                     sp: 0.0022 + Math.random() * 0.0016,
-                    off: 3 + Math.random() * 0.0,   // gán lại theo `height` khi vẽ
                     ry: Math.random(),
                     sz: 1.4 + Math.random() * 1.2,
                 });
@@ -4536,15 +4527,12 @@ export const SiloFeedLine = ({
 /* =============================================================================
  * ĐƯỜNG ỐNG NƯỚC LÀM MÁT — nối TRẠM PHÁT ĐIỆN NHIỆT DƯ với TRẠM NƯỚC TUẦN HOÀN
  * Hơi sau khi qua tuabin ngưng lại thành nước nóng, chảy xuống trạm nước; bơm
- * ở đó đẩy nước đã làm nguội quay ngược lên. Hai ống chạy song song men theo
- * mép phải bản vẽ, tạo thành vòng tuần hoàn khép kín.
+ * ở đó đẩy nước đã làm nguội quay ngược lên. Thành vòng tuần hoàn khép kín.
  * Mỗi đường là một ĐƯỜNG GẤP KHÚC khai bằng danh sách đỉnh [[x,y], ...].
  * ===========================================================================*/
 
-/* MÀU ỐNG NƯỚC — XANH LÁ CÂY, đúng màu bút người dùng vẽ trên bản đồ tay.
-   Trước đây em hiểu nhầm chữ "xanh" thành xanh dương.
-   Ba loại ống giờ phân biệt rõ: gió XÁM, hơi ĐỎ, nước XANH LÁ.
-   Khai một chỗ, dùng cho MỌI tuyến nước. */
+/* MÀU ỐNG NƯỚC — XANH LÁ CÂY. Ba loại ống phân biệt rõ: gió XÁM, hơi ĐỎ,
+   nước XANH LÁ. Khai một chỗ, dùng cho MỌI tuyến nước. */
 const WATER_CORE = COLORS.statusGood;    // 0x2ecc71 — lòng ống, xanh lá
 const WATER_CASING = 0x1e8449;           // xanh lá sẫm — vỏ ống
 
@@ -4576,7 +4564,6 @@ export const CoolingWaterLines = ({ paths, pipeW = 11 }) => {
         });
     }, [paths, pipeW]);
 
-    /* Dựng sẵn dữ liệu độ dài từng đoạn để chạy hạt nước cho mượt */
     const geo = useMemo(() => paths.map((ln) => {
         const segs = []; let total = 0;
         for (let i = 0; i < ln.points.length - 1; i++) {
@@ -4618,7 +4605,7 @@ export const CoolingWaterLines = ({ paths, pipeW = 11 }) => {
                 }
                 dist -= segs[i];
             }
-            g.beginFill(ln.hot ? COLORS.sinterHot : COLORS.white, ln.hot ? 0.85 : 0.85);
+            g.beginFill(ln.hot ? COLORS.sinterHot : COLORS.white, 0.85);
             g.drawCircle(px, py, d.sz);
             g.endFill();
         });
@@ -4628,6 +4615,101 @@ export const CoolingWaterLines = ({ paths, pipeW = 11 }) => {
         <Container>
             <Graphics draw={draw} />
             <Graphics ref={flowRef} />
+        </Container>
+    );
+};
+
+/* =============================================================================
+ * KHUNG LOGO — chỗ dành sẵn để nạp ảnh logo vào sau
+ * Có ảnh  -> hiện ảnh, không viền không nền.
+ * Chưa có -> hiện KHUNG CHỜ nét đứt kèm nhãn, để nhìn thấy ngay vị trí và cỡ.
+ * Việc dò ảnh làm bằng thẻ Image của trình duyệt: nạp được thì mới vẽ Sprite,
+ * nhờ vậy file thiếu KHÔNG làm Pixi văng lỗi hay để lại ô đen.
+ * ===========================================================================*/
+export const LogoPlate = ({ src, x, y, width, height, label = 'LOGO' }) => {
+    const [ready, setReady] = useState(false);
+
+    useEffect(() => {
+        setReady(false);
+        /* Chặn nơi KHÔNG có trình duyệt (render phía máy chủ, môi trường kiểm
+           thử...): thiếu chốt này là văng "Image is not defined" và hỏng cả
+           sơ đồ. Ở đó cứ hiện khung chờ, không dò ảnh. */
+        if (!src || typeof window === 'undefined' || typeof window.Image !== 'function') return undefined;
+        let alive = true;
+        const probe = new window.Image();
+        probe.onload = () => { if (alive) setReady(true); };
+        probe.onerror = () => {
+            if (!alive) return;
+            console.warn(`[Sơ đồ công nghệ] Chưa có ảnh logo: ${src} — `
+                + 'đang hiện khung chờ. Bỏ file vào đúng đường dẫn này là tự hiện.');
+        };
+        probe.src = src;
+        return () => { alive = false; };
+    }, [src]);
+
+    const drawFrame = useCallback((g) => {
+        g.clear();
+        if (ready) return;                       // có ảnh rồi thì không vẽ khung
+
+        g.lineStyle(0);
+        g.beginFill(COLORS.dustLight, 0.22);
+        g.drawRoundedRect(0, 0, width, height, 10);
+        g.endFill();
+
+        /* Viền nét đứt tự vẽ (Pixi không có kiểu nét đứt sẵn) */
+        g.lineStyle(2.4, COLORS.siloBorder, 0.65);
+        const dash = 14, gap = 9;
+        const seg = (x1, y1, x2, y2) => {
+            const len = Math.hypot(x2 - x1, y2 - y1);
+            const ux = (x2 - x1) / len, uy = (y2 - y1) / len;
+            for (let d = 0; d < len; d += dash + gap) {
+                const e = Math.min(d + dash, len);
+                g.moveTo(x1 + ux * d, y1 + uy * d);
+                g.lineTo(x1 + ux * e, y1 + uy * e);
+            }
+        };
+        seg(0, 0, width, 0);
+        seg(width, 0, width, height);
+        seg(width, height, 0, height);
+        seg(0, height, 0, 0);
+
+        /* Dấu ảnh ở giữa cho ra dáng ô ảnh trống */
+        const cx = width / 2, cy = height / 2 - height * 0.06;
+        const w = Math.min(width, height) * 0.42, h = w * 0.72;
+        g.lineStyle(2.2, COLORS.siloBorder, 0.5);
+        g.drawRoundedRect(cx - w / 2, cy - h / 2, w, h, 4);
+        g.lineStyle(0);
+        g.beginFill(COLORS.siloBorder, 0.45);
+        g.drawCircle(cx - w * 0.22, cy - h * 0.16, h * 0.1);
+        g.drawPolygon([
+            cx - w * 0.34, cy + h * 0.32,
+            cx - w * 0.04, cy - h * 0.1,
+            cx + w * 0.16, cy + h * 0.12,
+            cx + w * 0.3, cy - h * 0.02,
+            cx + w * 0.4, cy + h * 0.32,
+        ]);
+        g.endFill();
+    }, [ready, width, height]);
+
+    return (
+        <Container x={x} y={y}>
+            <Graphics draw={drawFrame} />
+            {ready && <Sprite image={src} x={0} y={0} width={width} height={height} />}
+            {!ready && (
+                <Text
+                    text={label}
+                    x={width / 2}
+                    y={height * 0.80}
+                    anchor={0.5}
+                    style={new PIXI.TextStyle({
+                        fontFamily: 'Arial, sans-serif',
+                        fontSize: Math.max(13, height * 0.15),
+                        fontWeight: '700',
+                        fill: 0x1f618d,
+                        letterSpacing: 1.2,
+                    })}
+                />
+            )}
         </Container>
     );
 };

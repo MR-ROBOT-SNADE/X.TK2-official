@@ -32,7 +32,10 @@ import { Graphics, useTick } from '@pixi/react';
 export const MEDIA_BASE = 'images/so-do';
 export const VIDEO_BASE = 'images/videos/so-do';
 
-/* Số ảnh tối đa thử nạp cho mỗi hạng mục (<id>-1.jpg .. <id>-N.jpg) */
+/* Số ảnh MẶC ĐỊNH thử nạp cho mỗi hạng mục: <id>-1.jpg .. <id>-3.jpg
+   Hạng mục nào cần NHIỀU ảnh hơn thì khai `imageCount: N` ngay trong hạng mục
+   đó ở HOTSPOT_DEFS — ví dụ dãy silo phối liệu để 21 (mỗi silo một ảnh).
+   Thiếu ảnh nào thì ô đó tự ẩn, không vỡ giao diện. */
 const IMAGE_SLOTS = 3;
 
 const mediaFor = (id, extra = {}) => ({
@@ -40,7 +43,8 @@ const mediaFor = (id, extra = {}) => ({
     youtube: extra.youtube ?? '',
     poster: extra.poster ?? `${MEDIA_BASE}/${id}-1.jpg`,
     images: extra.images
-        ?? Array.from({ length: IMAGE_SLOTS }, (_, i) => `${MEDIA_BASE}/${id}-${i + 1}.jpg`),
+        ?? Array.from({ length: extra.imageCount ?? IMAGE_SLOTS },
+                      (_, i) => `${MEDIA_BASE}/${id}-${i + 1}.jpg`),
 });
 
 /* Bộ thông số mặc định — hạng mục nào chưa khai riêng thì dùng bộ này. */
@@ -66,6 +70,9 @@ export const HOTSPOT_DEFS = [
         id: 'silo-phoi-lieu',
         name: 'Dãy silo phối liệu',
         group: 'Phối liệu',
+        /* 21 ô ảnh, mỗi silo một ảnh: silo-phoi-lieu-1.jpg .. -21.jpg
+           Bỏ được bao nhiêu ảnh thì hiện bấy nhiêu, thiếu thì ô đó tự ẩn. */
+        imageCount: 21,
         summary: 'Hai dãy 21 silo chứa quặng, trợ dung và nhiên liệu. Mỗi silo có cân '
             + 'định lượng riêng, rót theo tỉ lệ phối xuống băng tải chính chạy dưới đáy dãy.',
         area: () => [{ x: 286, y: -170, w: 1458, h: 128 }],
@@ -518,7 +525,7 @@ export const FLOW_ORDER = [
  *   bullets: ['Ý thứ nhất', 'Ý thứ hai'],
  * ===========================================================================*/
 /* =============================================================================
- * 1d) VIDEO QUY TRÌNH VẬN HÀNH
+ * VIDEO LƯU TRÌNH CÔNG NGHỆ
  * -----------------------------------------------------------------------------
  * Đây CHỈ LÀ CÁI KHUNG PHÁT. Bỏ file video vào đúng đường dẫn dưới đây là tự
  * phát, không phải sửa dòng code nào:
@@ -787,11 +794,16 @@ const MediaBlock = ({ item }) => {
             </div>
 
             {liveImages.length > 0 ? (
-                <div className="sd-pop__gallery">
-                    {liveImages.map((src) => (
-                        <SafeImage key={src} src={src} alt={item.name} onFail={markDead} />
-                    ))}
-                </div>
+                <>
+                    <div className={`sd-pop__gallery${liveImages.length > 3 ? ' is-many' : ''}`}>
+                        {liveImages.map((src) => (
+                            <SafeImage key={src} src={src} alt={item.name} onFail={markDead} />
+                        ))}
+                    </div>
+                    {liveImages.length > 3 && (
+                        <p className="sd-pop__count">{liveImages.length} ảnh</p>
+                    )}
+                </>
             ) : (
                 <div className="sd-pop__empty sd-pop__empty--thin">
                     <span>Chưa có ảnh cụm thiết bị</span>
@@ -952,7 +964,7 @@ const FlowNote = () => {
     );
 };
 
-/* KHUNG PHÁT VIDEO QUY TRÌNH VẬN HÀNH.
+/* KHUNG PHÁT VIDEO LƯU TRÌNH CÔNG NGHỆ.
    Là một dải RIÊNG chạy hết bề ngang, đặt DƯỚI cả bảng danh mục lẫn sơ đồ
    (xem <div className="sd-root"> trong pixiStage.jsx).
    Chưa có file thì hiện khung chờ có nút play, kèm đúng đường dẫn cần bỏ vào. */
@@ -963,8 +975,7 @@ export const ProcessVideo = () => {
 
     return (
         <section className="sd-card sd-player">
-            {/* Đầu thẻ dựng GIỐNG HỆT bảng danh mục hạng mục: tiêu đề chữ hoa
-                xanh + dòng phụ xám bên dưới. */}
+            {/* Đầu thẻ dựng GIỐNG HỆT bảng danh mục hạng mục */}
             <h3 className="sd-card__title">
                 {PROCESS_VIDEO.title}
                 <span className="sd-card__sub">{PROCESS_VIDEO.sub}</span>

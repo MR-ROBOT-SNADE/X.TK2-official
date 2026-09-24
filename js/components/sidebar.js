@@ -1,24 +1,35 @@
 /* =========================================================
         HỆ THỐNG XỬ LÝ SIDEBAR (MENU PHỤ)
    ========================================================= */
-function updateSidebarVisibility(targetId) {
-    /* Khai báo các hằng số để làm sidebar bằng cách lấy id bên phía khung html */
-    const menuTH = document.getElementById('sidebar-menu-tieu-hao');
-    const menuCL = document.getElementById('sidebar-menu-chat-luong');
-    /* Khai báo hằng phục vụ cho việc bật tắt toogle*/
-    const sidebarToggle = document.getElementById('sidebar-toggle');
+/* Mục nào trên thanh trên đi với khối menu bên nào.
+   Trước đây chỉ khai báo hai mục Tiêu hao và Chất lượng, còn ba khối menu bên
+   của Vật tư không ai quản. Xem mục Vật tư xong quay lại Tiêu hao hay Chất
+   lượng thì dòng "Vật tư xuất trong tháng" vẫn nằm lại trong menu, trùng với
+   mục đã có sẵn bên Vật tư. Liệt kê đủ cả năm khối thì mỗi lần chuyển mục
+   chỉ còn đúng một khối được hiện. */
+const SIDEBAR_MENU_MAP = {
+    '#tieu-hao-san-xuat': 'sidebar-menu-tieu-hao',
+    '#chat-luong'       : 'sidebar-menu-chat-luong',
+    '#vat-tu-thanh-ghi' : 'sidebar-menu-vat-tu',
+    '#vat-tu-tam-op'    : 'sidebar-menu-vat-tu-op',
+    '#vat-tu-tong-hop'  : 'sidebar-menu-vat-tu-thang',
+};
 
-    // Hiện menu tương ứng, ẩn các menu còn lại
-    const isTieuHao = (targetId === '#tieu-hao-san-xuat');
-    const isChatLuong = (targetId === '#chat-luong');
-    /* Dùng để ẩn hiện các giao diện của thanh sidebar
-       Nguyên lý: Nếu hằng isTieuHao hoặc isChatLuong trả về bằng với đúng id đang chọn
-       , CSS trả về giao diện, nếu không CSS trả về không (condition ? true : false là rút gọn của if else)  */
-    if(menuTH) menuTH.style.display = isTieuHao ? 'block' : 'none';
-    if(menuCL) menuCL.style.display = isChatLuong ? 'block' : 'none';
+function updateSidebarVisibility(targetId) {
+    /* Khối menu ứng với mục đang mở. Mục nào không có menu bên (Trang chủ,
+       Nhân sự, Sản lượng...) thì trả về null, khi đó ẩn sạch. */
+    const menuDangDung = SIDEBAR_MENU_MAP[targetId] || null;
+
+    /* Duyệt hết mọi khối menu: đúng khối của mục đang xem thì hiện, còn lại ẩn */
+    Object.keys(SIDEBAR_MENU_MAP).forEach(function (muc) {
+        const id = SIDEBAR_MENU_MAP[muc];
+        const khoi = document.getElementById(id);
+        if (khoi) khoi.style.display = (id === menuDangDung) ? 'block' : 'none';
+    });
 
     /* Nếu chuyển đi nav khác đi ẩn nút sidebar đi */
-    if(sidebarToggle) sidebarToggle.style.display = (isTieuHao || isChatLuong) ? 'block' : 'none';
+    const sidebarToggle = document.getElementById('sidebar-toggle');
+    if (sidebarToggle) sidebarToggle.style.display = menuDangDung ? 'block' : 'none';
 }
 
 /* Hàm để xử lý việc đẩy và giấu sidebar đi */
@@ -31,26 +42,15 @@ function toggleSidebar() {
     if (sidebar) sidebar.classList.toggle("open");
     if (Mainwrapper) Mainwrapper.classList.toggle("shifted");
 
-    /* Khai báo 2 hằng biểu thị cho 2 nội dung trên nav bar là tiêu hao sản xuất và chất lượng đầu vào đầu ra */
-    const tieuHaoSection = document.getElementById('tieu-hao-san-xuat');
-    const chatLuongSection = document.getElementById('chat-luong');
-    /* Khai báo 2 hằng biểu 2 sidebar menu tiêu hao chất lượng và menu tiêu hao */
-    const menuTH = document.getElementById('#sidebar-menu-tieu-hao');
-    const menuCL = document.getElementById('#sidebar-menu-chat-luong');
-    
-    /* Hàm kiểm tra nếu menu tiêu hao và sidebar tiêu hao cùng tồn tại */
-    if (menuTH && tieuHaoSection) {
-        /* Nếu 2 menu này cùng mở thì gọi CSS trả về giao diện của thanh mục tiêu hao sản xuất ban đầu */
-        const isTHOpen = (tieuHaoSection.style.display === 'block');
-        // Nếu isThOpen trả về true khi 2 biến trên trả về true, thì hãy mở menuTH (thanh sidebar) và đưa dòng lệnh 
-        menuTH.style.setProperty('display', isTHOpen ? 'block' : 'none', 'important');
-    }
-    
-    /* Tương tự cho cái trên nhưng sử dụng cho bên chất lượng */
-    if (menuCL && chatLuongSection) {
-        const isCLOpen = (chatLuongSection.style.display === 'block');
-        menuCL.style.setProperty('display', isCLOpen ? 'block' : 'none', 'important');
-    }
+    /* ĐÃ XOÁ hai khối if (menuTH...) và if (menuCL...).
+       Lý do: hai hằng menuTH / menuCL đã bị xoá khỏi hàm này, nhưng hai khối
+       DÙNG chúng thì còn lại -> đọc biến không tồn tại -> ReferenceError, làm
+       chết toggleSidebar(), kéo theo chết showSubContent() và biểu đồ không vẽ.
+
+       Không khôi phục lại hai hằng đó, vì việc chúng làm (ẩn/hiện đúng khối
+       menu bên theo mục đang mở) đã do updateSidebarVisibility() +
+       SIDEBAR_MENU_MAP lo trọn. Khôi phục là tạo ra hai nguồn quyết định cho
+       cùng một chuyện, lần sau lại lệch nhau. */
 }
 
 /* Hàm xử lý cho việc show các thành phần tiêu hao con trong thanh sidebar */
@@ -71,8 +71,11 @@ function showSubContent(contentId) {
         target.style.display = 'flex';
         window.scrollTo({ top: target.parentElement.offsetTop - 100, behavior: 'smooth'});
     }
-    /* Gọi hàm đẩy sidebar ra */
-    toggleSidebar();
+    /* Đã chọn xong biểu đồ -> ĐÓNG menu bên (không dùng toggleSidebar).
+       toggleSidebar là ĐẢO trạng thái: bấm từ menu bên (đang mở) thì đóng, đúng;
+       nhưng bấm từ thẻ trong bảng nhận xét (menu đang đóng) thì lại MỞ menu ra,
+       che mất biểu đồ vừa nhảy tới. */
+    closeSidebar();
 }
 
 function closeSidebar() {
@@ -90,7 +93,8 @@ document.querySelectorAll('.dropdown-content a, .nav-links a').forEach(link => {
         let targetId = this.getAttribute('href');
         if(!targetId || !targetId.startsWith('#')) return;
 
-        let targetSection = document.querySelector(targetId);
+        /* getElementById: querySelector('#5s-vscn') ném lỗi với id bắt đầu bằng số */
+        let targetSection = document.getElementById(targetId.slice(1));
         if(targetSection) {
             e.preventDefault(); 
 

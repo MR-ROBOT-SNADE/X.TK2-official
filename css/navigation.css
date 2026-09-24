@@ -49,6 +49,13 @@
     z-index: 1050 !important;
     box-shadow: 0 4px 15px rgba(0,0,0,0.2);
     left: 0 !important;
+
+    /* CAO CHỐT CỨNG 60px: section-header, scroll-margin, sơ đồ... đều tính sẵn
+       40px top-bar + 60px nav-bar = 100px. Co giãn chỉ theo CHIỀU NGANG.
+       --nav-fs do js/components/nav_fit.js đo rồi đặt; chưa chạy JS thì 12px
+       như bản cũ. Mọi khoảng đệm của mục menu tính theo em để co giãn cùng chữ. */
+    height: 60px;
+    font-size: var(--nav-fs, 12px);
 }
 
 .nav-links {
@@ -61,12 +68,108 @@
 .nav-links li a.dropbtn,
 .nav-links li > a {
     color: var(--white);
-    padding: 20px 10px;
-    display: block;
-    font-size: 12px;
+    padding: 0 0.85em;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    font-size: 1em;
     font-weight: 700;
-    transition: background-color 0.3 ease;
+    transition: background-color 0.3s ease;
     white-space: nowrap;
+}
+
+/* Nút ☰ MENU — chỉ hiện ở chế độ GỌN (màn hình quá hẹp) */
+.nav-toggle {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 16px;
+    background: transparent;
+    color: var(--white);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 4px;
+    font: 700 14px 'Roboto', sans-serif;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+}
+
+.nav-toggle:hover,
+.nav-bar--mo .nav-toggle {
+    background-color: var(--secondary-blue);
+}
+
+/* ---- Chế độ HAI DÒNG: tên mục được xuống 2 dòng, các mục tự co cho vừa ---- */
+.nav-bar--hai-dong {
+    padding: 0 2%;
+}
+
+.nav-bar--hai-dong .nav-links {
+    min-width: 0;
+}
+
+.nav-bar--hai-dong .nav-links li > a {
+    white-space: normal;
+    line-height: 1.25;
+    text-align: center;
+    text-wrap: balance;
+    padding: 0 0.7em;
+}
+
+/* ---- Chế độ GỌN: nút ☰ MENU, bấm mở danh sách đầy đủ xổ xuống ---- */
+.nav-bar--gon .nav-toggle {
+    display: flex;
+}
+
+.nav-bar--gon .nav-links {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background-color: var(--primary-blue);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.25);
+}
+
+.nav-bar--gon.nav-bar--mo .nav-links {
+    display: flex;
+}
+
+.nav-bar--gon .nav-links li a.dropbtn,
+.nav-bar--gon .nav-links li > a {
+    height: auto;
+    padding: 12px 5%;
+    font-size: 14px;
+    white-space: normal;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.nav-bar--gon .dropdown {
+    display: block;
+}
+
+.nav-bar--gon .dropdown-content,
+.nav-bar--gon .dropdown:hover .dropdown-content {
+    display: block;
+    position: static;
+    min-width: 0;
+    box-shadow: none;
+    border-top: 0;
+    border-radius: 0;
+}
+
+.nav-bar--gon .dropdown-content a {
+    padding: 11px 5% 11px calc(5% + 16px);
+}
+
+/* Mục gần mép phải: menu con mở sang TRÁI để không tràn khỏi màn hình */
+.dropdown--mo-trai .dropdown-content {
+    left: auto;
+    right: 0;
 }
 
 .nav-links li:hover .dropbtn,

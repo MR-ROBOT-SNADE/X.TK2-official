@@ -7,6 +7,12 @@
     width: 100%;
     position: relative;
     min-height: calc(100vh - 150px);
+    /* Lưới an toàn: phần nào tràn ngang thì bị cắt tại đây, trang không bị nới
+       rộng (trên điện thoại, trang rộng ra kéo theo cả 2 thanh cố định rộng ra,
+       nút MENU trôi ra ngoài màn hình). Dùng clip chứ không dùng hidden: hidden
+       tạo khung cuộn riêng làm hỏng các tiêu đề position: sticky bên trong.
+       Thanh cố định không bị cắt vì khung chứa của chúng là cửa sổ trình duyệt. */
+    overflow-x: clip;
 }
 
 #main-wrapper.shifted {
@@ -20,6 +26,7 @@
     margin-right: auto;
     display: flex;
     align-items: center;
+    flex-shrink: 0;   /* thanh menu chật thì các mục co lại, logo giữ nguyên cỡ */
 }
 .nav-logo-img {
     height: 45px;

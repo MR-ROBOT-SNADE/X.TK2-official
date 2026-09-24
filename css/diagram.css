@@ -3,19 +3,10 @@
  * Nguyên tắc: canvas LẤP KÍN bề ngang khung trang, không chừa dải trắng 2 bên.
  * ===========================================================================*/
 
-/* --- Riêng mục sơ đồ: TIÊU ĐỀ KHÔNG DÍNH, VÀ MỤC TỰ CHỪA CHỖ CHO 2 THANH CỐ ĐỊNH.
-       Trước đây tiêu đề để position:sticky (kế thừa layout.css). Sticky có tác
-       dụng phụ tiện lợi là tự "nhảy" xuống dưới 2 thanh cố định, nên không ai
-       nhận ra rằng trang KHÔNG hề chừa chỗ cho 2 thanh đó. Cái giá phải trả:
-       tiêu đề là dải TRẮNG ĐỤC cao ~70px, z-index 10, luôn nổi trên khung sơ đồ
-       (z-index 0) -> che mất MÉP TRÊN sơ đồ, đúng chỗ dãy silo và nhà nghiền
-       than nằm (canvas y 18..96, chỉ chiếm 7% trên cùng).
-       Nay đổi về static thì phải TỰ CHỪA 100px, không thì tiêu đề chui vào gầm
-       thanh menu, chỉ còn thấy mỗi vạch vàng.
-       Đồng thời bóp gọn tiêu đề lại để nhường chiều cao cho sơ đồ. --- */
+/* --- Riêng mục sơ đồ: TIÊU ĐỀ KHÔNG DÍNH, VÀ MỤC TỰ CHỪA CHỖ CHO 2 THANH CỐ ĐỊNH. --- */
 #so-do-cong-nghe {
     padding-top: 104px;      /* 40px top-bar + 60px nav-bar + 4px thoáng */
-    padding-bottom: 18px;    /* vừa đủ thở, không để dải trắng thừa trước chân trang */
+    padding-bottom: 18px;   /* vừa đủ thở, không để dải trắng thừa trước chân trang */
 
     /* Bỏ lề phải 5% mà .panel-section (layout.css) áp cho mọi mục, để khung sơ
        đồ áp SÁT BIÊN PHẢI cửa sổ. Lề trái giữ nguyên 5% cho tiêu đề mục thẳng
@@ -37,25 +28,6 @@
 
 
 .sintering-diagram-wrapper {
-
-    /* --- CỠ KHUNG: ƯU TIÊN LỌT TRỌN MÀN HÌNH, KHÔNG PHẢI LẤP KÍN BỀ NGANG ---
-       Trước đây để width:100% nên bề cao suy ra theo tỉ lệ LUÔN vượt quá phần
-       màn hình còn trống (ví dụ màn 22" 1920x1080: sơ đồ cao 1064px trong khi
-       chỗ trống chỉ 890px). Người dùng buộc phải cuộn, mà cuộn thì mép trên sơ
-       đồ chui vào gầm 2 thanh cố định -> mất dải silo + nhà nghiền than.
-       Mỗi màn hình lại vượt một kiểu nên chỗ mất cũng khác nhau — đúng hiện
-       tượng "laptop 15.6 inch thì thấy, màn 22 inch thì mất".
-
-       Cách tính mới: lấy bề rộng LỚN NHẤT mà TRỌN chiều cao sơ đồ vẫn lọt trong
-       phần màn hình còn trống. Không phải cuộn nữa thì không gì che được.
-         --sd-chrome : chiều cao bị chiếm mất = 104 (chừa 2 thanh cố định)
-                       + 54 (tiêu đề mục đã bóp gọn) + 14 (lề dưới) = 172px.
-                       MUỐN SƠ ĐỒ TO HƠN NỮA thì giảm số này, đổi lại sẽ phải
-                       cuộn một chút và mép trên sơ đồ có thể chui vào gầm thanh
-                       menu — đúng lỗi cũ. Cần to hẳn thì bấm nút phóng to toàn
-                       màn hình ở góc sơ đồ, vừa to vừa không mất gì.
-         --sd-min    : sàn, màn hình quá thấp thì thôi chấp nhận cuộn còn hơn
-                       để sơ đồ bé không đọc nổi. */
     width: var(--sd-w);
     max-width: 100%;
     aspect-ratio: var(--stage-w) / var(--stage-h);
@@ -308,6 +280,31 @@
     margin-top: 8px;
 }
 
+/* NHIỀU ẢNH (trên 3): đổi sang lưới TỰ XUỐNG DÒNG. Để nguyên flex thì 21 ảnh
+   chia đều bề ngang 316px -> mỗi ô còn 9px, không nhìn ra gì. */
+.sd-pop__gallery.is-many {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(62px, 1fr));
+    gap: 5px;
+    max-height: 210px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 2px;
+}
+
+.sd-pop__gallery.is-many .sd-pop__thumb {
+    flex: none;
+    width: 100%;
+    height: 54px;
+}
+
+.sd-pop__count {
+    margin: 5px 0 0;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--text-muted, #7f8c8d);
+}
+
 .sd-pop__thumb {
     flex: 1 1 0;
     min-width: 0;
@@ -547,17 +544,6 @@
 /* Khối danh mục ăn hết chiều cao còn lại rồi tự cuộn bên trong. */
 .sd-card--grow { flex: 1 1 auto; }
 
-/* Khối KHÔNG co giãn (khung mô tả luồng) phải chấp nhận bị bó lại, nếu không
-   nội dung dài sẽ đẩy cột trái TRÀN xuống dưới đáy sơ đồ. Cho nó tối đa 40%
-   chiều cao cột rồi tự cuộn bên trong. */
-.sd-side > .sd-card:not(.sd-card--grow) {
-    flex: 0 1 auto;
-    min-height: 0;
-    max-height: 40%;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-}
-
 .sd-card__title {
     margin: 0 0 10px;
     font-size: 14px;
@@ -585,7 +571,7 @@
     align-items: center;
     justify-content: center;
     gap: 5px;
-    min-height: 70px;
+    min-height: 92px;
     padding: 12px;
     text-align: center;
 
@@ -713,8 +699,29 @@
 
 
 /* =============================================================================
- * KHUNG VIDEO MÔ PHỎNG 3D QUY TRÌNH (nằm dưới mục Luồng công nghệ)
+ * KHUNG NGOÀI CÙNG: hàng trên là [bảng danh mục | sơ đồ], hàng dưới là dải
+ * KHUNG PHÁT VIDEO LƯU TRÌNH chạy hết bề ngang.
  * ===========================================================================*/
+.sd-root {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+}
+
+.sd-root > .sd-card:not(.sd-player) { width: 100%; }
+
+/* Khung phát: TRẢI RỘNG hết bề ngang khung trang, mép phải thẳng hàng với sơ đồ
+   phía trên. Trên màn 1920 ra 1824 x 1026px.
+   Muốn nhỏ lại thì đổi 100% thành ví dụ 80%. */
+.sd-root > .sd-player {
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    margin-top: 26px;      /* tách khỏi sơ đồ phía trên */
+    margin-bottom: 0;      /* CẮT dải trắng thừa dưới khung */
+}
+
 .sd-vid {
     position: relative;
     aspect-ratio: 16 / 9;
@@ -731,9 +738,6 @@
     object-fit: cover;
 }
 
-.sd-vid__ico { font-size: 20px; opacity: .55; }
-
-
 /* --- Khung CHỜ NẠP VIDEO: dựng cho ra dáng một trình phát thật --- */
 .sd-vid__empty {
     display: flex;
@@ -744,8 +748,7 @@
     width: 100%;
     height: 100%;
     color: #94a3b3;
-    background:
-        radial-gradient(ellipse at center, #1e293b 0%, #0f172a 70%);
+    background: radial-gradient(ellipse at center, #1e293b 0%, #0f172a 70%);
 }
 
 .sd-vid__play {
@@ -772,31 +775,4 @@
     background: rgba(255, 255, 255, .06);
     border-radius: 5px;
     word-break: break-all;
-}
-
-
-/* =============================================================================
- * KHUNG NGOÀI CÙNG: hàng trên là [bảng danh mục | sơ đồ], hàng dưới là dải
- * MÔ PHỎNG 3D chạy hết bề ngang.
- * ===========================================================================*/
-.sd-root {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    width: 100%;
-}
-
-.sd-root > .sd-card:not(.sd-player) { width: 100%; }   /* mặc định: hết bề ngang */
-
-/* Khung phát video ở dải dưới: rộng ĐÚNG 1/3 BỀ NGANG MÀN HÌNH, canh giữa.
-   Trước đây kéo hết bề ngang nên 16:9 cao gần 1000px, chiếm cả màn hình. */
-.sd-root > .sd-player {
-    /* TRẢI RỘNG HẾT BỀ NGANG khung trang — mép phải thẳng hàng với sơ đồ phía
-       trên (mục này đã bỏ lề phải), mép trái ăn theo lề 5% chung của trang.
-       Trên màn 1920: 1824 x 1026px. */
-    width: 100%;
-    margin-left: 0;
-    margin-right: 0;
-    margin-top: 26px;      /* tách khỏi sơ đồ phía trên */
-    margin-bottom: 0;      /* CẮT dải trắng thừa dưới khung */
 }

@@ -38,6 +38,7 @@ import {
     WaterRecircStation,
     SiloFeedLine,
     CoolingWaterLines,
+    LogoPlate,
     PowerPlant,
     SteamLines,
     HaulRoad,
@@ -549,49 +550,40 @@ const CFG = {
 
     /* =========================================================================
      * BĂNG CẤP LIỆU VÀO DÃY SILO PHỐI LIỆU
-     * Một băng chạy dọc phía TRÊN cả dãy silo, đầu trái cắm vào Trạm S2 — tức
-     * chính là tuyến QUẶNG HỒI THIÊU KẾT quay lại dãy phối liệu. Mỗi nhóm vật
-     * liệu có ống rót riêng thả xuống đúng cột silo của mình, cùng kiểu với 3
-     * ống tải than sẵn có rót vào silo 15, 16, 17.
+     * Tuyến QUẶNG HỒI NGUỘI từ Trạm S2 chạy dọc phía TRÊN dãy silo, chỉ rót vào
+     * 4 CỘT SILO CUỐI (21, 20, 19, 18) rồi hết.
      * Cột silo n nằm ở x = (21 - n) * 70 + 314  (silo 1 ngoài cùng bên phải).
+     *   height 20 : băng mảnh cho khỏi át dãy silo
+     *   xEnd 560  : quá cột silo 18 (x 524) một chút là dừng
      * ======================================================================= */
     SILO_FEED: {
-        /* ĐÃ SỬA: trước đây kéo dài suốt 21 cột silo là SAI. Tuyến quặng hồi
-           nguội từ Trạm S2 chỉ rót vào 4 CỘT SILO CUỐI (21, 20, 19, 18) rồi hết.
-           Các cột còn lại nhận liệu từ nguồn khác, không nằm trên tuyến này.
-             height 30 -> 20 : băng mảnh hơn cho khỏi át dãy silo
-             y      -202 -> -192 : giữ nguyên đáy băng ở -172, sát nóc hàng silo 1
-             xEnd   1762 -> 560  : quá cột silo 18 (x 524) một chút là dừng */
         y: -192, height: 20,
         xStart: -620,        // trong lòng Trạm S2 (x -754..-604)
-        xEnd: 560,           // quá cột silo 18 (x 524) một chút
+        xEnd: 560,
         chuteTopY: -172, chuteBottomY: -44, chuteW: 11,
         groups: [
-            // silo 21, 20, 19, 18 — quặng hồi nguội từ Trạm S2
             { color: 0x1c2833, xs: [314, 384, 454, 524] },
         ],
     },
 
     /* =========================================================================
-     * LOGO NHÀ MÁY — đặt vào khoảng trống góc trên - trái bản vẽ.
-     * ĐƯỜNG DẪN: sửa `src` nếu tên hoặc đuôi file khác. Ảnh nằm trong thư mục
-     * images/ ở gốc dự án; đã chỉnh vite.config.js để thư mục này được chép
-     * nguyên cấu trúc sang dist khi build.
-     * Kích thước giữ đúng tỉ lệ ảnh gốc 208 x 40 (5,2 : 1).
+     * KHUNG LOGO — đặt ở khoảng trống góc trên - trái bản vẽ.
+     * Khai bao nhiêu phần tử thì có bấy nhiêu khung; thêm/bớt chỉ sửa mảng này.
+     * Chưa có ảnh -> hiện KHUNG CHỜ nét đứt kèm nhãn, thấy ngay chỗ và cỡ.
+     * Vùng trống cho phép: feed x -1500..-819, y -208..146
+     *   mép trái canvas ở feed -1502; sân lò cao bắt đầu từ y 170;
+     *   nhà Trạm S2 ở x -754..-604 nên khung dừng trước -819 là an toàn.
+     * Cỡ 600 x 115 giữ đúng tỉ lệ ảnh logo gốc 208 x 40 (5,2 : 1).
      * ======================================================================= */
-    PLANT_LOGO: {
-        src: 'images/logo-hoa-phat-3.png',
-        x: -1402, y: -87, width: 520, height: 100,
-    },
+    PLANT_LOGOS: [
+        { src: 'images/logo-hoa-phat-3.webp', x: -1470, y: -196, width: 600, height: 115,
+          label: 'LOGO TẬP ĐOÀN' },
+        { src: 'images/logo-xuong.jpg', x: -1470, y: -60, width: 600, height: 115,
+          label: 'LOGO XƯỞNG' },
+    ],
 
     /* =========================================================================
      * ĐƯỜNG ỐNG NƯỚC LÀM MÁT: TRẠM PHÁT ĐIỆN <-> TRẠM NƯỚC TUẦN HOÀN
-     * Hai ống chạy song song men mép phải bản vẽ, khép thành vòng tuần hoàn:
-     *   hot  : nước ngưng NÓNG từ trạm phát điện chảy XUỐNG ống góp nóng của
-     *          trạm nước (ống góp nóng ở feed y 1548)
-     *   nguội: bơm đẩy nước đã nguội TỪ ống góp nguội (feed y 1702) quay LÊN
-     * Cột dọc đặt ở x 1872 và 1894: nằm ngoài rìa quạt gió chính dây 2 (kết
-     * thúc ở x 1862) và vẫn trong khung canvas (mép phải feed 1913).
      * ======================================================================= */
     COOLING_WATER: {
         pipeW: 11,
@@ -602,13 +594,11 @@ const CFG = {
             { hot: true, points: [[1866, 752], [1872, 752], [1872, 1548], [1690, 1548]] },
             { hot: false, back: true, points: [[1888, 740], [1894, 740], [1894, 1702], [1690, 1702]] },
 
-            /* --- CẶP BÊN TRÁI: đường nước VÀO trạm, đi vòng phía trên rồi
-               xuống mép trái nhà bơm. Hai cột dọc x 1744 / 1762 lọt đúng khe
-               giữa lọc bụi tĩnh điện dây 2 (kết thúc x 1728) và quạt gió chính
-               (bắt đầu x 1778) — khe rộng 50, hai ống rộng 16 vừa đủ.
-               Đoạn ngang y 1372 / 1394 nằm dưới đuôi dây chuyền 2 (kết thúc ở
-               y 1320) và trên nóc nhà bơm (y 1490).
-               Đoạn dọc x 884 / 906 nằm bên trái nhà bơm (x 940), cách 34. */
+            /* --- CẶP BÊN TRÁI: đường nước VÀO trạm. Hai cột dọc x 1744 / 1762
+               lọt đúng khe giữa lọc bụi tĩnh điện dây 2 (kết thúc x 1728) và
+               quạt gió chính (bắt đầu x 1778) — khe rộng 50, hai ống rộng 15
+               vừa đủ. Đoạn ngang y 1372 / 1394 nằm dưới đuôi dây chuyền 2
+               (kết thúc y 1320) và trên nóc nhà bơm (y 1490). */
             { hot: false, pipeW: 9,
               points: [[1744, 756], [1744, 1372], [884, 1372], [884, 1548], [1000, 1548]] },
             { hot: false, pipeW: 9,
@@ -624,14 +614,10 @@ const CFG = {
      * bể tuần hoàn ở cuối nhà.
      * ======================================================================= */
     WATER_STATION: {
-        /* ĐÃ TRẢ VỀ vị trí cũ và BỎ XOAY: khoảng trống góc dưới - phải, bên phải
-           khu xả xe ben (kết thúc ở x 798) và dưới đuôi dây chuyền 2 (y ~1320).
-           Bố trí: 2 ống góp chạy suốt nhà, MỘT DÃY BƠM đấu SONG SONG nối hai
-           ống, bể tuần hoàn ở cuối nhà. */
         x: 940, y: 1490, width: 760, height: 270,
-        headers: { hotY: 58, coldY: 212, x0: 34, x1: 620 },
+        headers: { hotY: 58, coldY: 212, x0: 34, x1: 620 },       // ống nóng về / ống nguội cấp
         pumps: { count: 6, x0: 92, spacing: 96, cy: 135, bodyR: 25, motorW: 34, motorH: 30 },
-        tank: { x: 636, y: 40, w: 92, h: 190 },
+        tank: { x: 636, y: 40, w: 92, h: 190 },                    // bể tuần hoàn
     },
 
     /* =========================================================================
@@ -1363,12 +1349,11 @@ const SampleAndS3Area = () => {
                 ))}
             </Container>
 
-            {/* LOGO NHÀ MÁY ở góc trên - trái, chỗ bản vẽ còn trống. */}
-            <Sprite
-                image={CFG.PLANT_LOGO.src}
-                x={CFG.PLANT_LOGO.x} y={CFG.PLANT_LOGO.y}
-                width={CFG.PLANT_LOGO.width} height={CFG.PLANT_LOGO.height}
-            />
+            {/* CÁC KHUNG LOGO ở góc trên - trái, chỗ bản vẽ còn trống.
+                Chưa nạp ảnh thì hiện khung chờ nét đứt. */}
+            {CFG.PLANT_LOGOS.map((lg) => (
+                <LogoPlate key={lg.src} {...lg} />
+            ))}
 
             {/* LÒ CAO — vẽ SAU 2 băng từ nhà vòm nên sân lò che gọn đầu băng. */}
             <BlastFurnacePlant {...CFG.BLAST_FURNACE} />
@@ -2343,8 +2328,8 @@ const PixiStage = () => {
             </div>
         </div>
 
-        {/* MÔ PHỎNG 3D — dải RIÊNG chạy hết bề ngang, nằm DƯỚI cả bảng danh mục
-            lẫn sơ đồ. Trước đây kẹp trong cột trái nên khung phát bé tí. */}
+        {/* KHUNG PHÁT VIDEO LƯU TRÌNH — dải RIÊNG chạy hết bề ngang, nằm DƯỚI
+            cả bảng danh mục lẫn sơ đồ. */}
         <ProcessVideo />
         </div>
     );

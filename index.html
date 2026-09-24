@@ -1,32 +1,33 @@
-<!--Phần đầu của html trước khi khai báo vào đầu trang web, để nhận diện chuẩn HTML5-->
 <!DOCTYPE html>
-<!--Khai báo ngôn ngữ của website-->
 <html lang="vi">
 <!--Phần đầu hoàn thiện-->
-
 <head>
-    <!--Chuẩn bộ unicode sử dụng trong toàn bộ khung xưởng html của web-->
     <meta charset="UTF-8">
     <!--Định dạng khớp với trang web, không bị vỡ hình khi mở bằng điện thoại, tỉ lệ scale 100%-->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!--Tên của thẻ web trên trình duyệt-->
     <title>🏭 DASHBOARD - XƯỞNG THIÊU KẾT 2</title>
+    <!--Bắt tay sẵn với máy chủ phông chữ và CDN Chart.js, bớt vài trăm ms mở kết nối-->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <!--Phông của trang web, sử dụng robotto khung nền xanh-->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700;900&display=swap" rel="stylesheet">
-    <!--Quy định script vẽ biểu đồ nằm ở script nào trong .js-->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <script src="js/api/api_config.js?v=2.1"></script>
+    <script src="js/api/api_loaded.js?v=2.1"></script>
     <!--Quy định file đầu vào quy định định dạng style của trang web-->
-    <link rel="icon" href="images/logo-hoa-phat-3.jpg">
+    <link rel="icon" href="images/logo-hoa-phat-3.webp">
     <link rel="stylesheet" href="css/base.css?v=1.3">
     <link rel="stylesheet" href="css/components.css?v=1.4">
     <link rel="stylesheet" href="css/layout.css?v=1.4">
     <link rel="stylesheet" href="css/navigation.css?v=1.0">
     <link rel="stylesheet" href="css/diagram.css?v=1.0">
+    <link rel="stylesheet" href="css/cb.css?v=2.0">
+    <link rel="stylesheet" href="css/vt.css?v=1.0">
 </head>
 
-<!---->
-<!--Phần thân của trang web, nơi sẽ hiển thị các giao diện UI/UX và điều hướng của sổ sử dụng-->
+
+
 <body>
 
     <div id="my-sidebar" class="side-nav-drawer">
@@ -44,6 +45,21 @@
                 <a href="javascript:void(0)" onclick="showSubContent('ti-le-quang-hoi')">🔄 Tỉ lệ quặng hồi</a>
             </div>
 
+            <div id="sidebar-menu-vat-tu" style="display: none;">
+                            <a href="javascript:void(0)" onclick="showSubContent('vt-thanh-ghi-tong-quan')">📊 Tổng quan thanh ghi giữa</a>
+                            <a href="javascript:void(0)" onclick="showSubContent('vt-thanh-ghi-chi-tiet')">📋 Chi tiết nhập - xuất</a>
+                        </div>
+
+                        <div id="sidebar-menu-vat-tu-op" style="display: none;">
+                            <a href="javascript:void(0)" onclick="showSubContent('vt-tam-op-tong-quan')">📊 Tổng quan tấm ốp, chốt chẻ</a>
+                            <a href="javascript:void(0)" onclick="showSubContent('vt-tam-op-chi-tiet')">📋 Chi tiết nhập - xuất</a>
+                        </div>
+
+                        <div id="sidebar-menu-vat-tu-thang" style="display: none;">
+                            <a href="javascript:void(0)" onclick="showSubContent('vt-thang-bang')">📦 Vật tư xuất trong tháng</a>
+                        </div>
+
+                        
             <div id="sidebar-menu-chat-luong" style="display: none;">
                 <a href="javascript:void(0)" onclick="showSubContent('chat-luong-voi-nung')">🪨 CL Vôi nung</a>
                 <a href="javascript:void(0)" onclick="showSubContent('chat-luong-dolomite-nung')">🪨 CL Dolomite nung</a>
@@ -70,8 +86,10 @@
             <nav class="nav-bar">
                 <!--Define thuộc tính của logo xưởng Thiêu Kết (dùng logo hoà phát cân nhắc)-->
                 <div class="logo"><a href="#trang-chu"><img src="images/logo-xuong.jpg" alt="Logo Xưởng" class="nav-logo-img"></a></div>
+                <!--Nút MENU: chỉ hiện khi màn hình quá hẹp, do nav_fit.js bật-->
+                <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="nav-links-list">&#9776; MENU</button>
                 <!--Define thuộc tính của tính năng navigate qua link của thanh điều hướng-->
-                <ul class="nav-links">
+                <ul class="nav-links" id="nav-links-list">
                     <li>
                         <a href="#trang-chu">TRANG CHỦ</a>
                     </li>
@@ -108,13 +126,13 @@
                         </div>
                     </li>
 
-                    <!--Nội dung 4-->
+                    <!--Nội dung 4: vật tư tiêu hao thường xuyên-->
                     <li class="dropdown">
-                        <a href="javascript:void(0)" class="dropbtn">AN TOÀN-AN NINH-5S,VSCN ▾</a>
+                        <a href="javascript:void(0)" class="dropbtn">TÌNH TRẠNG VẬT TƯ THANH GHI, TẤM ỐP TẠI XƯỞNG ▾</a>
                         <div class="dropdown-content">
-                            <a href="#an-toan">TÌNH HÌNH AN TOÀN TẠI XƯỞNG</a>
-                            <a href="#an-ninh">TÌNH HÌNH AN NINH TẠI XƯỞNG</a>
-                            <a href="#5s-vscn">TÌNH HÌNH 5S,VSCN TẠI XƯỞNG</a>
+                            <a href="#vat-tu-thanh-ghi">TÌNH TRẠNG SỬ DỤNG THANH GHI GIỮA</a>
+                            <a href="#vat-tu-tam-op">TÌNH TRẠNG SỬ DỤNG TẤM ỐP, CHỐT CHẺ</a>
+                            <a href="#vat-tu-tong-hop">TỔNG HỢP VẬT TƯ THTX XUẤT TRONG THÁNG</a>
                         </div>
                     </li>
 
@@ -127,33 +145,35 @@
                         </div>
                     </li>
 
-                    <!--Nội dung 6-->
-                    <li class="dropdown">
-                        <a href="javascript:void(0)" class="dropbtn">ALBUM ẢNH</a>
-                        <div class="dropdown-content">
-                            <a href="#album-anh">ALBUM ẢNH</a>
-                        </div>
+                    <!--Nội dung 6: link thẳng tới mục ảnh 5S (#album-anh), không cần menu xổ.
+                        Bản cũ là menu xổ có đúng 1 mục trỏ tới #album-anh — mục không tồn tại,
+                        bấm vào không có gì xảy ra.-->
+                    <li>
+                        <a href="#album-anh">ALBUM ẢNH</a>
                     </li>
                 </ul>
             </nav>
+            <!--Chạy NGAY sau thanh menu (không để cuối trang) để thanh được co giãn vừa
+                khít trước lần vẽ đầu tiên, không bị giật từ bản tràn sang bản vừa.-->
+            <script src="js/components/nav_fit.js?v=1.0"></script>
             <div id="trang-chu" class="page-view active-view">
                 <!--Làm background mờ với các ảnh chạy đằng sau-->
                 <div id="hero-slider" class="hero-section">
 
                     <!--Ảnh số 1 chạy-->
-                    <div class="slide active" style="background-image: url('images/anh_so_1.jpeg');">
+                    <div class="slide active" style="background-image: url('images/anh_so_1.webp');">
                         <div class="slide-overlay"></div>
                         <div class="slide-text">WEBSITE NỘI BỘ XƯỞNG THIÊU KẾT 2</div>
                     </div>
 
                     <!--Ảnh số 2 là background-->
-                    <div class="slide" style="background-image: url('images/anh_so_2.jpg');">
+                    <div class="slide" style="background-image: url('images/anh_so_2.webp');">
                         <div class="slide-overlay"></div>
                         <div class="slide-text" style="text-align: center;">SẢN XUẤT AN TOÀN - HIỆU QUẢ CHẤT LƯỢNG - TIẾT KIỆM</div>
                     </div>
 
                     <!--ẢNh số 3 là background-->
-                    <div class="slide" style="background-image: url('images/anh_so_3.jpeg');">
+                    <div class="slide" style="background-image: url('images/anh_so_3.webp');">
                         <div class="slide-overlay"></div>
                         <div class="slide-text" style="text-align: center;">THỰC HIỆN TỐT 5S LÀ TRÁCH NHIỆM MỖI NGÀY-MỖI CA KÍP</div>
                     </div>
@@ -175,10 +195,11 @@
                     <p class="number highlight-green" id="tb-loi">--<span>%</span></p>
                 </div>
 
-                <!--Làm phông chữ để display tình trạng hệ thống đang kết nối đến script tự động-->
+                <!--Hệ số lợi dụng tháng, nạp số liệu từ js/components/stats_ribbon.js-->
                 <div class="stat-box">
-                    <h3>TRẠNG THÁI HỆ THỐNG</h3>
-                    <p class="number status-ok">KẾT NỐI TỐT!</p>
+                    <h3>HỆ SỐ LỢI DỤNG THÁNG</h3>
+                    <!--Cài đặt để chờ load dữ liệu vào từ javascript-->
+                    <p class="number highlight-green" id="he-so-loi-dung">--<span>t/m²·h</span></p>
                 </div>
             </section>
 
@@ -203,7 +224,7 @@
             </div>
             <!--Phần nội dung tách biệt với phần title-->
             <div class="panel-content">
-                <div id="react-sodo-boot" class="sintering-diagram-wrapper">
+                <div id="react-sodo-boot">
 
                 </div>
             </div>
@@ -219,7 +240,7 @@
             <div class="panel-content personnel-grid">
                 <!--Thẻ của person đầu tiên-->
                 <div class="person-card">
-                    <img src="images/quan-doc.jpeg" alt="Quản đốc X.TK2" class="person-avatar"><!--Display avtar quản đốc-->
+                    <img loading="lazy" src="images/quan-doc.webp" alt="Quản đốc X.TK2" class="person-avatar"><!--Display avtar quản đốc-->
                     <!--Tạo thẻ person info cho quản đốc xưởng-->
                     <div class="person-info">
                         <h4>Nguyễn Trung Đức</h4>
@@ -229,7 +250,7 @@
                 </div>
                 <!-- Thẻ của person thứ hai, cuối cùng, vì định biên xưởng có 2 quản đốc-->
                 <div class="person-card">
-                    <img src="images/pho-quan-doc.jpeg" alt="Phó quản đốc X.TK2" class="person-avatar">
+                    <img loading="lazy" src="images/pho-quan-doc.webp" alt="Phó quản đốc X.TK2" class="person-avatar">
                     <div class="person-info">
                         <h4>Phan Văn Dương</h4>
                         <p class="role">Phó quản đốc xưởng</p>
@@ -950,7 +971,7 @@
             </div>
             <!--Chát lượng của quặng thiêu kết thành phẩm-->
             <div id="chat-luong-quang-thieu-ket" class="panel-content chart-group" style="display: none; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;">
-                <div id="sorter-sinter" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
+                <div id="sorter-sinter-1" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
                     <div>
                         <label style="font-weight: bold; margin-right: 5px;">Từ ngày: </label>
                         <input type="date" id="start-ChatLuongQTK" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
@@ -987,7 +1008,7 @@
                         </canvas>
                     </div>
                 </div>
-                <div id="sorter-sinter" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
+                <div id="sorter-sinter-2" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
                     <div>
                         <label style="font-weight: bold; margin-right: 5px;">Từ ngày: </label>
                         <input type="date" id="start-TCVatLyQTK" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
@@ -1027,7 +1048,7 @@
             </div>
                 <!--Phân bố cấp phối cỡ hạt của quặng-->
             <div id="co-hat-quang-thieu-ket" class="panel-content chart-group" style="display: none; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;">
-                <div id="sorter-sinter" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
+                <div id="sorter-sinter-3" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
                     <div>
                         <label style="font-weight: bold; margin-right: 5px;">Từ ngày: </label>
                         <input type="date" id="start-CoHatQTK" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
@@ -1068,7 +1089,7 @@
             <div id="do-kiem" class="panel-content chart-group" style="display: none; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;">
                 <!--Biểu đồ thể hiện độ kiềm-->
                 <div class="basicility-chart" style="width: 100%; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
-                <div id="sorter-sinter" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
+                <div id="sorter-sinter-4" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
                     <div>
                         <label style="font-weight: bold; margin-right: 5px;">Từ ngày: </label>
                         <input type="date" id="start-DoKiemQTK" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
@@ -1106,116 +1127,58 @@
             </div>
         </section>
         <!--Khu vực hiển thị các nội dung an toàn-->
-        <section id="an-toan" class="panel-section bg-gray">
-            <!--header của nó trên thanh navigation bar-->
-            <div class="section-header">
-                <h2>TÌNH HÌNH AN TOÀN KHI TẠI Ở XƯỞNG</h2>
-                <div class="divider"></div>
+        <!--Khu vực: tình trạng sử dụng thanh ghi giữa-->
+        <section id="vat-tu-thanh-ghi" class="panel-section">
+            <div class="section-header" style="display: flex; align-items: center; gap: 15px;">
+                <button class="siderbar-toggle-btn" onclick="toggleSidebar()" style="background: transparent; color: var(--primar-blue); border: 2px solid var(--primary-blue); padding: 5px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s;">☰</button>
+                <h2 style="margin: 0;">TÌNH TRẠNG SỬ DỤNG THANH GHI GIỮA</h2>
+                <div class="divider" style="flex-grow: 1;"></div>
             </div>
-            <!--Thể hiện nội dung-->
-            <div class="panel-content bg-gray" style="border-radius: 8px; padding: 20px; margin-bottom: 30px">
-                <h3 style="color: #2c3e50; margin-top: 0;">Thống kê vi phạm an toàn (Theo tháng)</h3>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Ngày</th>
-                            <th>Kíp</th>
-                            <th>Nội dung vi phạm</th>
-                            <th>Trạng thái xử lý</th>
-                        </tr>
-                    </thead>
-                    <tbody id="safety-table-body">
-                        <tr>
-                            <td colspan="5" style="text-align: center; color: #888;">Đang tải nội dung....</td>
-                        </tr><!--Nạp dữ liệu vào từ các file js-->
-                    </tbody>
-                </table>
-            </div>
-            <!--Display các nội dung liên quan đến cải thiện an toàn trong tháng-->
-            <div class="panel-content bg-gray" 
-                style="background: white; border-radius: 8px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 30px;">
-                <!--Dòng chữ chạy thể hiện các hạng mục đã hoàn thiện-->
-                <h3
-                    style="color: #27ae60; margin-top: 0; border-bottom: 2px solid #ecf0f1; padding: 20px; padding-bottom: 10px;">
-                    ✔️ Các hạng mục cải thiện an toàn đã hoàn thiện trong tháng
-                </h3>
-                <!--Display các thành tích đạt được trong tháng-->
-                <div class="safety-achive-grid" id="safety-achieve-grid">
-                    <p style="color: #888; font-style: italic;">Đang tải dữ liệu vào..</p>
-                </div>
-            </div>
+
+            <div class="intro-msgs" style="text-align: center; padding: 40px; color: #888;">Mở menu và chọn để xem dữ liệu</div>
+
+            <div id="vt-thanh-ghi-tong-quan" class="panel-content chart-group" style="display: none; flex-direction: column; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;"></div>
+            <div id="vt-thanh-ghi-chi-tiet" class="panel-content chart-group" style="display: none; flex-direction: column; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;"></div>
         </section>
 
-        <!--Khu vực hiển thị các nội dung về an ninh-->
-        <section id="an-ninh" class="panel-section bg-gray">
-            <div class="section-header">
-                <h2>TÌNH HÌNH AN NINH TẠI XƯỞNG</h2>
-                <div class="divider"></div>
+        <!--Khu vực: tình trạng sử dụng tấm ốp, chốt chẻ-->
+        <section id="vat-tu-tam-op" class="panel-section bg-gray">
+            <div class="section-header" style="display: flex; align-items: center; gap: 15px;">
+                <button class="siderbar-toggle-btn" onclick="toggleSidebar()" style="background: transparent; color: var(--primar-blue); border: 2px solid var(--primary-blue); padding: 5px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s;">☰</button>
+                <h2 style="margin: 0;">TÌNH TRẠNG SỬ DỤNG TẤM ỐP, CHỐT CHẺ</h2>
+                <div class="divider" style="flex-grow: 1;"></div>
             </div>
-            <!--layout thể hiện các tình hình an ninh của xưởng-->
-            <div class="panel-content security-layout">
-                <div class="security-status-card"><!--Thẻ security-->
-                    <!--Display rằng tình hình an ninh tại xưởng đang tốt, nghiên cứu cập nhật với javascript-->
-                    <div id="security-indicator" class="status-circle status-good">
-                        <span id="securtiy-status-text">TỐT</span><!--Đây là chỗ cần thay thế-->
-                    </div>
-                    <!--Dòng chữ display trạng thái an ninh, nghiên cứu để đổ dữ liệu từ javascript-->
-                    <h3>Tình hình an ninh tháng này</h3>
-                    <p id="security-summary">Không ghi nhận trường hợp vi phạm nội quy nào.</p>
-                </div>
-                <!--Bảng biểu thị tình hình an ninh tại xưởng-->
-                <div class="security-table-container">
-                    <table class="data-table">
-                        <!--Display chi tiết tình hình vi phạm-->
-                        <thead>
-                            <tr>
-                                <th>Ngày</th>
-                                <th>Kíp</th>
-                                <th>Vụ việc</th>
-                                <th>Đánh giá</th>
-                                <th>Xử lý</th>
-                            </tr>
-                        </thead>
-                        <!--Thẻ thể hiện đang load dữ liệu vào từ javascript-->
-                        <tbody id="security-table-body">
-                            <tr>
-                                <td colspan="5" style="text-align: center; color: #888;">Đang load dữ liệu vào...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+
+            <div class="intro-msgs" style="text-align: center; padding: 40px; color: #888;">Mở menu và chọn để xem dữ liệu</div>
+
+            <div id="vt-tam-op-tong-quan" class="panel-content chart-group" style="display: none; flex-direction: column; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;"></div>
+            <div id="vt-tam-op-chi-tiet" class="panel-content chart-group" style="display: none; flex-direction: column; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;"></div>
+        </section>
+
+        <!--Khu vực: tổng hợp vật tư THTX xuất trong tháng-->
+        <section id="vat-tu-tong-hop" class="panel-section">
+            <div class="section-header" style="display: flex; align-items: center; gap: 15px;">
+                <button class="siderbar-toggle-btn" onclick="toggleSidebar()" style="background: transparent; color: var(--primar-blue); border: 2px solid var(--primary-blue); padding: 5px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s;">☰</button>
+                <h2 style="margin: 0;">TỔNG HỢP VẬT TƯ THTX XUẤT TRONG THÁNG</h2>
+                <div class="divider" style="flex-grow: 1;"></div>
             </div>
-            <!--Thể hiện tình hình an toàn tại xưởng, có đảm hay khong-->
-            <div class="security-comment-card">
-                <div class="comment-label">NHẬN XÉT:</div>
-                <div class="marquee-container">
-                    <div id="security-marquee-text" class="marquee-content">
-                        Đang tải nhận xét an ninh từ dữ liệu nguồn...
-                    </div>
-                </div>
-            </div>
+
+            <div class="intro-msgs" style="text-align: center; padding: 40px; color: #888;">Mở menu và chọn để xem dữ liệu</div>
+
+            <div id="vt-thang-bang" class="panel-content chart-group" style="display: none; flex-direction: column; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;"></div>
         </section>
         <!--Khu vực display tình hình an ninh tại xưởng-->
-        <section id="5s-vscn" class="panel-section bg-gray">
+        <!--id cũ "5s-vscn" bắt đầu bằng CHỮ SỐ nên không dùng được làm selector CSS
+            (querySelector("#5s-vscn") ném lỗi) -> đổi thành album-anh.-->
+        <section id="album-anh" class="panel-section bg-gray">
             <div class="section-header">
-                <h2>TÌNH HÌNH 5S,VSCN TẠI XƯỞNG</h2>
+                <h2>ALBUM ẢNH</h2>
                 <div class="divider"></div>
             </div>
             <!--Bảng content cần display-->
             <div class="panel-content bg-gray" style="border-radius: 8px; padding: 20px;">
-                <!--Thư viện hình ảnh-->    
-                <div class="gallery-tabs">
-                    <button class="tab-btn active" onclick="openGalleryTab(event, 'thuc-hien')">🧹 Công tác thực hiện
-                        5S</button>
-                    <button class="tab-btn" onclick="openGalleryTab(event, 'khac-phuc')">Khắc phục các lỗi 5s</button>
-                </div>
-                <!--Thẻ thể hiện các công việc đã khắc phục -->
-                <div id="thuc-hien" class="gallery-tab-contents" style="display: block;">
-                    <div class="masonry-grid" id="grid-thuc-hien"></div>
-                </div>
-                <!--Thẻ thể hiện các lỗi đã khắc phục-->
-                <div id="khac-phuc" class="gallery-tab-contents" style="display: none;">
-                    <div class="masonry-grid" id="grid-khac-phuc"></div>
+                <div id="album-cho-du-lieu" style="width: 100%; text-align: center; padding: 40px; color: #888;">
+                    Đang chờ nạp dữ liệu hình ảnh...
                 </div>
             </div>
         </section>
@@ -1229,27 +1192,27 @@
             <div class="panel-content">
                 <div class="activity-slider-container">
                     <div class="act-slide act-active">
-                        <img src="images/hdpt-1.jpg" alt="Hoạt động 1">
+                        <img loading="lazy" src="images/hdpt-1.jpg" alt="Hoạt động 1">
                         <div class="act-caption">Liên hoan ăn nhậu kíp</div>
                     </div>
 
                     <div class="act-slide">
-                        <img src="images/hdpt-2.jpg" alt="Hoạt động 2">
+                        <img loading="lazy" src="images/hdpt-2.jpg" alt="Hoạt động 2">
                         <div class="act-caption">Tất niên xưởng cuối năm</div>
                     </div>
 
                     <div class="act-slide">
-                        <img src="images/hdpt-3.jpg" alt="Hoạt động 3">
+                        <img loading="lazy" src="images/hdpt-3.jpg" alt="Hoạt động 3">
                         <div class="act-caption">Lì xì, trao lộc đầu năm</div>
                     </div>
 
                     <div class="act-slide">
-                        <img src="images/hdpt-4.jpg" alt="Hoạt động 4">
+                        <img loading="lazy" src="images/hdpt-4.jpg" alt="Hoạt động 4">
                         <div class="act-caption">Hoạt động 4</div>
                     </div>
 
                     <div class="act-slide">
-                        <img src="images/hdpt-5.jpg" alt="Hoạt động 5">
+                        <img loading="lazy" src="images/hdpt-5.jpg" alt="Hoạt động 5">
                         <div class="act-caption">Hoạt động 5</div>
                     </div>
                 </div>
@@ -1259,7 +1222,7 @@
                 <div class="activity-highlights-grid">
                     <div class="highlight-card">
                         <div class="hightlight-img-wrapper">
-                            <img src="images/pthd-1.jpg" alt="Phong trào 1">
+                            <img loading="lazy" src="images/pthd-1.jpg" alt="Phong trào 1">
                             <div class="star-badge">Top đào tạo nhà máy</div>
                         </div>
                         <div class="highlight-info">
@@ -1332,12 +1295,16 @@
         <div class="spinner" style="width: 50px; height: 25px; border: 5px solid #ecf0f1; border-top: 5px solid #0033a1; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px auto;"></div>
         <h3 style="color :var(--primary-blue); margin-top: 20px; text-align: center;">ĐANG KẾT NỐI DỮ LIỆU</h3>
     </div>
-<script src="js/api/api_config.js?v=1.0"></script>
-<script src="js/api/api_loaded.js?v=1.1"></script>
-<script src="js/components/chart_core.js?v=1.2.3"></script>
-<script src="js/components/chart_cook.js?v=1.1.2"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+<script src="js/components/Charts/chart_core.js?v=1.0"></script>
+<script src="js/components/Charts/chart_cook.js?v=1.1"></script>
+<script src="js/components/Charts/canhbao.js?v=2.0"></script>
+<script src="js/components/personnel.js?v=1.3"></script>
+<script src="js/components/Charts/vattu.js?v=1.0"></script>
 <script src="js/components/sidebar.js?v=2"></script>
-<script src="js/main/main.js?v=2"></script>
+<script src="js/main/main.js?v=2.1"></script>
 <script type="module" src="js/components/SinteringDiagram/DiagramApp.jsx"></script>
 </body>
 </html>

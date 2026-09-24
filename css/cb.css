@@ -1,0 +1,254 @@
+/* =============================================================================
+ * BẢNG CẢNH BÁO TIÊU HAO SẢN XUẤT (#cb-tieu-hao)
+ * Chèn vào cuối css/components.css, hoặc để riêng rồi nạp thêm.
+ * KHÔNG dùng biểu đồ nên không cần thư viện gì.
+ * ===========================================================================*/
+.cb-box {
+    margin: 0 0 26px;
+    padding: 18px 20px 20px;
+
+    background: var(--white, #fff);
+    border: 1px solid var(--border-color, #ecf0f1);
+    border-top: 4px solid var(--warning-yellow, #f39c12);
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 10px 26px -18px rgba(15, 23, 42, .18);
+}
+
+.cb-box__title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 0 0 14px;
+
+    font-size: 12.5px;
+    font-weight: 700;
+    letter-spacing: .6px;
+    color: var(--primary-blue, #0033a1);
+}
+
+.cb-box__dem {
+    padding: 4px 11px;
+    font-size: 11.5px;
+    color: #fff;
+    background: var(--success-green, #27ae60);
+    border-radius: 20px;
+}
+
+.cb-box__dem.is-vuot { background: var(--danger-red, #e74c3c); }
+
+/* Dòng ghi ngày đang lấy số liệu */
+.cb-ngay {
+    margin: -6px 0 12px;
+    padding: 5px 11px;
+    display: inline-block;
+
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--primary-blue, #0033a1);
+
+    background: #eef3fa;
+    border-radius: 6px;
+}
+
+/* --- Danh sách chỉ tiêu --- */
+.cb-list { display: flex; flex-direction: column; gap: 8px; }
+
+.cb-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 14px;
+
+    font-family: inherit;
+    text-align: left;
+    background: #fbfcfe;
+    border: 1px solid var(--border-color, #ecf0f1);
+    border-left: 4px solid var(--success-green, #27ae60);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background-color .14s ease, transform .14s ease;
+}
+
+.cb-row:hover { background: #f2f6fc; transform: translateX(2px); }
+
+.cb-row.is-vuot {
+    border-left-color: var(--danger-red, #e74c3c);
+    background: #fef6f5;
+}
+
+.cb-row.is-vuot:hover { background: #fdeeec; }
+
+.cb-row__ico { flex: 0 0 auto; font-size: 15px; line-height: 1.4; }
+
+.cb-row__mid { flex: 1 1 auto; min-width: 0; }
+
+.cb-row__ten {
+    display: block;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-main, #2c3e50);
+}
+
+.cb-row__chitiet {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 7px 0 5px;
+}
+
+.cb-chip {
+    padding: 3px 9px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #46586b;
+    background: #eef2f6;
+    border-radius: 6px;
+    white-space: nowrap;
+}
+
+.cb-chip.is-vuot {
+    color: #fff;
+    background: var(--danger-red, #e74c3c);
+}
+
+.cb-row__phu {
+    display: block;
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--text-muted, #7f8c8d);
+}
+
+.cb-row.is-vuot .cb-row__phu { color: #c0392b; font-weight: 600; }
+
+.cb-row__mui {
+    flex: 0 0 auto;
+    font-size: 20px;
+    line-height: 1;
+    color: #b8c4d0;
+}
+
+/* --- Bảng trợ dung (không cảnh báo) --- */
+.cb-trodung {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid #eef2f6;
+}
+
+.cb-trodung__dau {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0 0 9px;
+
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-main, #2c3e50);
+    text-align: left;
+
+    background: none;
+    border: 0;
+    cursor: pointer;
+}
+
+.cb-trodung__dau:hover { color: var(--secondary-blue, #1a4fd6); }
+
+.cb-bang {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+}
+
+.cb-bang th {
+    padding: 7px 10px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .4px;
+    color: var(--text-muted, #7f8c8d);
+    text-align: left;
+    background: #f7f9fc;
+    border-bottom: 1px solid #e6ecf2;
+}
+
+.cb-bang td {
+    padding: 8px 10px;
+    color: var(--text-main, #2c3e50);
+    border-bottom: 1px solid #f2f5f9;
+}
+
+.cb-bang tr:last-child td { border-bottom: 0; }
+.cb-bang .cb-so { font-weight: 600; white-space: nowrap; }
+
+.cb-trong {
+    margin: 6px 0 0;
+    font-size: 12px;
+    color: var(--text-muted, #7f8c8d);
+}
+
+.cb-ghichu {
+    margin: 12px 0 0;
+    padding-top: 10px;
+    font-size: 11px;
+    color: #94a3b3;
+    border-top: 1px solid #eef2f6;
+}
+
+@media (max-width: 700px) {
+    .cb-row__chitiet { flex-direction: column; }
+    .cb-chip { white-space: normal; }
+}
+
+
+/* =============================================================================
+ * NEO TIÊU ĐỀ MỤC — VÀ CHỈ TIÊU ĐỀ
+ * -----------------------------------------------------------------------------
+ * ===========================================================================*/
+
+/* Chốt tiêu đề đúng chiều cao 2 thanh cố định (40 thanh trên + 60 thanh menu).
+   layout.css bản cũ để 85px khiến tiêu đề tụt 15px vào gầm thanh menu. */
+#tieu-hao-san-xuat .section-header,
+#chat-luong .section-header {
+    top: 100px;
+}
+
+/* Bấm link trên thanh menu -> dừng dưới 2 thanh cố định, tiêu đề không chui gầm */
+#tieu-hao-san-xuat,
+#chat-luong {
+    scroll-margin-top: 104px;
+}
+
+/* Chọn một nhóm biểu đồ -> dừng dưới cả tiêu đề đang neo.
+   Đo từ layout.css: tiêu đề neo ở 100px, cao 75px (20 đệm trên + 31 chữ h2
+   + 10 lề dưới h2 + 4 vạch vàng + 10 đệm dưới) -> đáy ở 175px.
+   Để 182px chỉ hở 7px — chữ to hơn vài pixel là thanh lọc chui vào gầm ngay.
+   Nâng lên 210px cho hở 35px, đủ an toàn ở mọi cỡ chữ. */
+#tieu-hao-san-xuat .chart-group,
+#chat-luong .chart-group,
+.cb-box {
+    scroll-margin-top: 210px;
+}
+
+/* Thêm khoảng thở ở đầu mỗi nhóm biểu đồ, để thanh lọc không nằm sát mép trên.
+   Việc này giúp cả khi cuộn tay, không chỉ lúc bấm menu. */
+#tieu-hao-san-xuat .chart-group,
+#chat-luong .chart-group {
+    padding-top: 14px;
+}
+
+/* THANH LỌC: cuộn bình thường theo biểu đồ của nó, KHÔNG neo.
+   Ghi rõ static để đè lại bản trước nếu trình duyệt còn giữ CSS cũ trong bộ nhớ. */
+#tieu-hao-san-xuat .chart-group > [id^="sorter-"],
+#chat-luong .chart-group > [id^="sorter-"] {
+    position: static;
+}
+
+
+/* Mục "Bảng nhận xét" thêm vào đầu menu bên */
+.cb-menu-item.is-dang-xem {
+    font-weight: 700;
+    background: rgba(255, 255, 255, .14);
+}
