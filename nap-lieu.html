@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="vi">
+<!--
+  TRANG NẠP SỐ LIỆU TỪ FILE EXCEL — mở ở /nap-lieu (Cloudflare tự bỏ đuôi .html)
+  Đọc file .xlsx NGAY TRÊN TRÌNH DUYỆT (js/nap/doc_xlsx.js), cho xem trước, rồi
+  mới gửi các ô đã đọc lên POST /api/nap (db/nap-excel.mjs). Cần KHOÁ NẠP (biến
+  NAP_KEY trên Cloudflare) — ai không có khoá chỉ xem được trang, không nạp được.
+  Mã điều khiển: js/nap/nap_lieu.js. Giao diện: css/nap.css.
+  Vite build gói trang này riêng (vite.config.js), dashboard không phải tải gì thêm.
+-->
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Nạp số liệu Excel — X.TK2</title>
+<link rel="icon" href="images/logo-hoa-phat-3.webp">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/nap.css">
+</head>
+<body>
+<header class="nap-dau">
+  <div class="nap-khung">
+    <a class="nap-ve" href="/">← Về dashboard</a>
+    <h1>Nạp số liệu từ file Excel</h1>
+    <p>File được đọc ngay trên máy bạn và cho xem trước; chỉ khi bấm <b>Nạp lên</b> các con số mới được gửi đi.
+       Số nạp vào hiện trên dashboard như số nhập ở Google Sheet.</p>
+  </div>
+</header>
+
+<main class="nap-khung">
+  <!-- 1. Khoá nạp: gửi kèm mỗi lượt nạp / huỷ / xem danh sách (header x-nap-key) -->
+  <section class="the">
+    <h2><span class="so">1</span>Khoá nạp</h2>
+    <div class="hang-nhap">
+      <label>Khoá nạp
+        <input type="password" id="khoa" autocomplete="off" spellcheck="false">
+      </label>
+      <label>Người nạp
+        <input type="text" id="nguoi" maxlength="100" placeholder="Họ tên — để biết ai nạp">
+      </label>
+    </div>
+    <div class="hang-nut">
+      <label class="o-chon"><input type="checkbox" id="nho"> Nhớ khoá trên máy này</label>
+      <button type="button" id="kiem-khoa">Kiểm khoá</button>
+      <span class="tt" id="tt-khoa" role="status"></span>
+    </div>
+  </section>
+
+  <!-- 2. Chọn dây chuyền + khối: để tải file mẫu, và để đọc file có tên trang không ghi khối -->
+  <section class="the">
+    <h2><span class="so">2</span>Dây chuyền, khối và file mẫu</h2>
+    <div class="hang-nhap">
+      <label>Dây chuyền
+        <select id="dc"><option value="TK3">TK3</option><option value="TK4">TK4</option></select>
+      </label>
+      <label class="rong">Khối
+        <select id="khoi" disabled><option>Đang tải danh mục…</option></select>
+      </label>
+    </div>
+    <p class="phu" id="mo-ta-khoi"></p>
+    <div class="hang-nut">
+      <button type="button" id="tai-mau" disabled>Tải file mẫu của khối này</button>
+      <span class="tt" id="tt-danh-muc" role="status"></span>
+    </div>
+  </section>
+
+  <!-- 3. File: kéo thả hoặc chọn -> xem trước -> Nạp lên -->
+  <section class="the">
+    <h2><span class="so">3</span>Chọn file và nạp</h2>
+    <label class="o-tha" id="o-tha">
+      <input type="file" id="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+      <span class="o-tha-chu"><b>Kéo thả file .xlsx vào đây</b> hoặc bấm để chọn file</span>
+      <span class="o-tha-ten" id="ten-file"></span>
+    </label>
+    <div id="xem-truoc"></div>
+    <div class="hang-nut">
+      <button type="button" id="nap" class="chinh" disabled>Nạp lên</button>
+      <span class="tt" id="tt-nap" role="status"></span>
+    </div>
+  </section>
+
+  <!-- 4. Lịch sử nạp + huỷ -->
+  <section class="the">
+    <h2><span class="so">4</span>Các lần nạp gần đây</h2>
+    <div class="hang-nut">
+      <button type="button" id="tai-ds">Tải danh sách</button>
+      <span class="tt" id="tt-ds" role="status"></span>
+    </div>
+    <div id="ds"></div>
+  </section>
+</main>
+<script type="module" src="js/nap/nap_lieu.js"></script>
+</body>
+</html>

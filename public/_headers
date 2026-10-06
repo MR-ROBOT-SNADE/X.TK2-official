@@ -1,0 +1,10 @@
+# Cloudflare Pages — header cho file tĩnh (Vite chép file này ra dist/_headers).
+#
+# /assets/* là file Vite đã gắn mã băm vào tên (index-CQB2p0wa.js ...): nội dung
+# đổi thì TÊN đổi theo, nên cho trình duyệt nhớ 1 năm và khỏi hỏi lại máy chủ.
+# Mặc định Pages bắt hỏi lại (max-age=0) ở MỖI lần mở trang.
+#
+# ĐỪNG thêm js/*, css/* hay images/* vào đây: các file đó giữ nguyên tên khi sửa,
+# nhớ lâu là người xem kẹt ở bản cũ.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

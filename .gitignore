@@ -1,0 +1,31 @@
+#   Các file / thư mục KHÔNG đưa vào git (không commit, không lên GitHub).
+
+#   1. Thư viện do npm install tải về — tải lại được bất cứ lúc nào
+node_modules/
+
+#   2. Thư mục build của Vite (npm run build / deploy tạo ra)
+dist/
+dist-ssr/
+build/
+
+#   3. Bộ nhớ tạm + thông tin tài khoản của wrangler (Cloudflare) — không chia sẻ
+.wrangler/
+
+#   4. Biến môi trường, khoá bí mật
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+#   Bí mật cho wrangler pages dev chạy ở máy (PUSH_KEY...)
+.dev.vars
+.dev.vars.*
+
+#   5. Thiết lập riêng của trình soạn thảo / hệ điều hành
+.vscode/
+.DS_Store
+Thumbs.db
+
+#   6. File SQL sinh ra khi nạp D1 (scripts/nap-lich-su.mjs)
+#   Chứa toàn bộ số liệu + tên nhân sự — TUYỆT ĐỐI không commit
+.db-tam/

@@ -1,0 +1,32 @@
+{
+  "name": "xtk2-profile",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173",
+    "deploy": "vite build && npx wrangler pages deploy dist --project-name xtk2-profile --branch production",
+    "db:tao": "npx wrangler d1 create xtk2-db --location apac",
+    "db:schema": "npx wrangler d1 execute xtk2-db --remote --file=migrations/0001_khoi_tao.sql && npx wrangler d1 execute xtk2-db --remote --file=migrations/0002_dong_bo.sql && npx wrangler d1 execute xtk2-db --remote --file=migrations/0003_goi_thang.sql && npx wrangler d1 execute xtk2-db --remote --file=migrations/0004_moc_khoi.sql && npx wrangler d1 execute xtk2-db --remote --file=migrations/0005_nap_excel.sql",
+    "db:chuan-bi": "node scripts/nap-lich-su.mjs",
+    "db:nap": "npx wrangler d1 execute xtk2-db --remote --file=.db-tam/nap-lich-su.sql",
+    "db:kiem-tra": "npx wrangler d1 execute xtk2-db --remote --command \"SELECT day_chuyen, COUNT(*) AS so_gia_tri, COUNT(DISTINCT chi_tieu) AS so_chi_tieu, MIN(ngay) AS tu_ngay, MAX(ngay) AS den_ngay, ROUND(SUM(gia_tri), 2) AS tong FROM so_lieu AS s WHERE NOT EXISTS (SELECT 1 FROM ngay_nap AS n WHERE n.day_chuyen = s.day_chuyen AND n.ngay = s.ngay AND n.khoi = (SELECT khoi FROM chi_tieu WHERE ma = s.chi_tieu)) GROUP BY day_chuyen\""
+  },
+  "dependencies": {
+    "@pixi/events": "^7.4.3",
+    "@pixi/react": "7.1.2",
+    "create-vite": "^9.1.1",
+    "pixi-viewport": "^5.0.2",
+    "pixi.js": "7.3.3",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-reconciler": "0.29.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^6.0.2",
+    "sharp-cli": "^6.1.0",
+    "vite": "^8.0.16",
+    "vite-plugin-static-copy": "^3.1.4"
+  }
+}

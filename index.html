@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="vi">
+<!--
+=================================================================================
+ index.html — TRANG DUY NHẤT CỦA DASHBOARD XƯỞNG THIÊU KẾT 2
+=================================================================================
+ Cả website là MỘT trang. Các "mục" (section) nằm sẵn trong file này, mỗi lúc chỉ
+ hiện một mục — bấm thanh điều hướng trên cùng là ẩn/hiện mục (js/main/main.js).
+ Phần lớn khung trong trang để TRỐNG ("--", "Đang tải..."): JavaScript đổ số liệu
+ vào sau khi tải về từ máy chủ (/api/...).
+
+ BẢN ĐỒ TRANG (id mục -> file JS đổ nội dung vào)
+   #trang-chu              ảnh chạy + dải 3 chỉ số       chart_cook.js (ribbonVe)
+   #so-do-cong-nghe        sơ đồ dây chuyền (WebGL)      SinteringDiagram/DiagramApp.jsx
+   #cap-quan-ly            quản đốc, phó quản đốc        (nội dung tĩnh)
+   #kip-A, #kip-B, #kip-C  sơ đồ tổ chức 3 kíp           personnel.js
+   #san-luong-theo-thang   thẻ kế hoạch/thực tế + biểu đồ chart_cook.js (kpiVe, veBieuDoSanLuong)
+   #tieu-hao-san-xuat      bảng nhận xét + các khối biểu đồ tiêu hao   canhbao.js + chart_cook.js
+   #chat-luong             bảng nhận xét + các khối biểu đồ chất lượng canhbao.js + chart_cook.js
+   #vat-tu-thanh-ghi, #vat-tu-tam-op, #vat-tu-tong-hop   vật tư       vattu.js
+   #album-anh, #hoat-dong-phong-trao, #sang-kien-doi-moi            (nội dung tĩnh)
+
+ "KHỐI BIỂU ĐỒ" (.chart-group, vd #tieu-hao-than) là nhóm biểu đồ trong mục Tiêu hao
+ / Chất lượng, mở từ menu bên trái (#my-sidebar). Mỗi biểu đồ là một <canvas>, bên
+ dưới có các ô lọc id start-X / end-X / shift-X / sinterline-X — xem
+ chart_cook.js (chartConfigs) để biết X của từng biểu đồ.
+
+ SCRIPT: 3 file js/api/ nạp trong <head> để gọi API sớm; nav_fit.js ngay sau thanh
+ menu; còn lại ở cuối <body> theo đúng thứ tự phụ thuộc (xem chú thích tại đó).
+ Đuôi ?v=... sau tên file chỉ để trình duyệt khỏi dùng bản cũ khi chạy
+ npm run dev; bản build tự gộp các script và đặt tên theo mã băm (vite.config.js).
+ Mọi chú thích HTML trong file này bị xoá khi build, không lên mạng.
+=================================================================================
+-->
+<head>
+    <meta charset="UTF-8">
+    <!--Định dạng khớp với trang web, không bị vỡ hình khi mở bằng điện thoại, tỉ lệ scale 100%-->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!--Tên của thẻ web trên trình duyệt-->
+    <title>🏭 DASHBOARD - XƯỞNG THIÊU KẾT 2</title>
+    <!--Bắt tay sẵn với máy chủ phông chữ và CDN Chart.js, bớt vài trăm ms mở kết nối-->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <!--Phông của trang web, sử dụng robotto khung nền xanh-->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <!--Lớp tải dữ liệu, nạp trong <head> để api_config.js BẮN cuộc gọi API ngay khi
+        trang vừa mở, không đợi tải xong phần còn lại. Thứ tự bắt buộc: api_v2.js
+        (hàm dựng bảng) -> api_config.js (bắn cuộc gọi) -> api_loaded.js (nhận kết quả).-->
+    <script src="js/api/api_v2.js?v=1.1"></script>
+    <script src="js/api/api_config.js?v=3.1"></script>
+    <script src="js/api/api_loaded.js?v=3.1"></script>
+    <!--Biểu tượng trên tab trình duyệt + các file giao diện (CSS):
+          base        biến màu (:root), phông, kiểu chung
+          components  thẻ, nút, trang chủ, sơ đồ nhân sự (đi cặp personnel.js)
+          layout      khung trang, đẩy nội dung khi mở menu bên
+          navigation  thanh trên cùng (đi cặp nav_fit.js) + menu bên
+          diagram     khung sơ đồ công nghệ   cb: bảng nhận xét   vt: mục vật tư-->
+    <link rel="icon" href="images/logo-hoa-phat-3.webp">
+    <link rel="stylesheet" href="css/base.css?v=1.3">
+    <link rel="stylesheet" href="css/components.css?v=1.4">
+    <link rel="stylesheet" href="css/layout.css?v=1.4">
+    <link rel="stylesheet" href="css/navigation.css?v=1.0">
+    <link rel="stylesheet" href="css/diagram.css?v=1.0">
+    <link rel="stylesheet" href="css/cb.css?v=2.0">
+    <link rel="stylesheet" href="css/vt.css?v=1.0">
+</head>
+
+
+
+<body>
+
+    <!--MENU BÊN (ngăn kéo trượt từ trái), mở bằng nút ☰ trong các mục Tiêu hao /
+        Chất lượng / Vật tư. Có 5 khối menu (#sidebar-menu-...), mỗi lúc chỉ hiện
+        khối của mục đang xem (sidebar.js: SIDEBAR_MENU_MAP). Mỗi mục trong khối gọi
+        showSubContent('id-khối') để mở một khối biểu đồ.-->
+    <div id="my-sidebar" class="side-nav-drawer">
+        <a href="javascript:void(0)" class="close-btn" onclick="toggleSidebar()">&times;</a>
+
+        <div class="side-nav-content">
+            <h3 style="color: white; font-size: 12px; text-align: center;padding-left: 20px; margin-bottom: 10px; text-transform: uppercase;">MENU</h3>
+            
+            <div id="sidebar-menu-tieu-hao" style="display: none;">
+                <a href="javascript:void(0)" onclick="showSubContent('tieu-hao-than')">🔥Tiêu hao than</a>
+                <a href="javascript:void(0)" onclick="showSubContent('tieu-hao-tro-dung')">🪨 Tiêu hao Trợ dung</a>
+                <a href="javascript:void(0)" onclick="showSubContent('tieu-hao-dien')">⚡ Tiêu hao điện</a>
+                <a href="javascript:void(0)" onclick="showSubContent('tieu-hao-quang')">🧱 Tiêu hao quặng chứa sắt</a>
+                <a href="javascript:void(0)" onclick="showSubContent('tieu-hao-khi-than')">💨 Tiêu hao khí than</a>
+                <a href="javascript:void(0)" onclick="showSubContent('ti-le-quang-hoi')">🔄 Tỉ lệ quặng hồi</a>
+            </div>
+
+            <div id="sidebar-menu-vat-tu" style="display: none;">
+                            <a href="javascript:void(0)" onclick="showSubContent('vt-thanh-ghi-tong-quan')">📊 Tổng quan thanh ghi giữa</a>
+                            <a href="javascript:void(0)" onclick="showSubContent('vt-thanh-ghi-chi-tiet')">📋 Chi tiết nhập - xuất</a>
+                        </div>
+
+                        <div id="sidebar-menu-vat-tu-op" style="display: none;">
+                            <a href="javascript:void(0)" onclick="showSubContent('vt-tam-op-tong-quan')">📊 Tổng quan tấm ốp, chốt chẻ</a>
+                            <a href="javascript:void(0)" onclick="showSubContent('vt-tam-op-chi-tiet')">📋 Chi tiết nhập - xuất</a>
+                        </div>
+
+                        <div id="sidebar-menu-vat-tu-thang" style="display: none;">
+                            <a href="javascript:void(0)" onclick="showSubContent('vt-thang-bang')">📦 Vật tư xuất trong tháng</a>
+                        </div>
+
+                        
+            <div id="sidebar-menu-chat-luong" style="display: none;">
+                <a href="javascript:void(0)" onclick="showSubContent('chat-luong-voi-nung')">🪨 CL Vôi nung</a>
+                <a href="javascript:void(0)" onclick="showSubContent('chat-luong-dolomite-nung')">🪨 CL Dolomite nung</a>
+                <a href="javascript:void(0)" onclick="showSubContent('chat-luong-quang-trung-hoa')">📥 CL quặng trung hoà</a>
+                <a href="javascript:void(0)" onclick="showSubContent('chat-luong-quang-hoi')">♻️ CL quặng hồi</a>
+                <a href="javascript:void(0)" onclick="showSubContent('chat-luong-than')">⬛ CL than</a>
+                <a href="javascript:void(0)" onclick="showSubContent('chat-luong-quang-thieu-ket')">📤 CL quặng TK</a>   
+                <a href="javascript:void(0)" onclick="showSubContent('co-hat-quang-thieu-ket')">📤 CH quặng TK</a> 
+                <a href="javascript:void(0)" onclick="showSubContent('do-kiem')">🧪 Độ kiềm quặng TK</a>
+                <!--Trang nạp số liệu chất lượng từ file Excel (nap-lieu.html). Ai cũng
+                    mở được trang, nhưng phải có KHOÁ NẠP mới gửi được số lên.-->
+                <a href="/nap-lieu" style="margin-top: 12px; border-top: 1px solid rgba(255,255,255,.2);">⬆️ Nạp số liệu từ Excel</a>
+            </div>
+        </div>
+    </div>
+    <!--#main-wrapper: toàn bộ nội dung trang. Khi mở menu bên, toggleSidebar() thêm
+        lớp .shifted để đẩy nội dung sang phải (css/layout.css).-->
+    <div id="main-wrapper">
+        <!--THANH TRÊN CÙNG: tên website + ô "Cập nhật"-->
+            <div class="top-bar">
+                <span>WEBSITE NỘI BỘ XƯỞNG THIÊU KẾT 2 - NHÀ MÁY THIÊU KẾT VÊ VIÊN</span>
+            <!--#last-updates: api_loaded.js ghi mốc Apps Script đẩy dữ liệu gần nhất
+                (lấy mốc CŨ HƠN của TK3 / TK4; rê chuột để xem từng dây)-->
+                <div class="top-links">
+                    <span id="last-updates">Cập nhật: Đang tải......</span>
+                </div>
+            </div>
+        <!--THANH ĐIỀU HƯỚNG: mỗi liên kết href="#id" mở mục có id đó (main.js ẩn/hiện
+            mục, sidebar.js đóng menu bên). Thanh tự co giãn cỡ chữ cho vừa màn hình
+            (nav_fit.js + css/navigation.css).-->
+            <nav class="nav-bar">
+                <!--Define thuộc tính của logo xưởng Thiêu Kết (dùng logo hoà phát cân nhắc)-->
+                <div class="logo"><a href="#trang-chu"><img src="images/logo-xuong.jpg" alt="Logo Xưởng" class="nav-logo-img"></a></div>
+                <!--Nút MENU: chỉ hiện khi màn hình quá hẹp, do nav_fit.js bật-->
+                <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="nav-links-list">&#9776; MENU</button>
+                <!--Danh sách mục. li.dropdown = mục có menu con xổ xuống (.dropdown-content)-->
+                <ul class="nav-links" id="nav-links-list">
+                    <li>
+                        <a href="#trang-chu">TRANG CHỦ</a>
+                    </li>
+
+                    <!--Nội dung 1-->
+                    <li class="dropdown"> <!--Cú pháp menu sổ xuống-->
+                        <!--Tên của thẻ navigation-->
+                        <a href="javascript:void(0)" class="dropbtn">GIỚI THIỆU TỔNG QUAN XƯỞNG THIÊU KẾT 2 ▾</a>
+                        <!--Nội dung trong thẻ sẽ sổ xuống-->
+                        <div class="dropdown-content">
+                            <!--Quy định đường link đến từng nội dung-->
+                            <a href="#so-do-cong-nghe">SƠ ĐỒ CÔNG NGHỆ - QUY TRÌNH SẢN XUẤT</a>
+                        </div>
+                    </li>
+
+                    <!--Nội dung 2-->
+                    <li class="dropdown">
+                        <a href="javascript:void(0)" class="dropbtn">SƠ ĐỒ TỔ CHỨC-NHÂN SỰ XƯỞNG THIÊU KẾT 2 ▾</a>
+                        <div class="dropdown-content">
+                            <a href="#cap-quan-ly">QUẢN LÝ XƯỞNG</a>
+                            <a href="#kip-A">TỔ CHỨC - NHÂN SƯ KÍP A</a>
+                            <a href="#kip-B">TỔ CHỨC - NHÂN SỰ KÍP B</a>
+                            <a href="#kip-C">TỔ CHỨC - NHÂN SỰ KÍP C</a>
+                        </div>
+                    </li>
+
+                    <!--Nội dung 3-->
+                    <li class="dropdown">
+                        <a href="javascript:void(0)" class="dropbtn">TÌNH HÌNH SẢN XUẤT-CHẤT LƯỢNG ▾</a>
+                        <div class="dropdown-content">
+                            <a href="#san-luong-theo-thang">SẢN LƯỢNG</a>
+                            <a href="#tieu-hao-san-xuat">TIÊU HAO SẢN XUẤT</a>
+                            <a href="#chat-luong">CHẤT LƯỢNG</a>
+                        </div>
+                    </li>
+
+                    <!--Nội dung 4: vật tư tiêu hao thường xuyên-->
+                    <li class="dropdown">
+                        <a href="javascript:void(0)" class="dropbtn">TÌNH TRẠNG VẬT TƯ THANH GHI, TẤM ỐP TẠI XƯỞNG ▾</a>
+                        <div class="dropdown-content">
+                            <a href="#vat-tu-thanh-ghi">TÌNH TRẠNG SỬ DỤNG THANH GHI GIỮA</a>
+                            <a href="#vat-tu-tam-op">TÌNH TRẠNG SỬ DỤNG TẤM ỐP, CHỐT CHẺ</a>
+                            <a href="#vat-tu-tong-hop">TỔNG HỢP VẬT TƯ THTX XUẤT TRONG THÁNG</a>
+                        </div>
+                    </li>
+
+                    <!--Nội dung 5-->
+                    <li class="dropdown">
+                        <a href="javascript:void(0)" class="dropbtn">HOẠT ĐỘNG,PHONG TRÀO-SÁNG KIẾN,ĐỔI MỚI ▾</a>
+                        <div class="dropdown-content">
+                            <a href="#hoat-dong-phong-trao">HOẠT ĐỘNG,PHONG TRÀO</a>
+                            <a href="#sang-kien-doi-moi">SÁNG KIẾN, ĐỔI MỚI</a>
+                        </div>
+                    </li>
+
+                    <!--Nội dung 6: link thẳng tới mục ảnh 5S (#album-anh), không cần menu xổ.
+                        Bản cũ là menu xổ có đúng 1 mục trỏ tới #album-anh — mục không tồn tại,
+                        bấm vào không có gì xảy ra.-->
+                    <li>
+                        <a href="#album-anh">ALBUM ẢNH</a>
+                    </li>
+                </ul>
+            </nav>
+            <!--Chạy NGAY sau thanh menu (không để cuối trang) để thanh được co giãn vừa
+                khít trước lần vẽ đầu tiên, không bị giật từ bản tràn sang bản vừa.-->
+            <script src="js/components/nav_fit.js?v=1.0"></script>
+            <div id="trang-chu" class="page-view active-view">
+                <!--Làm background mờ với các ảnh chạy đằng sau-->
+                <div id="hero-slider" class="hero-section">
+
+                    <!--Ảnh số 1 chạy-->
+                    <div class="slide active" style="background-image: url('images/anh_so_1.webp');">
+                        <div class="slide-overlay"></div>
+                        <div class="slide-text">WEBSITE NỘI BỘ XƯỞNG THIÊU KẾT 2</div>
+                    </div>
+
+                    <!--Ảnh số 2 là background-->
+                    <div class="slide" style="background-image: url('images/anh_so_2.webp');">
+                        <div class="slide-overlay"></div>
+                        <div class="slide-text" style="text-align: center;">SẢN XUẤT AN TOÀN - HIỆU QUẢ CHẤT LƯỢNG - TIẾT KIỆM</div>
+                    </div>
+
+                    <!--ẢNh số 3 là background-->
+                    <div class="slide" style="background-image: url('images/anh_so_3.webp');">
+                        <div class="slide-overlay"></div>
+                        <div class="slide-text" style="text-align: center;">THỰC HIỆN TỐT 5S LÀ TRÁCH NHIỆM MỖI NGÀY-MỖI CA KÍP</div>
+                    </div>
+                </div>
+                    
+            <!--DẢI 3 CHỈ SỐ TỔNG QUAN của tháng này. Số do chart_cook.js (ribbonVe) ghi
+                vào các ô có id; "--" là đang chờ dữ liệu. Thẻ <span> trong mỗi ô là đơn vị.-->
+            <section class="stats-ribbon">
+                <div class="stat-box">
+                    <!--Tổng sản lượng tháng (TK3 + TK4). JS đổi tiêu đề thành "THÁNG m/yyyy"-->
+                    <h3>TỔNG SẢN LƯỢNG XƯỞNG KỲ NÀY</h3>
+                    <!--Cài đặt để chờ load thông tin vào từ javascript-->
+                    <p class="number" id="tong-san-luong">--<span>TẤN</span></p>
+                </div>
+
+                <!--Ô #tb-loi: chart_cook.js (ribbonVe) ghi vào đây % ĐẠT KẾ HOẠCH SẢN LƯỢNG
+                    tháng này (sản lượng / kế hoạch), dù tiêu đề đang ghi "đảm bảo chất lượng"-->
+                <div class="stat-box">
+                    <h3>ĐẢM BẢO CHẤT LƯỢNG SẢN XUẤT</h3>
+                    <!--Cài đặt để load dữ liệu vào từ javascript-->
+                    <p class="number highlight-green" id="tb-loi">--<span>%</span></p>
+                </div>
+
+                <!--Hệ số lợi dụng tháng: JS thay nội dung ô bằng HAI số TK3 / TK4
+                    (chart_cook.js -> ribbonVeHeSo, số tính ở js/chung/chi_so.js)-->
+                <div class="stat-box">
+                    <h3>HỆ SỐ LỢI DỤNG THÁNG</h3>
+                    <!--Cài đặt để chờ load dữ liệu vào từ javascript-->
+                    <p class="number highlight-green" id="he-so-loi-dung">--<span>t/m²·h</span></p>
+                </div>
+            </section>
+
+            <!--Slogan trong hệ thống-->
+            <div class="news-ticker">
+                <div class="ticker-title">THÔNG BÁO CA KÍP:</div>
+                <div class="ticker-content">
+                    <span class="ticker-text">
+                        !!!CHÚ Ý TẬP TRUNG VẬN HÀNH THEO CHẾ ĐỘ CHO PHÉP, ĐẢM BẢO CHẤT LƯỢNG, SẢN LƯỢNG!!!
+                        !!!CHÚC TOÀN THỂ ANH EM T/P KÍP, NHÂN VIÊN XƯỞNG CÓ 1 CA LÀM VIỆC AN TOÀN - HIỆU QUẢ - NĂNG SUẤT!!!
+                    </span>
+                </div>
+            </div>
+            <!----------------------------------------------------->
+        </div>
+
+        <!--MỤC SƠ ĐỒ CÔNG NGHỆ. Khung #react-sodo-boot để trống: DiagramApp.jsx dựng sơ
+            đồ React/Pixi vào đây khi mục được mở (chỉ tải gói sơ đồ lúc cần).-->
+        <section id="so-do-cong-nghe" class="panel-section">
+            <div class="section-header">
+                <h2>SƠ ĐỒ CÔNG NGHỆ - QUY TRÌNH SẢN XUẤT</h2>
+                <div class="divider"></div>
+            </div>
+            <!--Phần nội dung tách biệt với phần title-->
+            <div class="panel-content">
+                <div id="react-sodo-boot">
+
+                </div>
+            </div>
+        </section>
+
+        <!--Tạo nội dung cho mục navigation-->
+        <section id="cap-quan-ly" class="panel-section bg-gray">
+            <div class="section-header">
+                <!--Đối với thẻ navigation quản lý xưởng-->
+                <h2>QUẢN LÝ XƯỞNG</h2>
+                <div class="divider"></div>
+            </div>
+            <div class="panel-content personnel-grid">
+                <!--Thẻ của person đầu tiên-->
+                <div class="person-card">
+                    <img loading="lazy" src="images/quan-doc.webp" alt="Quản đốc X.TK2" class="person-avatar"><!--Display avtar quản đốc-->
+                    <!--Tạo thẻ person info cho quản đốc xưởng-->
+                    <div class="person-info">
+                        <h4>Nguyễn Trung Đức</h4>
+                        <p class="role">Quản đốc xưởng</p>
+                        <span class="status status-online">Đang đương nhiệm</span>
+                    </div>
+                </div>
+                <!-- Thẻ của person thứ hai, cuối cùng, vì định biên xưởng có 2 quản đốc-->
+                <div class="person-card">
+                    <img loading="lazy" src="images/pho-quan-doc.webp" alt="Phó quản đốc X.TK2" class="person-avatar">
+                    <div class="person-info">
+                        <h4>Phan Văn Dương</h4>
+                        <p class="role">Phó quản đốc xưởng</p>
+                        <span class="status status-online">Đang đương nhiệm</span>
+                    </div>
+                </div>
+
+            </div>
+        <!--Kết thúc section display nhân sự của xưởng-->
+        </section>
+
+        <!--Section để display nhân sự của kíp A-->
+        <section id="kip-A" class="panel-section">
+            <div class="section-header">
+                <h2>TỔ CHỨC - NHÂN SỰ KÍP A</h2>
+                <div class="divider"></div>
+            </div>
+            <div class="panel-content personnel-grid">
+                <!--Để trống: personnel.js tự dựng sơ đồ tổ chức của kíp vào đây từ
+                    các cột STT/Mã nhân viên/Vị trí công việc/Status của bảng tính.
+                    Ảnh chân dung: images/nhan-su/<giá trị cột Mã nhân viên>.jpg-->
+            </div>
+        </section>
+        <!--Section để display nhân sự của kíp B-->
+        <section id="kip-B" class="panel-section bg-gray">
+            <div class="section-header">
+                <h2>TỔ CHỨC - NHÂN SỰ KÍP B</h2>
+                <div class="divider"></div>
+            </div>
+            <div class="panel-content personnel-grid">
+                <!--Để trống: personnel.js tự dựng sơ đồ tổ chức của kíp vào đây từ
+                    các cột STT/Mã nhân viên/Vị trí công việc/Status của bảng tính.
+                    Ảnh chân dung: images/nhan-su/<giá trị cột Mã nhân viên>.jpg-->
+            </div>
+        </section>
+        <!--Section để display nhân sự của kíp C-->
+        <section id="kip-C" class="panel-section bg-gray">
+            <div class="section-header">
+                <h2>TỔ CHỨC - NHÂN SỰ KÍP C</h2>
+                <div class="divider"></div>
+            </div>
+            <div class="panel-content personnel-grid">
+                <!--Để trống: personnel.js tự dựng sơ đồ tổ chức của kíp vào đây từ
+                    các cột STT/Mã nhân viên/Vị trí công việc/Status của bảng tính.
+                    Ảnh chân dung: images/nhan-su/<giá trị cột Mã nhân viên>.jpg-->
+            </div>
+        </section>
+        <!--Khu vực hiển thị các biểu đồ liên quan đến sản lượng-->
+        <section id="san-luong-theo-thang" class="panel-section bg-gray"><!--Thẻ định nghĩa khu vực display các vấn đề liên quan đến sản lượng-->
+            <div class="section-header"><!--Section đầu tiên cho sản lượng-->
+                <h2>SẢN LƯỢNG</h2>
+                <div class="divider"></div>
+            </div>
+            <!--Các thẻ chỉ số của mục Sản lượng — chart_cook.js (kpiVe) ghi số vào các id
+                kpi-...; nó cũng gom 2 thẻ đang nằm ngoài lưới vào .kpi-grid, thêm 2 thẻ
+                hệ số lợi dụng TK3/TK4 và vẽ biểu đồ sản lượng tháng bên dưới.
+                Thẻ 1: kế hoạch sản lượng tháng (tấn)-->
+            <div class="panel-content kpi-grid">
+                <div class="kpi-card">
+                    <h3>Kế hoạch tháng (tấn)</h3>
+                    <div id="kpi-target" class="kpi-value target">--</div>
+                </div>
+            </div>
+            <!--Thẻ 2: sản lượng thực tế tới nay + dòng nhận xét vượt/chậm tiến độ (#kpi-trend)-->
+            <div class="kpi-card">
+                <h3>Sản lượng đã đạt đến nay (tấn)</h3>
+                <div id="kpi-actual" class="kpi-value actual">--</div>
+                <div id="kpi-trend" class="kpi-trend">Đang cập nhật...</div>
+            </div>
+            <!--Thẻ 3: % đạt kế hoạch + thanh tiến độ (#kpi-progress-bar, chặn tối đa 100%)-->
+            <div class="kpi-card">
+                <h3>Tỉ lệ đạt được sản lượng</h3>
+                <div id="kpi-percen" class="kpi-value persent">--%</div>
+                <div class="progress-bar-container">
+                    <div id="kpi-progress-bar" class="progress-bar" style="width: 0%"></div>
+                </div>
+            </div>
+        </section>
+
+        <!--Khu vực hiển thị các chỉ số liên quan đến tiêu hao-->
+        <section id="tieu-hao-san-xuat" class="panel-section bg-gray">
+            <div class="section-header" style="display: flex; align-items: center; gap: 15px;"><!--Tên của thẻ-->
+
+                <button class="siderbar-toggle-btn" onclick="toggleSidebar()" style="background: transparent; color: var(--primar-blue); border: 2px solid var(--primary-blue); padding: 5px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s;">☰</button>
+                <h2 style="margin: 0;">TIÊU HAO SẢN XUẤT</h2>
+                <div class="divider" style="flex-grow: 1;"></div>
+            </div>
+
+            <div class="intro-msgs" style="text-align: center; padding: 40px; color: #888;">Mở menu và chọn để xem dữ liệu</div>
+            <!--Khu vực hiển thị các thông tin liên quan đến biểu đồ thể hiện tiêu hao than-->
+            <div id="tieu-hao-than" class="panel-content chart-group" style="display: none; flex-direction: column; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;">
+                <div id="sorter-than-nhietri" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Từ ngày: </label>
+                        <input type="date" id="start-nhietri" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Đến ngày: </label>
+                        <input type="date" id="end-nhietri" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn ca/kíp: </label>
+                        <select id="shift-nhietri" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Tất cả các ca</option>
+                            <option value="A">Kíp A</option>
+                            <option value="B">Kíp B</option>
+                            <option value="C">Kip C</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn dây chuyền: </label>
+                        <select id="sinterline-nhietri" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Dây chuyền 3 + 4</option>
+                            <option value="TK3">Dây chuyền 3</option>
+                            <option value="TK4">Dây chuyền 4</option>
+                        </select>
+                    </div>
+                    <button onclick="applyUniversalFilter('nhietri')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
+                    <button onclick="clearUniversalFilter('nhietri')" style="padding: 5px 15px; cursor: pointer; background: #95a5a6; color: white; border: none; border-radius: 4px; font-weight: bold;">Xoá lọc</button>
+                </div>
+                <div class="coalconsume-chart-nhietri" style="width: 100%; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">TIÊU HAO THAN QUY ĐỔI NHIỆT TRỊ CHUẨN</h3>
+
+                    <div style="position: relative; height: 550px; width: 100%">
+                    <canvas id="coal-chart-nhietri"
+                        style="width: 100%; height: 550px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
+                    </canvas>
+                    </div>
+
+                </div>
+                <div id="sorter-than-ccd" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Từ ngày: </label>
+                        <input type="date" id="start-ccd" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Đến ngày: </label>
+                        <input type="date" id="end-ccd" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn ca/kíp: </label>
+                        <select id="shift-ccd" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Tất cả các ca</option>
+                            <option value="A">Kíp A</option>
+                            <option value="B">Kíp B</option>
+                            <option value="C">Kip C</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn dây chuyền: </label>
+                        <select id="sinterline-ccd" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Dây chuyền 3 + 4</option>
+                            <option value="TK3">Dây chuyền 3</option>
+                            <option value="TK4">Dây chuyền 4</option>
+                        </select>
+                    </div>
+                    <button onclick="applyUniversalFilter('ccd')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
+                    <button onclick="clearUniversalFilter('ccd')" style="padding: 5px 15px; cursor: pointer; background: #95a5a6; color: white; border: none; border-radius: 4px; font-weight: bold;">Xoá lọc</button>
+                </div>
+
+                <div class="coalconsume-chart-Ccd" style="width: 100%; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">TIÊU HAO THAN QUY ĐỔI THEO CCD UHG</h3>
+                    <div style="position: relative; height: 550px; width: 100%;">
+                    <canvas id="coal-chart-ccd"
+                        style="width: 100%; height: 550px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
+                    </canvas>
+                    </div>
+                </div>
+            </div>
+            <!--Khu vực hiển thị các thông tin liên quan đến biểu đồ thể hiện tiêu hao chất trợ dung, như vôi và dolomite-->
+            <div id="tieu-hao-tro-dung" class="panel-content chart-group" style="display: none; flex-direction: column; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;">
+                <div id="sorter-lime" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Từ ngày: </label>
+                        <input type="date" id="start-lime" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Đến ngày: </label>
+                        <input type="date" id="end-lime" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn ca/kíp: </label>
+                        <select id="shift-lime" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Tất cả các ca</option>
+                            <option value="A">Kíp A</option>
+                            <option value="B">Kíp B</option>
+                            <option value="C">Kip C</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn dây chuyền: </label>
+                        <select id="sinterline-lime" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Dây chuyền 3 + 4</option>
+                            <option value="TK3">Dây chuyền 3</option>
+                            <option value="TK4">Dây chuyền 4</option>
+                        </select>
+                    </div>
+                    <button onclick="applyUniversalFilter('lime')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
+                    <button onclick="clearUniversalFilter('lime')" style="padding: 5px 15px; cursor: pointer; background: #95a5a6; color: white; border: none; border-radius: 4px; font-weight: bold;">Xoá lọc</button>
+                </div>
+                <div class="fluxconsume-chart-lime" style="width: 100%; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">TIÊU HAO QUY ĐỔI VÔI NUNG</h3>
+                    <div style="position: relative; height: 550px; width: 100%;">
+                        <canvas id="flux-chart-lime"
+                            style="width: 100%; height: 550px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
+                        </canvas><!--Thẻ canvas thay cho thẻ div cũ, dùng để display thư viện và nhận dữ liệu nạp vào từ js-->
+                    </div>
+                </div>
+
+                <div id="sorter-dolomite" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Từ ngày: </label>
+                        <input type="date" id="start-dolomite" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Đến ngày: </label>
+                        <input type="date" id="end-dolomite" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn ca/kíp: </label>
+                        <select id="shift-dolomite" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Tất cả các ca</option>
+                            <option value="A">Kíp A</option>
+                            <option value="B">Kíp B</option>
+                            <option value="C">Kip C</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn dây chuyền: </label>
+                        <select id="sinterline-dolomite" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Dây chuyền 3 + 4</option>
+                            <option value="TK3">Dây chuyền 3</option>
+                            <option value="TK4">Dây chuyền 4</option>
+                        </select>
+                    </div>
+                    <button onclick="applyUniversalFilter('dolomite')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
+                    <button onclick="clearUniversalFilter('dolomite')" style="padding: 5px 15px; cursor: pointer; background: #95a5a6; color: white; border: none; border-radius: 4px; font-weight: bold;">Xoá lọc</button>
+                </div>
+                <div class="fluxconsume-chart-dolomite" style="width: 100%; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">TIÊU HAO QUY ĐỔI ĐÁ DOLOMITE</h3>
+                    <div style="position: relative; height: 550px; width: 100%;">
+                        <canvas id="flux-chart-dolomite"
+                            style="width: 100%; height: 550px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
+                        </canvas><!--Thẻ canvas thay cho thẻ div cũ, dùng để display thư viện và nhận dữ liệu nạp vào từ js-->
+                    </div>
+                </div>
+            </div>
+            
+
+            <!--Tương tự như các thẻ tiêu hao trợ dung và than nói trên-->
+            <div id="tieu-hao-dien" class="panel-content chart-group" style="display: none; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;">
+                <div id="sorter-dien" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Từ ngày: </label>
+                        <input type="date" id="start-dien" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Đến ngày: </label>
+                        <input type="date" id="end-dien" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn ca/kíp: </label>
+                        <select id="shift-dien" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Tất cả các ca</option>
+                            <option value="A">Kíp A</option>
+                            <option value="B">Kíp B</option>
+                            <option value="C">Kip C</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn dây chuyền: </label>
+                        <select id="sinterline-dien" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Dây chuyền 3 + 4</option>
+                            <option value="TK3">Dây chuyền 3</option>
+                            <option value="TK4">Dây chuyền 4</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Loại điện luỹ kế: </label>
+                        <select id="electype-dien" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Hiển thị tất cả</option>
+                            <option value="normal">Chỉ Điện thường</option>
+                            <option value="dsx">Chỉ Điện trừ DSX</option>
+                        </select>
+                    </div>
+                    <button onclick="applyUniversalFilter('dien')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
+                    <button onclick="clearUniversalFilter('dien')" style="padding: 5px 15px; cursor: pointer; background: #95a5a6; color: white; border: none; border-radius: 4px; font-weight: bold;">Xoá lọc</button>
+                </div>
+                <div class="electriconsume-chart-full" style="width: 100%; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">TIÊU HAO ĐIỆN</h3>
+                    <div style="position: relative; height: 550px; width: 100%;">
+                    <canvas id="electric-chart"
+                        style="width: 100%; height: 550px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
+                    </canvas>
+                    </div>
+                </div>
+            </div>
+            <!----------------------------------------------------------->
+            <div id="tieu-hao-quang" class="panel-content chart-group" style="display: none; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;">
+                <div id="sorter-feOre" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Từ ngày: </label>
+                        <input type="date" id="start-feOre" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Đến ngày: </label>
+                        <input type="date" id="end-feOre" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn ca/kíp: </label>
+                        <select id="shift-feOre" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Tất cả các ca</option>
+                            <option value="A">Kíp A</option>
+                            <option value="B">Kíp B</option>
+                            <option value="C">Kip C</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn dây chuyền: </label>
+                        <select id="sinterline-feOre" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Dây chuyền 3 + 4</option>
+                            <option value="TK3">Dây chuyền 3</option>
+                            <option value="TK4">Dây chuyền 4</option>
+                        </select>
+                    </div>
+                    <button onclick="applyUniversalFilter('feOre')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
+                    <button onclick="clearUniversalFilter('feOre')" style="padding: 5px 15px; cursor: pointer; background: #95a5a6; color: white; border: none; border-radius: 4px; font-weight: bold;">Xoá lọc</button>
+                </div>
+                <div class="feoreconsume-chart" style="width: 100%; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">TIÊU HAO QUẶNG CHỨA SẮT</h3>
+                    <div style="position: relative; height: 550px; width: 100%;">
+                    <canvas id="feoreconsume-chart"
+                        style="width: 100%; height: 550px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
+                    </canvas>
+                    </div>
+                </div>
+            </div>
+            <!---------------Thẻ tiêu display tiêu hao khí than----------------------->
+            <div id="tieu-hao-khi-than" class="panel-content chart-group" style="display: none; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;">
+                <div id="sorter-CO" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Từ ngày: </label>
+                        <input type="date" id="start-CO" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Đến ngày: </label>
+                        <input type="date" id="end-CO" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn ca/kíp: </label>
+                        <select id="shift-CO" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Tất cả các ca</option>
+                            <option value="A">Kíp A</option>
+                            <option value="B">Kíp B</option>
+                            <option value="C">Kip C</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn dây chuyền: </label>
+                        <select id="sinterline-CO" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Dây chuyền 3 + 4</option>
+                            <option value="TK3">Dây chuyền 3</option>
+                            <option value="TK4">Dây chuyền 4</option>
+                        </select>
+                    </div>
+                    <button onclick="applyUniversalFilter('CO')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
+                    <button onclick="clearUniversalFilter('CO')" style="padding: 5px 15px; cursor: pointer; background: #95a5a6; color: white; border: none; border-radius: 4px; font-weight: bold;">Xoá lọc</button>
+                </div>
+                <div class="COconsume-chart" style="width: 100%; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">TIÊU HAO KHÍ THAN</h3>
+                    <div style="position: relative; height: 550px; width: 100%;">
+                        <canvas id="COconsume-chart"
+                            style="width: 100%; height: 550px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
+                        </canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div id="ti-le-quang-hoi" class="panel-content chart-group" style="display: none; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;">
+                <div id="sorter-HLC" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Từ ngày: </label>
+                        <input type="date" id="start-HLC" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Đến ngày: </label>
+                        <input type="date" id="end-HLC" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn ca/kíp: </label>
+                        <select id="shift-HLC" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Tất cả các ca</option>
+                            <option value="A">Kíp A</option>
+                            <option value="B">Kíp B</option>
+                            <option value="C">Kip C</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn dây chuyền: </label>
+                        <select id="sinterline-HLC" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Dây chuyền 3 + 4</option>
+                            <option value="TK3">Dây chuyền 3</option>
+                            <option value="TK4">Dây chuyền 4</option>
+                        </select>
+                    </div>
+                    <button onclick="applyUniversalFilter('HLC')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
+                    <button onclick="clearUniversalFilter('HLC')" style="padding: 5px 15px; cursor: pointer; background: #95a5a6; color: white; border: none; border-radius: 4px; font-weight: bold;">Xoá lọc</button>
+                </div>
+                <div class="returnfinesrateHLC-chart" style="width: 100%; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">TỈ LỆ QUẶNG HỒI LÒ CAO</h3>
+                    <div style="position: relative; height: 550px; width: 100%;">
+                        <canvas id="returnfinesrateHLC-chart"
+                            style="width: 100%; height: 550px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
+                        </canvas>
+                    </div>
+                </div>
+
+                <div id="sorter-HN" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Từ ngày: </label>
+                        <input type="date" id="start-HN" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Đến ngày: </label>
+                        <input type="date" id="end-HN" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn ca/kíp: </label>
+                        <select id="shift-HN" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Tất cả các ca</option>
+                            <option value="A">Kíp A</option>
+                            <option value="B">Kíp B</option>
+                            <option value="C">Kip C</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn dây chuyền: </label>
+                        <select id="sinterline-HN" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Dây chuyền 3 + 4</option>
+                            <option value="TK3">Dây chuyền 3</option>
+                            <option value="TK4">Dây chuyền 4</option>
+                        </select>
+                    </div>
+                    <button onclick="applyUniversalFilter('HN')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
+                    <button onclick="clearUniversalFilter('HN')" style="padding: 5px 15px; cursor: pointer; background: #95a5a6; color: white; border: none; border-radius: 4px; font-weight: bold;">Xoá lọc</button>
+                </div>
+                <div class="returnfinesrateHN-chart" style="width: 100%; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">TỈ LỆ QUẶNG HỒI NGUỘI</h3>
+                    <div style="position: relative; height: 550px; width: 100%;">
+                        <canvas id="returnfinesrateHN-chart"
+                            style="width: 100%; height: 550px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
+                        </canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!--Khu vực hiển thị chất lượng sản phẩm-->
+        <section id="chat-luong" class="panel-section bg-gray">
+            <div class="section-header" style="display: flex; align-items: center; gap: 15px;">
+                <button class="siderbar-toggle-btn" onclick="toggleSidebar()" style="background: transparent; color: var(--primar-blue); border: 2px solid var(--primary-blue); padding: 5px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s;">☰</button>
+                <h2 style="margin: 0;">CHẤT LƯỢNG</h2>
+                <div class="divider" style="flex-grow: 1;"></div>
+            </div>
+
+            <div class="intro-msgs" style="text-align: center; padding: 40px; color: #888;">Mở menu và chọn để xem dữ liệu</div>
+            <!--Đây là khu vực hiển thị các biểu đồ liên quan đến chất lượng nguyên nhiên liệu đầu vào-->
+            <!--Chất lượng vôi nung-->
+            <div id="chat-luong-voi-nung" class="panel-content chart-group" style="display: none; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;">
+                <div id="sorter-burntlime" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Từ ngày: </label>
+                        <input type="date" id="start-burntlime" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Đến ngày: </label>
+                        <input type="date" id="end-burntlime" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn ca/kíp: </label>
+                        <select id="shift-burntlime" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Tất cả các ca</option>
+                            <option value="A">Kíp A</option>
+                            <option value="B">Kíp B</option>
+                            <option value="C">Kip C</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn dây chuyền: </label>
+                        <select id="sinterline-burntlime" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Dây chuyền 3 + 4</option>
+                            <option value="TK3">Dây chuyền 3</option>
+                            <option value="TK4">Dây chuyền 4</option>
+                        </select>
+                    </div>
+                    <button onclick="applyUniversalFilter('burntLime')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
+                    <button onclick="clearUniversalFilter('burntLime')" style="padding: 5px 15px; cursor: pointer; background: #95a5a6; color: white; border: none; border-radius: 4px; font-weight: bold;">Xoá lọc</button>
+                </div>
+                <div class="burntlime-chart" style="width: 100%; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">CHÂT LƯỢNG VÔI NUNG</h3>
+                    <div style="position: relative; height: 550px; width: 100%;">
+                        <canvas id="burntlime-chart"
+                            style="width: 100%; height: 550px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
+                        </canvas>
+                    </div>
+                </div>
+            </div>
+            <!--Chất lượng dolomite nung-->
+            <div id="chat-luong-dolomite-nung" class="panel-content chart-group" style="display: none; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;">
+                <div id="sorter-burntdolomite" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Từ ngày: </label>
+                        <input type="date" id="start-burntdolomite" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Đến ngày: </label>
+                        <input type="date" id="end-burntdolomite" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn ca/kíp: </label>
+                        <select id="shift-burntdolomite" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Tất cả các ca</option>
+                            <option value="A">Kíp A</option>
+                            <option value="B">Kíp B</option>
+                            <option value="C">Kip C</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn dây chuyền: </label>
+                        <select id="sinterline-burntdolomite" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Dây chuyền 3 + 4</option>
+                            <option value="TK3">Dây chuyền 3</option>
+                            <option value="TK4">Dây chuyền 4</option>
+                        </select>
+                    </div>
+                    <button onclick="applyUniversalFilter('burntDolomite')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
+                    <button onclick="clearUniversalFilter('burntDolomite')" style="padding: 5px 15px; cursor: pointer; background: #95a5a6; color: white; border: none; border-radius: 4px; font-weight: bold;">Xoá lọc</button>
+                </div>
+                <div class="burntdolomite-chart" style="width: 100%; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">CHÂT LƯỢNG DOLOMITE NUNG</h3>
+                    <div style="position: relative; height: 550px; width: 100%;">
+                        <canvas id="burntdolomite-chart"
+                            style="width: 100%; height: 550px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
+                        </canvas>
+                    </div>
+                </div>
+            </div>
+            <div id="chat-luong-quang-trung-hoa" class="panel-content chart-group" style="display: none; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;">
+                <!--QUặng trung hoà/-->
+                <div id="sorter-QTHTK3" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Từ ngày: </label>
+                        <input type="date" id="start-QTHTK3" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Đến ngày: </label>
+                        <input type="date" id="end-QTHTK3" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn ca/kíp: </label>
+                        <select id="shift-QTHTK3" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Tất cả các ca</option>
+                            <option value="A">Kíp A</option>
+                            <option value="B">Kíp B</option>
+                            <option value="C">Kip C</option>
+                        </select>
+                    </div>
+                    <button onclick="applyUniversalFilter('QTHTK3')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
+                    <button onclick="clearUniversalFilter('QTHTK3')" style="padding: 5px 15px; cursor: pointer; background: #95a5a6; color: white; border: none; border-radius: 4px; font-weight: bold;">Xoá lọc</button>
+                </div>
+                <div class="blendingore-chart-tk3" style="width: 100%; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">CHẤT LƯỢNG QUẶNG TRUNG HOÀ THIÊU KẾT 3</h3>
+                    <div style="position: relative; height: 550px; width: 100%;">
+                        <canvas id="blendingore-chart-tk3"
+                            style="width: 100%; height: 550px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
+                        </canvas>
+                    </div>
+                </div>
+
+                <div id="sorter-QTHTK4" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Từ ngày: </label>
+                        <input type="date" id="start-QTHTK4" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Đến ngày: </label>
+                        <input type="date" id="end-QTHTK4" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn ca/kíp: </label>
+                        <select id="shift-QTHTK4" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Tất cả các ca</option>
+                            <option value="A">Kíp A</option>
+                            <option value="B">Kíp B</option>
+                            <option value="C">Kip C</option>
+                        </select>
+                    </div>
+                    <button onclick="applyUniversalFilter('QTHTK4')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
+                    <button onclick="clearUniversalFilter('QTHTK4')" style="padding: 5px 15px; cursor: pointer; background: #95a5a6; color: white; border: none; border-radius: 4px; font-weight: bold;">Xoá lọc</button>
+                </div>
+                <div class="blendingore-chart-tk4" style="width: 100%; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">CHẤT LƯỢNG QUẶNG TRUNG HOÀ THIÊU KẾT 4</h3>
+                    <div style="position: relative; height: 550px; width: 100%;">
+                        <canvas id="blendingore-chart-tk4"
+                            style="width: 100%; height: 550px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
+                        </canvas>
+                    </div>
+                </div>
+            </div>
+            <div id="chat-luong-quang-hoi" class="panel-content chart-group" style="display: none; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;">
+                <!--Quặng hồi lò cao-->
+                <div id="sorter-CLHLC" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Từ ngày: </label>
+                        <input type="date" id="start-CLHLC" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Đến ngày: </label>
+                        <input type="date" id="end-CLHLC" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn ca/kíp: </label>
+                        <select id="shift-CLHLC" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Tất cả các ca</option>
+                            <option value="A">Kíp A</option>
+                            <option value="B">Kíp B</option>
+                            <option value="C">Kip C</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn dây chuyền: </label>
+                        <select id="sinterline-CLHLC" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Dây chuyền 3 + 4</option>
+                            <option value="TK3">Dây chuyền 3</option>
+                            <option value="TK4">Dây chuyền 4</option>
+                        </select>
+                    </div>
+                    <button onclick="applyUniversalFilter('CLHLC')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
+                    <button onclick="clearUniversalFilter('CLHLC')" style="padding: 5px 15px; cursor: pointer; background: #95a5a6; color: white; border: none; border-radius: 4px; font-weight: bold;">Xoá lọc</button>
+                </div>
+                <div class="returnfines-chart" style="width: 100%; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">CHẤT LƯỢNG QUẶNG HỒI LÒ CAO</h3>
+                    <div style="position: relative; height: 550px; width: 100%;">
+                        <canvas id="returnfines-chart"
+                            style="width: 100%; height: 550px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
+                        </canvas>
+                    </div>
+                </div>
+            </div>
+            <div id ="chat-luong-than" class="panel-content chart-group" style="display: none; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;">
+                <!--Chất lượng than-->
+                <div id="sorter-CoHatThan" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn ngày: </label>
+                        <input type="date" id="start-CoHatThan" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn ca/kíp: </label>
+                        <select id="shift-CoHatThan" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="A">Kíp A</option>
+                            <option value="B">Kíp B</option>
+                            <option value="C">Kip C</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn dây chuyền: </label>
+                        <select id="sinterline-CoHatThan" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="TK3">Dây chuyền 3</option>
+                            <option value="TK4">Dây chuyền 4</option>
+                        </select>
+                    </div>
+                    <button onclick="applyUniversalFilter('CoHatThan')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
+                    <button onclick="clearUniversalFilter('CoHatThan')" style="padding: 5px 15px; cursor: pointer; background: #95a5a6; color: white; border: none; border-radius: 4px; font-weight: bold;">Xoá lọc</button>
+                </div>
+                <div class="coalquality-chart-cohattn" style="flex: 1; min-width: 400px; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">THÀNH PHẦN CỠ HẠT CỦA THAN NGHIỀN</h3>
+                    <div style="position: relative; height: 350px; width: 100%;">
+                        <canvas id="coalquality-chart-cohattn"
+                            style="width: 100%; height: 350px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
+                        </canvas>
+                    </div>
+                </div>
+
+                <div class="coalquality-chart-cohatcoke" style="flex: 1;min-width: 400px; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">THÀNH PHẦN CỠ HẠT CỦA THAN COKE</h3>
+                    <div style="position: relative; height: 350px; width: 100%;">
+                        <canvas id="coalquality-chart-cohatcoke"
+                            style="width: 100%; height: 350px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px">
+                        </canvas>
+                    </div>
+                </div>
+                <div id="sorter-ChatLuongThan" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Từ ngày: </label>
+                        <input type="date" id="start-ChatLuongThan" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Đến ngày: </label>
+                        <input type="date" id="end-ChatLuongThan" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn ca/kíp: </label>
+                        <select id="shift-ChatLuongThan" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Tất cả các ca</option>
+                            <option value="A">Kíp A</option>
+                            <option value="B">Kíp B</option>
+                            <option value="C">Kip C</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn dây chuyền: </label>
+                        <select id="sinterline-ChatLuongThan" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="TK3">Dây chuyền 3</option>
+                            <option value="TK4">Dây chuyền 4</option>
+                        </select>
+                    </div>
+                    <button onclick="applyUniversalFilter('ChatLuongThan')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
+                    <button onclick="clearUniversalFilter('ChatLuongThan')" style="padding: 5px 15px; cursor: pointer; background: #95a5a6; color: white; border: none; border-radius: 4px; font-weight: bold;">Xoá lọc</button>
+                </div>
+                <div class="coalquality-chart-ChatLuongThan" style="width: 100%; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">ĐỘ TRO VÀ CHẤT BỐC CỦA THAN</h3>
+                    <div style="position: relative; height: 550px; width: 100%;">
+                        <canvas id="coalquality-chart-ChatLuongThan"
+                            style="width: 100%; height: 550px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
+                        </canvas>
+                    </div>
+                </div>
+            </div>
+            <!--Chát lượng của quặng thiêu kết thành phẩm-->
+            <div id="chat-luong-quang-thieu-ket" class="panel-content chart-group" style="display: none; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;">
+                <div id="sorter-sinter-1" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Từ ngày: </label>
+                        <input type="date" id="start-ChatLuongQTK" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Đến ngày: </label>
+                        <input type="date" id="end-ChatLuongQTK" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn ca/kíp: </label>
+                        <select id="shift-ChatLuongQTK" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Tất cả các ca</option>
+                            <option value="A">Kíp A</option>
+                            <option value="B">Kíp B</option>
+                            <option value="C">Kip C</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn dây chuyền: </label>
+                        <select id="sinterline-ChatLuongQTK" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Dây chuyền 3 + 4</option>
+                            <option value="TK3">Dây chuyền 3</option>
+                            <option value="TK4">Dây chuyền 4</option>
+                        </select>
+                    </div>
+                    <button onclick="applyUniversalFilter('ChemicalQTK')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
+                    <button onclick="clearUniversalFilter('ChemicalQTK')" style="padding: 5px 15px; cursor: pointer; background: #95a5a6; color: white; border: none; border-radius: 4px; font-weight: bold;">Xoá lọc</button>
+                </div>
+                <div class="chemicalcomponent-chart-QTK" style="width: 100%; background: #fff; padding: 20px; border-radius: 8px;box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">CHẤT LƯỢNG QUẶNG THIÊU KẾT</h3>
+                    <div style="position: relative; height: 550px; width: 100%;">
+                        <canvas id="chemicalcomponent-chart-QTK"
+                            style="width: 100%; height: 550px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
+                        </canvas>
+                    </div>
+                </div>
+                <div id="sorter-sinter-2" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Từ ngày: </label>
+                        <input type="date" id="start-TCVatLyQTK" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Đến ngày: </label>
+                        <input type="date" id="end-TCVatLyQTK" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn ca/kíp: </label>
+                        <select id="shift-TCVatLyQTK" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Tất cả các ca</option>
+                            <option value="A">Kíp A</option>
+                            <option value="B">Kíp B</option>
+                            <option value="C">Kip C</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn dây chuyền: </label>
+                        <select id="sinterline-TCVatLyQTK" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Dây chuyền 3 + 4</option>
+                            <option value="TK3">Dây chuyền 3</option>
+                            <option value="TK4">Dây chuyền 4</option>
+                        </select>
+                    </div>
+                    <button onclick="applyUniversalFilter('PhysicalQTK')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
+                    <button onclick="clearUniversalFilter('PhysicalQTK')" style="padding: 5px 15px; cursor: pointer; background: #95a5a6; color: white; border: none; border-radius: 4px; font-weight: bold;">Xoá lọc</button>
+                </div>
+                <div class="physicalcomponent-chart-QTK" style="width: 100%; background: #fff; padding: 20px; border-radius: 8px;box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;"></h3>
+                    <div style="position: relative; height: 550px; width: 100%;">
+                        <canvas id="physicalcomponent-chart-QTK"
+                            style="width: 100%; height: 550px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
+                        </canvas>
+                    </div>
+                </div>
+            </div>
+                <!--Phân bố cấp phối cỡ hạt của quặng-->
+            <div id="co-hat-quang-thieu-ket" class="panel-content chart-group" style="display: none; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;">
+                <div id="sorter-sinter-3" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Từ ngày: </label>
+                        <input type="date" id="start-CoHatQTK" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Đến ngày: </label>
+                        <input type="date" id="end-CoHatQTK" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn ca/kíp: </label>
+                        <select id="shift-CoHatQTK" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Tất cả các ca</option>
+                            <option value="A">Kíp A</option>
+                            <option value="B">Kíp B</option>
+                            <option value="C">Kip C</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn dây chuyền: </label>
+                        <select id="sinterline-CoHatQTK" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Dây chuyền 3 + 4</option>
+                            <option value="TK3">Dây chuyền 3</option>
+                            <option value="TK4">Dây chuyền 4</option>
+                        </select>
+                    </div>
+                    <button onclick="applyUniversalFilter('CoHatQTK')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
+                    <button onclick="clearUniversalFilter('CoHatQTK')" style="padding: 5px 15px; cursor: pointer; background: #95a5a6; color: white; border: none; border-radius: 4px; font-weight: bold;">Xoá lọc</button>
+                </div>
+                <div class="grainsizerate-chart" style="width: 100%; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">CỠ HẠT QUẶNG THIÊU KẾT</h3>
+                    <div style="position: relative; height: 550px; width: 100%;">  
+                        <canvas id="grainsizerate-chart"
+                            style="width: 100%; height: 550px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
+                        </canvas>
+                    </div>
+                </div>
+            </div>
+            <div id="do-kiem" class="panel-content chart-group" style="display: none; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;">
+                <!--Biểu đồ thể hiện độ kiềm-->
+                <div class="basicility-chart" style="width: 100%; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                <div id="sorter-sinter-4" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Từ ngày: </label>
+                        <input type="date" id="start-DoKiemQTK" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Đến ngày: </label>
+                        <input type="date" id="end-DoKiemQTK" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn ca/kíp: </label>
+                        <select id="shift-DoKiemQTK" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Tất cả các ca</option>
+                            <option value="A">Kíp A</option>
+                            <option value="B">Kíp B</option>
+                            <option value="C">Kip C</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn dây chuyền: </label>
+                        <select id="sinterline-DoKiemQTK" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="TK3">Dây chuyền 3</option>
+                            <option value="TK4">Dây chuyền 4</option>
+                        </select>
+                    </div>
+                    <button onclick="applyUniversalFilter('DoKiemQTK')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
+                    <button onclick="clearUniversalFilter('DoKiemQTK')" style="padding: 5px 15px; cursor: pointer; background: #95a5a6; color: white; border: none; border-radius: 4px; font-weight: bold;">Xoá lọc</button>
+                </div>
+                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">ĐỘ KIỀM QUẶNG THIÊU KẾT</h3>
+                    <div style="position: relative; height: 550px; width: 100%;">
+                        <canvas id="basicility-chart"
+                            style="width: 100%; height: 550px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
+                        </canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!--BA MỤC VẬT TƯ: chỉ có khung rỗng (các div id vt-...), toàn bộ thẻ số,
+            biểu đồ, bảng chi tiết do vattu.js dựng từ dữ liệu /api/vattu.-->
+        <!--Khu vực: tình trạng sử dụng thanh ghi giữa-->
+        <section id="vat-tu-thanh-ghi" class="panel-section">
+            <div class="section-header" style="display: flex; align-items: center; gap: 15px;">
+                <button class="siderbar-toggle-btn" onclick="toggleSidebar()" style="background: transparent; color: var(--primar-blue); border: 2px solid var(--primary-blue); padding: 5px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s;">☰</button>
+                <h2 style="margin: 0;">TÌNH TRẠNG SỬ DỤNG THANH GHI GIỮA</h2>
+                <div class="divider" style="flex-grow: 1;"></div>
+            </div>
+
+            <div class="intro-msgs" style="text-align: center; padding: 40px; color: #888;">Mở menu và chọn để xem dữ liệu</div>
+
+            <div id="vt-thanh-ghi-tong-quan" class="panel-content chart-group" style="display: none; flex-direction: column; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;"></div>
+            <div id="vt-thanh-ghi-chi-tiet" class="panel-content chart-group" style="display: none; flex-direction: column; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;"></div>
+        </section>
+
+        <!--Khu vực: tình trạng sử dụng tấm ốp, chốt chẻ-->
+        <section id="vat-tu-tam-op" class="panel-section bg-gray">
+            <div class="section-header" style="display: flex; align-items: center; gap: 15px;">
+                <button class="siderbar-toggle-btn" onclick="toggleSidebar()" style="background: transparent; color: var(--primar-blue); border: 2px solid var(--primary-blue); padding: 5px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s;">☰</button>
+                <h2 style="margin: 0;">TÌNH TRẠNG SỬ DỤNG TẤM ỐP, CHỐT CHẺ</h2>
+                <div class="divider" style="flex-grow: 1;"></div>
+            </div>
+
+            <div class="intro-msgs" style="text-align: center; padding: 40px; color: #888;">Mở menu và chọn để xem dữ liệu</div>
+
+            <div id="vt-tam-op-tong-quan" class="panel-content chart-group" style="display: none; flex-direction: column; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;"></div>
+            <div id="vt-tam-op-chi-tiet" class="panel-content chart-group" style="display: none; flex-direction: column; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;"></div>
+        </section>
+
+        <!--Khu vực: tổng hợp vật tư THTX xuất trong tháng-->
+        <section id="vat-tu-tong-hop" class="panel-section">
+            <div class="section-header" style="display: flex; align-items: center; gap: 15px;">
+                <button class="siderbar-toggle-btn" onclick="toggleSidebar()" style="background: transparent; color: var(--primar-blue); border: 2px solid var(--primary-blue); padding: 5px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s;">☰</button>
+                <h2 style="margin: 0;">TỔNG HỢP VẬT TƯ THTX XUẤT TRONG THÁNG</h2>
+                <div class="divider" style="flex-grow: 1;"></div>
+            </div>
+
+            <div class="intro-msgs" style="text-align: center; padding: 40px; color: #888;">Mở menu và chọn để xem dữ liệu</div>
+
+            <div id="vt-thang-bang" class="panel-content chart-group" style="display: none; flex-direction: column; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;"></div>
+        </section>
+        <!--Khu vực display tình hình an ninh tại xưởng-->
+        <!--id cũ "5s-vscn" bắt đầu bằng CHỮ SỐ nên không dùng được làm selector CSS
+            (querySelector("#5s-vscn") ném lỗi) -> đổi thành album-anh.-->
+        <section id="album-anh" class="panel-section bg-gray">
+            <div class="section-header">
+                <h2>ALBUM ẢNH</h2>
+                <div class="divider"></div>
+            </div>
+            <!--Bảng content cần display-->
+            <div class="panel-content bg-gray" style="border-radius: 8px; padding: 20px;">
+                <div id="album-cho-du-lieu" style="width: 100%; text-align: center; padding: 40px; color: #888;">
+                    Đang chờ nạp dữ liệu hình ảnh...
+                </div>
+            </div>
+        </section>
+        <!--Khu vực thể hiện các hoạt động phong trào-->
+        <section id="hoat-dong-phong-trao" class="panel-section bg-gray">
+            <div class="section-header">
+                <h2>HOẠT ĐỘNG, PHONG TRÀO TẠI XƯỞNG</h2>
+                <div class="divider"></div>
+            </div>
+
+            <div class="panel-content">
+                <div class="activity-slider-container">
+                    <div class="act-slide act-active">
+                        <img loading="lazy" src="images/hdpt-1.jpg" alt="Hoạt động 1">
+                        <div class="act-caption">Liên hoan ăn nhậu kíp</div>
+                    </div>
+
+                    <div class="act-slide">
+                        <img loading="lazy" src="images/hdpt-2.jpg" alt="Hoạt động 2">
+                        <div class="act-caption">Tất niên xưởng cuối năm</div>
+                    </div>
+
+                    <div class="act-slide">
+                        <img loading="lazy" src="images/hdpt-3.jpg" alt="Hoạt động 3">
+                        <div class="act-caption">Lì xì, trao lộc đầu năm</div>
+                    </div>
+
+                    <div class="act-slide">
+                        <img loading="lazy" src="images/hdpt-4.jpg" alt="Hoạt động 4">
+                        <div class="act-caption">Hoạt động 4</div>
+                    </div>
+
+                    <div class="act-slide">
+                        <img loading="lazy" src="images/hdpt-5.jpg" alt="Hoạt động 5">
+                        <div class="act-caption">Hoạt động 5</div>
+                    </div>
+                </div>
+
+                <h3 class="hightlight-title">⭐ TIÊU ĐIỂM PHONG TRÀO ⭐</h3>
+
+                <div class="activity-highlights-grid">
+                    <div class="highlight-card">
+                        <div class="hightlight-img-wrapper">
+                            <img loading="lazy" src="images/pthd-1.jpg" alt="Phong trào 1">
+                            <div class="star-badge">Top đào tạo nhà máy</div>
+                        </div>
+                        <div class="highlight-info">
+                            <h4>Chỉ tiêu đào tạo thường niên ở nhà máy</h4>
+                            <p>Xưởng thiêu kết 2 nằm trong top 15</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <!--Khu vực display các sáng kiến đổi mới-->
+        <section id="sang-kien-doi-moi" class="panel-section bg-gray">
+            <div class="section-header">
+                <h2>SÁNG KIẾN,ĐỔI MỚI</h2>
+                <div class="divider"></div>
+            </div>
+            <!--Bảng display các sáng kiến đổi mới đến hiện tại-->
+            <div class="panel-content kpi-grid" style="margin-bottom: 40px;">
+                <div class="kpi-card" style="border-top-color: #8e44ad;">
+                    <h3>Tổng số sáng kiến tính đến hiện tại</h3>
+                    <div id="kpi-sk-total" class="kpi-value actual" style="color: #8e44ad;">--</div>
+                    <div id="kpi-sk-completed" class="kpi-trend up">Đã hoàn thiện và áp dụng cải tiến--</div>
+                </div>
+                <!--Thẻ giá trị làm lợi ước tính. LƯU Ý: hiện CHƯA có file JS nào ghi số vào
+                    các ô kpi-sk-total / kpi-sk-completed / kpi-sk-value, nên mục này luôn
+                    hiện "--" (khối CTCT trong bảng tính cũng chưa được đưa vào D1).-->
+                <div class="kpi-card" style="border-top-color: #f39c12;">
+                    <h3>Giá trị làm lợi ước tính</h3>
+                    <div id="kpi-sk-value" class="kpi-value actual" style="color: #f39c12;">-- VNĐ</div>
+                    <div class="kpi-trend">Tiết kiệm chi phí cho công ty</div>
+                </div>
+            </div>
+            <!--Display các sáng kiến tiêu biểu của nhân viên xưởng-->
+            <div class="panel-content" style="margin-bottom: 40px;">
+                <h3 style="text-align: center; color: #2c3e50; margin-bottom: 20px;">🌟 CÁC SÁNG KIẾN TIÊU BIỂU 🌟</h3>
+
+                <div class="sk-slider-viewport">
+                    <div id="sk-slider-track" class="sk-slider-track">
+                        <div style="width: 100%; text-align: center; padding: 40px; color: #888">
+                            Đang nạp dữ liệu sáng kiến từ Google Sheets...
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!--Bảng thống kê các sáng kiến tiêu biểu của xưởng-->
+            <div class="panel-content">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">STT</th>
+                            <th>Tên sáng kiến/ cải tiến</th>
+                            <th>Tác giả/ Nhóm</th>
+                            <th>Lĩnh vực</th>
+                            <th style="width: 200px;">Tiến độ triển khai</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sk-table-body">
+                        <tr>
+                            <td colspan="5" style="text-align: center;">Đang đồng bộ danh sách</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+<footer>
+    <p>Copyright &copy; 2026 - Sản phẩm phát triển phục vụ riêng cho Xưởng Thiêu Kết 2 - Không phục vụ mục đích thương mại</p>
+    <p>Thông tin chi tiết về sản phẩm liên hệ với KTV phòng kỹ thuật nhà máy Thiêu kết - Vê Viên</p>
+</footer>
+
+    <div id="loading-screen">
+        <div class="spinner" style="width: 50px; height: 25px; border: 5px solid #ecf0f1; border-top: 5px solid #0033a1; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px auto;"></div>
+        <h3 style="color :var(--primary-blue); margin-top: 20px; text-align: center;">ĐANG KẾT NỐI DỮ LIỆU</h3>
+    </div>
+
+<!--SCRIPT CUỐI TRANG — thứ tự là BẮT BUỘC (file sau dùng hàm / biến của file trước):
+      Chart.js + plugin nhãn số (CDN)  thư viện vẽ biểu đồ
+      chi_so.js      công thức + ngưỡng cảnh báo (dùng chung với máy chủ)
+      chart_core.js  hàm vẽ biểu đồ          chart_cook.js  chọn số liệu, điều phối, lọc
+      canhbao.js     bảng nhận xét           personnel.js   sơ đồ nhân sự
+      vattu.js       mục vật tư              sidebar.js     menu bên, showSubContent
+      api_thang.js   tải thêm tháng cũ (cần chart_cook.js đã nạp)
+      main.js        khởi động trang (CUỐI CÙNG, cần mọi file trên)
+      DiagramApp.jsx sơ đồ công nghệ (module riêng, Vite gói tách)-->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+<script src="js/chung/chi_so.js?v=1.0"></script>
+<script src="js/components/Charts/chart_core.js?v=1.1"></script>
+<script src="js/components/Charts/chart_cook.js?v=1.2"></script>
+<script src="js/components/Charts/canhbao.js?v=2.1"></script>
+<script src="js/components/personnel.js?v=1.3"></script>
+<script src="js/components/Charts/vattu.js?v=1.0"></script>
+<script src="js/components/sidebar.js?v=2"></script>
+<script src="js/api/api_thang.js?v=1.0"></script>
+<script src="js/main/main.js?v=2.1"></script>
+<script type="module" src="js/components/SinteringDiagram/DiagramApp.jsx"></script>
+</body>
+</html>

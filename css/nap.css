@@ -1,0 +1,123 @@
+/* =============================================================================
+ * nap.css — GIAO DIỆN TRANG NẠP SỐ LIỆU EXCEL (nap-lieu.html)
+ * =============================================================================
+ * Trang đứng riêng, KHÔNG nạp các file CSS của dashboard: màu chép từ biến
+ * :root của base.css để hai trang cùng một tông. Đổi màu chủ đạo của dashboard
+ * thì đổi cả ở đây.
+ * Bố cục: các "thẻ" (.the) xếp dọc trong khung rộng tối đa 1100px; màn hình hẹp
+ * thì các ô nhập xếp chồng.
+ * ===========================================================================*/
+:root {
+    --primary-blue: #0033a1;
+    --secondary-blue: #2980b9;
+    --success-green: #27ae60;
+    --warning-yellow: #f39c12;
+    --danger-red: #e74c3c;
+    --bg-light: #f4f6f9;
+    --text-main: #2c3e50;
+    --text-muted: #7f8c8d;
+    --white: #ffffff;
+    --border-color: #dfe5ec;
+}
+
+* { box-sizing: border-box; }
+body {
+    margin: 0;
+    font: 15px/1.55 'Roboto', system-ui, 'Segoe UI', Arial, sans-serif;
+    color: var(--text-main);
+    background: var(--bg-light);
+}
+.nap-khung { max-width: 1100px; margin: 0 auto; padding: 0 16px; }
+
+/* ---------- đầu trang ---------- */
+.nap-dau { background: var(--primary-blue); color: var(--white); padding: 18px 0 22px; margin-bottom: 20px; }
+.nap-dau h1 { margin: 6px 0 4px; font-size: 24px; }
+.nap-dau p { margin: 0; max-width: 760px; opacity: .9; }
+.nap-ve { color: var(--white); text-decoration: none; opacity: .85; font-size: 14px; }
+.nap-ve:hover { opacity: 1; text-decoration: underline; }
+
+/* ---------- thẻ từng bước ---------- */
+.the {
+    background: var(--white);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 18px 20px;
+    margin-bottom: 18px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, .04);
+}
+.the h2 { margin: 0 0 14px; font-size: 18px; display: flex; align-items: center; gap: 10px; }
+.the h2 .so {
+    display: inline-grid; place-items: center;
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--primary-blue); color: var(--white); font-size: 14px;
+}
+.phu { color: var(--text-muted); font-size: 13.5px; margin: 8px 0 0; }
+
+/* ---------- ô nhập, nút ---------- */
+.hang-nhap { display: flex; flex-wrap: wrap; gap: 14px; }
+.hang-nhap label { display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; color: var(--text-muted); min-width: 220px; }
+.hang-nhap label.rong { flex: 1; }
+input[type=text], input[type=password], select {
+    font: inherit; color: var(--text-main);
+    padding: 8px 10px; border: 1px solid #c8d1dc; border-radius: 4px; background: var(--white);
+}
+input:focus, select:focus, button:focus-visible, .o-tha:focus-within { outline: 2px solid var(--secondary-blue); outline-offset: 1px; }
+.hang-nut { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 14px; }
+.o-chon { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; }
+button {
+    font: inherit; font-weight: 500; cursor: pointer;
+    padding: 8px 16px; border-radius: 4px;
+    border: 1px solid var(--primary-blue); background: var(--white); color: var(--primary-blue);
+}
+button:hover:not(:disabled) { background: #eef2fb; }
+button.chinh { background: var(--primary-blue); color: var(--white); }
+button.chinh:hover:not(:disabled) { background: #00287f; }
+button.nguy { border-color: var(--danger-red); color: var(--danger-red); padding: 4px 10px; font-size: 13px; }
+button.nguy:hover:not(:disabled) { background: #fdecea; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+
+/* dòng trạng thái cạnh nút */
+.tt { font-size: 14px; }
+.tt.ok { color: var(--success-green); }
+.tt.loi { color: var(--danger-red); }
+.tt.cho { color: var(--text-muted); }
+
+/* ---------- ô kéo thả file ---------- */
+.o-tha {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    min-height: 110px; padding: 16px;
+    border: 2px dashed #b8c4d4; border-radius: 6px; background: #fafbfd;
+    text-align: center; cursor: pointer; color: var(--text-muted); position: relative;
+}
+.o-tha:hover, .o-tha.dang-keo { border-color: var(--secondary-blue); background: #eef5fb; }
+.o-tha input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.o-tha-chu b { color: var(--text-main); }
+.o-tha-ten { font-weight: 500; color: var(--primary-blue); word-break: break-all; }
+
+/* ---------- xem trước ---------- */
+.phan { border: 1px solid var(--border-color); border-radius: 6px; margin-top: 14px; overflow: hidden; }
+.phan-dau { padding: 10px 14px; background: #f7f9fc; border-bottom: 1px solid var(--border-color); }
+.phan-dau h3 { margin: 0; font-size: 16px; }
+.phan-dau .nhan { font-weight: 400; color: var(--text-muted); font-size: 13px; }
+.phan-dau p { margin: 2px 0 0; font-size: 14px; }
+.ds-bao { margin: 0; padding: 8px 14px 8px 32px; font-size: 13.5px; }
+.ds-bao li { margin: 2px 0; }
+.ds-bao.loi { background: #fdecea; color: #a5281b; }
+.ds-bao.canh { background: #fef6e7; color: #8a5a00; }
+.bang-cuon { max-height: 340px; overflow: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+th, td { padding: 5px 8px; border-bottom: 1px solid #edf0f4; text-align: right; white-space: nowrap; }
+th { position: sticky; top: 0; background: var(--white); text-align: right; font-weight: 500; color: var(--text-muted); }
+th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align: left; }
+td.chu { color: #8a5a00; }
+td.trong { color: #c0c7d0; }
+.bang-ds td, .bang-ds th { text-align: left; white-space: normal; vertical-align: top; }
+.bang-ds td.so { text-align: right; white-space: nowrap; }
+.bang-ds tr.da-huy td { color: var(--text-muted); text-decoration: line-through; }
+.bang-ds tr.da-huy td:last-child { text-decoration: none; }
+
+@media (max-width: 640px) {
+    .hang-nhap label { min-width: 0; width: 100%; }
+    .the { padding: 14px; }
+    .nap-dau h1 { font-size: 20px; }
+}

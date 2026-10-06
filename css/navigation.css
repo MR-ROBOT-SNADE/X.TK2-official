@@ -1,0 +1,385 @@
+/* =============================================================================
+ * navigation.css — HAI THANH CỐ ĐỊNH TRÊN CÙNG + MENU BÊN
+ * =============================================================================
+ *   .top-bar         thanh đen trên cùng, cao ĐÚNG 40px
+ *   .nav-bar         thanh điều hướng ngay dưới (top: 40px), cao ĐÚNG 60px.
+ *                    Đi cặp với js/components/nav_fit.js:
+ *                      --nav-fs            cỡ chữ do nav_fit.js đo rồi đặt
+ *                      .nav-bar--hai-dong  tên mục được xuống 2 dòng
+ *                      .nav-bar--gon       màn hẹp: chỉ còn nút ☰ MENU
+ *                      .nav-bar--mo        danh sách của chế độ gọn đang mở
+ *                      .dropdown--mo-trai  menu con mở sang trái (mục sát mép phải)
+ *   .side-nav-drawer menu bên trượt từ trái (#my-sidebar), .open = đang mở
+ * Tổng 100px của hai thanh là con số mà nhiều chỗ khác dựa vào (padding-top,
+ * scroll-margin-top của các mục) — đổi chiều cao thanh thì phải tìm sửa theo.
+ * ===========================================================================*/
+
+
+/* -------------------------------------------------------------------------------------- */
+
+.top-bar {
+    background-color: var(--bg-dark);
+    color: var(--white);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    /* CHIỀU CAO CHỐT CỨNG 40px = ĐÚNG BẰNG .nav-bar{top:40px} phía dưới.
+       Trước đây chỉ đặt padding nên thanh cao ~36px, chừa lại KHE HỞ ~4px giữa
+       hai thanh cố định; cuộn trang là thấy sơ đồ chạy lấp ló qua khe đó.
+       Chốt cứng 40px thì hai thanh khít nhau tuyệt đối, không còn khe. */
+    height: 40px;
+    padding: 0 5%;
+    font-size: 13px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    z-index: 1000 !important;
+    box-sizing: border-box;
+}
+
+.top-links span {
+    color: var(--warning-yellow);
+}
+
+/* ------------------------------------------------------------------------------------ */
+
+.nav-bar {
+    /* NỀN ĐỤC HOÀN TOÀN. Trước đây nền là rgba(...,0.85) + backdrop-filter blur
+       nên toàn bộ sơ đồ cuộn phía dưới HIỆN MỜ XUYÊN QUA thanh menu. Đổi sang
+       màu đặc và bỏ blur -> phần trên luôn sạch, không lòi nội dung nào ra. */
+    background-color: var(--primary-blue);
+    display: flex;
+    align-items: center;
+    padding: 0 5%;
+    position: fixed;
+    top: 40px;
+    width: 100% !important;
+    z-index: 1050 !important;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    left: 0 !important;
+
+    /* CAO CHỐT CỨNG 60px: section-header, scroll-margin, sơ đồ... đều tính sẵn
+       40px top-bar + 60px nav-bar = 100px. Co giãn chỉ theo CHIỀU NGANG.
+       --nav-fs do js/components/nav_fit.js đo rồi đặt; chưa chạy JS thì 12px
+       như bản cũ. Mọi khoảng đệm của mục menu tính theo em để co giãn cùng chữ. */
+    height: 60px;
+    font-size: var(--nav-fs, 12px);
+}
+
+.nav-links {
+    list-style: none;
+    display: flex;
+    margin: 0;
+    padding: 0;
+}
+
+.nav-links li a.dropbtn,
+.nav-links li > a {
+    color: var(--white);
+    padding: 0 0.85em;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    font-size: 1em;
+    font-weight: 700;
+    transition: background-color 0.3s ease;
+    white-space: nowrap;
+}
+
+/* Nút ☰ MENU — chỉ hiện ở chế độ GỌN (màn hình quá hẹp) */
+.nav-toggle {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 16px;
+    background: transparent;
+    color: var(--white);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 4px;
+    font: 700 14px 'Roboto', sans-serif;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+}
+
+.nav-toggle:hover,
+.nav-bar--mo .nav-toggle {
+    background-color: var(--secondary-blue);
+}
+
+/* ---- Chế độ HAI DÒNG: tên mục được xuống 2 dòng, các mục tự co cho vừa ---- */
+.nav-bar--hai-dong {
+    padding: 0 2%;
+}
+
+.nav-bar--hai-dong .nav-links {
+    min-width: 0;
+}
+
+.nav-bar--hai-dong .nav-links li > a {
+    white-space: normal;
+    line-height: 1.25;
+    text-align: center;
+    text-wrap: balance;
+    padding: 0 0.7em;
+}
+
+/* ---- Chế độ GỌN: nút ☰ MENU, bấm mở danh sách đầy đủ xổ xuống ---- */
+.nav-bar--gon .nav-toggle {
+    display: flex;
+}
+
+.nav-bar--gon .nav-links {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background-color: var(--primary-blue);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.25);
+}
+
+.nav-bar--gon.nav-bar--mo .nav-links {
+    display: flex;
+}
+
+.nav-bar--gon .nav-links li a.dropbtn,
+.nav-bar--gon .nav-links li > a {
+    height: auto;
+    padding: 12px 5%;
+    font-size: 14px;
+    white-space: normal;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.nav-bar--gon .dropdown {
+    display: block;
+}
+
+.nav-bar--gon .dropdown-content,
+.nav-bar--gon .dropdown:hover .dropdown-content {
+    display: block;
+    position: static;
+    min-width: 0;
+    box-shadow: none;
+    border-top: 0;
+    border-radius: 0;
+}
+
+.nav-bar--gon .dropdown-content a {
+    padding: 11px 5% 11px calc(5% + 16px);
+}
+
+/* Mục gần mép phải: menu con mở sang TRÁI để không tràn khỏi màn hình */
+.dropdown--mo-trai .dropdown-content {
+    left: auto;
+    right: 0;
+}
+
+.nav-links li:hover .dropbtn,
+.nav-links li > a:hover {
+    background-color: var(--secondary-blue);
+}
+
+/* -------------------------------------------------------------------------------- */
+
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: var(--white);
+    min-width: 280px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    z-index: 1060 !important;
+    border-top: 3px solid var(--warning-yellow);
+    border-radius: 0 0 5px 5px;
+}
+
+.dropdown-content a {
+    color: var(--text-main) !important;
+    padding: 14px 20px;
+    display: block;
+    font-size: 13px;
+    font-weight: normal;
+    border-bottom: 1px solid var(--border-color);
+    transition: all 0.2s ease;
+}
+
+.dropdown-content a:hover {
+    background-color: var(--bg-light);
+    color: var(--primary-blue) !important;
+    padding-left: 25px;
+}
+
+.dropdown:hover .dropdown-content {
+    display: block;
+}
+
+/* ---------------------------------------------------------------------------- */
+
+.side-nav-drawer {
+    position: fixed;
+    top: 85px; 
+    left: -300px; 
+    width: 300px; 
+    height: calc(100vh - 85px);
+    
+    background-color: rgba(0, 51, 161, 0.95); 
+    backdrop-filter: blur(5px);
+    z-index: 900; 
+    
+    transition: 0.4s ease-in-out;
+    overflow-y: auto;
+    box-shadow: 4px 0 10px rgba(0,0,0,0.2);
+
+    will-change: transform;
+    transform: translateZ(0);
+}
+
+.side-nav-drawer.open {
+    left: 0;
+}
+
+.side-nav-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: left;
+    min-height: 100%;
+    padding-top: 30px;
+}
+
+.side-nav-content a {
+    color: white !important;
+    font-size: 17px !important;
+    padding: 12px 10px o !important;
+    margin-bottom: 8px;
+    text-decoration: none;
+    display: block;
+    transition: 0.2s;
+}
+
+.side-nav-content a:hover {
+    background-color: rgba(255,255,255, 0.15);
+    border-left: 4px solid white;
+    padding-left: 16px !important;
+}
+.side-nav-content h3 {
+    color: #e0e0e0;
+    font-size: 15px !important;
+    padding-left: 20px !important;
+    margin-bottom: 25px !important;
+}
+.side-nav-drawer .close-btn {
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    font-size: 30px;
+    color: #8b949e;
+    border: none;
+    text-decoration: none;
+}
+
+.side-nav-drawer .close-btn:hover {
+    background: rgba(255, 60, 60, 0.8);
+}
+
+.side-nav-drawer a {
+    padding: 12px 20px;
+    margin: 4px 10px;
+    color: #c9d1d9;
+    text-decoration: none;
+    display: block;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.side-nav-drawer a:hover {
+    background-color: #161b22;
+    color: #58a6ff;
+}
+
+/* --------------------------------------------------------------------------- */
+
+.sidebar-toggle-btn {
+    position: fixed;
+    top: 60px;
+    left: 10px;
+    z-index: 990;
+    background-color: var(--primary-blue, #0033a1);
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    font-weight: bold;
+    border-radius: 5px;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    transition: 0,3s;
+}
+
+.sidebar-toggle-btn:hover {
+    background-color: var(--primary-blue) !important;
+    color: white !important;
+}
+
+.sidebar-backdrop {
+    display: none !important;
+}
+
+.sidebar-backdrop.open {
+    display: block;
+}
+
+.sidebar-local-loader {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(255, 255, 255, 0.85); /* Nền trắng mờ */
+    backdrop-filter: blur(4px); /* Làm mờ nhẹ phần khung lưới bên dưới */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 50;
+    border-radius: 8px; /* Bo góc cho khớp với khung biểu đồ */
+}
+
+/* Vòng xoay phong cách Modern (Hiện đại) */
+.modern-spinner {
+    width: 45px;
+    height: 45px;
+    border: 4px solid rgba(0, 51, 161, 0.1); /* Viền xanh xám mờ nhạt */
+    border-left-color: #0033a1; /* Nét xoay màu xanh chủ đạo của xưởng */
+    border-radius: 50%;
+    animation: modern-spin 1s linear infinite;
+    margin-bottom: 15px;
+}
+
+@keyframes modern-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Hiệu ứng nhấp nháy chữ mượt mà */
+.loader-text {
+    color: #0033a1;
+    font-weight: bold;
+    font-size: 14px;
+    letter-spacing: 1px;
+    animation: text-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes text-pulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+}
