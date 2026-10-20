@@ -142,7 +142,8 @@ const getUI = (id) => document.getElementById(id) ? document.getElementById(id).
  *   Đường luỹ kế: nét LIỀN như TK3, TK4, mỗi dây một màu khác hẳn 3 đường kia —
  *   màu đường TK3, TK4 mỗi biểu đồ một khác nên hàm vẽ tự chọn cfg.mauAcc cho
  *   TK1, TK2 (mặc định MAU_DUONG_DAY_THEM). Chú giải và khung số liệu khi rê chuột
- *   (tooltip) xếp theo dây TK1 -> TK4 ở MỌI biểu đồ (soTheoDay).
+ *   (tooltip) ở MỌI biểu đồ xếp theo LOẠI, trong mỗi loại theo dây TK1 -> TK4
+ *   (soTheoDay): Tiêu hao TK1..TK4, rồi Luỹ kế TK1..TK4, rồi đường chung.
  *   Định mức: đường định mức sẵn có của biểu đồ là của TK3/TK4. Biểu đồ nào biết
  *   định mức RIÊNG của TK1/TK2 (chart_cook.js DINH_MUC_DAY_THEM, vd điện) thì có
  *   thêm đường định mức từng dây (cfg.mauDm) và cột của dây đó nhấp nháy khi
@@ -174,14 +175,37 @@ function xepCotTheoDay(datasets) {
     return datasets;
 }
 
-/** Khoá xếp "theo dây" của dataset d (vị trí i): TK1 -> TK2 -> TK3 -> TK4; trong
- *  mỗi dây cột trước, đường sau (luỹ kế, rồi định mức); đường chung (Mức trung
- *  bình, Định mức TK3, TK4) đứng cuối; cùng hạng thì theo thứ tự dataset. */
-function khoaTheoDay(d, i) {
-    const nhan = d && d.label;
-    const dc = dayCuaNhan(nhan);
-    const loai = d && d.type === 'bar' ? 0 : /định mức|trung bình/i.test(nhan || '') ? 2 : 1;
-    return (dc ? +dc.slice(2) : 9) * 1000 + loai * 100 + i;
+/** LOẠI của một dataset = tên bỏ phần tên dây:
+ *    'Luỹ kế TK3' -> 'Luỹ kế'     '%CaO (Silo 12) - TK4' -> '%CaO (Silo 12)'
+ *    'Tiêu hao luỹ kế TK3 (DSX)' -> 'Tiêu hao luỹ kế (DSX)' */
+function loaiCuaNhan(nhan) {
+    return String(nhan || '').replace(/\s*[-–]?\s*\bTK[1-4]\b/g, '').replace(/\s+/g, ' ').trim();
+}
+
+/** Hạng kiểu vẽ: cột 0, đường 1, đường định mức / trung bình 2. */
+function hangKieu(d) {
+    return d && d.type === 'bar' ? 0 : /định mức|trung bình/i.test((d && d.label) || '') ? 2 : 1;
+}
+
+/** Khoá xếp của dataset thứ i trong ds — mảng, so lần lượt từng phần tử:
+ *    1) nhóm LOẠI: cột trước, đường sau, đường định mức sau cùng; cùng kiểu thì
+ *       loại nào có dataset đứng trước trong biểu đồ xếp trước;
+ *    2) trong một loại: theo dây TK1 -> TK2 -> TK3 -> TK4.
+ *  Ví dụ: Tiêu hao TK1..TK4, Luỹ kế TK1..TK4, Mức trung bình.
+ *  Đường chung (không mang tên đúng một dây: Mức trung bình, Định mức TK3, TK4)
+ *  đứng cuối, theo thứ tự dataset. Một loại vừa có cột vừa có đường (vd TK1, TK2
+ *  vẽ cột còn TK3, TK4 vẽ đường) vẫn chung một nhóm, xếp theo kiểu "sớm" nhất. */
+function khoaTheoDay(ds, i) {
+    const d = ds[i], dc = dayCuaNhan(d && d.label);
+    if (!dc) return [9, 0, 0, i];
+    const loai = loaiCuaNhan(d.label);
+    let kieu = 9, dau = i;
+    ds.forEach(function (x, j) {
+        if (!dayCuaNhan(x.label) || loaiCuaNhan(x.label) !== loai) return;
+        kieu = Math.min(kieu, hangKieu(x));
+        dau = Math.min(dau, j);
+    });
+    return [kieu, dau, +dc.slice(2), i];
 }
 
 /** So hai mục — ô chú giải, hay dòng trong khung số liệu khi rê chuột (tooltip) —
@@ -192,13 +216,15 @@ function soTheoDay(a, b, data) {
     const ds = data && data.datasets;
     if (!ds || a.datasetIndex === undefined || b.datasetIndex === undefined) return 0;
     if (!ds.some(function (d) { return dayCuaNhan(d.label); })) return 0;
-    return khoaTheoDay(ds[a.datasetIndex], a.datasetIndex) - khoaTheoDay(ds[b.datasetIndex], b.datasetIndex);
+    const ka = khoaTheoDay(ds, a.datasetIndex), kb = khoaTheoDay(ds, b.datasetIndex);
+    for (let j = 0; j < ka.length; j++) if (ka[j] !== kb[j]) return ka[j] - kb[j];
+    return 0;
 }
 
-/* ÁP CHO MỌI BIỂU ĐỒ: chú giải và tooltip cùng một thứ tự, theo dây TK1 -> TK4.
-   Không có dòng này thì tooltip theo thứ tự LỚP VẼ của Chart.js (option "order":
-   đường vẽ trên cột nên đứng trước) -> ra lẫn lộn kiểu "Mức trung bình, Luỹ kế
-   TK3, Luỹ kế TK4, Luỹ kế TK1, ..., Tiêu hao TK1...". */
+/* ÁP CHO MỌI BIỂU ĐỒ: chú giải và tooltip cùng một thứ tự — theo loại, trong mỗi
+   loại TK1 -> TK4. Không có dòng này thì tooltip theo thứ tự LỚP VẼ của Chart.js
+   (option "order": đường vẽ trên cột nên đứng trước) -> ra lẫn lộn kiểu "Mức
+   trung bình, Luỹ kế TK3, Luỹ kế TK4, Luỹ kế TK1, ..., Tiêu hao TK1...". */
 Chart.defaults.plugins.legend.labels.sort = soTheoDay;
 Chart.defaults.plugins.tooltip.itemSort = soTheoDay;
 
