@@ -5,10 +5,11 @@
  * BỨC TRANH CHUNG — TRÌNH DUYỆT LẤY SỐ LIỆU THẾ NÀO (4 file trong js/api/)
  *   index.html nạp theo thứ tự:
  *     1) api_v2.js      (trong <head>)  khai hàm dựng lại bảng từ gói D1 + "kho" tháng
- *     2) api_config.js  (trong <head>)  FILE NÀY: khai đường dẫn, BẮN NGAY 4 cuộc gọi
- *                                       (TK3, TK4, vật tư, chỉ số trang chủ)
+ *     2) api_config.js  (trong <head>)  FILE NÀY: khai đường dẫn, BẮN NGAY 6 cuộc gọi
+ *                                       (TK3, TK4, TK1, TK2, vật tư, chỉ số trang chủ)
  *     3) api_loaded.js  (trong <head>)  nhận kết quả, đổ vào window.masterSheetData*,
- *                                       bắn sự kiện TK3DataReady / TK4DataReady...
+ *                                       bắn sự kiện TK3DataReady / TK4DataReady /
+ *                                       TK1DataReady / TK2DataReady...
  *     ... các file vẽ biểu đồ ...
  *     4) api_thang.js   (cuối <body>)   xin thêm tháng cũ khi người xem lọc lùi ngày
  *   main.js gọi loadGoogleSheetData() (api_loaded.js) lúc trang dựng xong; các file
@@ -33,9 +34,15 @@
 let API_KEY_TK3 = '';
 let API_KEY_TK4 = '';
 let API_KEY_VATTU = '';
+/* TK1, TK2 (Xưởng Thiêu kết 1): bản KV chỉ có THÁNG ĐANG CHẠY (file nguồn mỗi
+   tháng một lần xoá) — chỉ là đường lui, số đủ các tháng nằm ở D1 */
+let API_KEY_TK1 = '';
+let API_KEY_TK2 = '';
 
 /* Đường dẫn bản D1 (functions/api/[[route]].js, db/goi-v2.mjs) */
-const API_V2 = { TK3: '', TK4: '', VATTU: '', CHI_SO: '' };
+const API_V2 = { TK3: '', TK4: '', TK1: '', TK2: '', VATTU: '', CHI_SO: '', NHAN_SU: '' };
+/* NHAN_SU: danh sách nhân sự 3 kíp (db/nhan-su.mjs) — nguồn riêng, không thuộc
+   TK3; js/components/personnel.js tự gọi, không qua api_loaded.js. */
 /* 'd1' bình thường; 'kv' khi địa chỉ trang có ?nguon=kv */
 const API_NGUON = /[?&]nguon=kv\b/.test(window.location.search) ? 'kv' : 'd1';
 
@@ -45,10 +52,15 @@ if (window.location.hostname.includes('pages.dev')) {
     API_KEY_TK3 = '/api/tk3';
     API_KEY_TK4 = '/api/tk4';
     API_KEY_VATTU = '/api/vattu';        // vật tư tiêu hao thường xuyên
+    API_KEY_TK1 = '/api/tk1';
+    API_KEY_TK2 = '/api/tk2';
     API_V2.TK3 = '/api/v2/tk3';
     API_V2.TK4 = '/api/v2/tk4';
+    API_V2.TK1 = '/api/v2/tk1';
+    API_V2.TK2 = '/api/v2/tk2';
     API_V2.VATTU = '/api/v2/vattu';
     API_V2.CHI_SO = '/api/v2/chi-so';
+    API_V2.NHAN_SU = '/api/v2/nhan-su';
 }
 
 /** Tháng bắt đầu của lượt tải MẶC ĐỊNH (TK3/TK4 từ D1): tháng của ngày
@@ -74,7 +86,7 @@ const API_QUERY = '?limit=10';
 
 /* Lời hứa (Promise) của các cuộc gọi đã bắn sớm. api_loaded.js lấy ra dùng —
    lấy xong thì đặt lại null. batDauLuc: mốc bắn, để in ra mất bao lâu. */
-const API_PREWARM = { TK3: null, TK4: null, VATTU: null, CHI_SO: null, batDauLuc: 0 };
+const API_PREWARM = { TK3: null, TK4: null, TK1: null, TK2: null, VATTU: null, CHI_SO: null, batDauLuc: 0 };
 
 /** Tải /api/v2/chi-so: dải chỉ số + mục Sản lượng + 3 bảng cảnh báo của tháng
  *  này, máy chủ đã tính sẵn. Gói chỉ vài KB nên về trước số liệu TK3/TK4 ->
@@ -148,10 +160,11 @@ async function fetchGoogleSheetData(url, bienDoi, nhanEtag) {
     }
 }
 
-/** Tải một tuyến ('TK3' | 'TK4' | 'VATTU'): thử D1 trước, hỏng thì lấy bản KV.
+/** Tải một tuyến ('TK3' | 'TK4' | 'TK1' | 'TK2' | 'VATTU'): thử D1 trước, hỏng
+ *  thì lấy bản KV.
  *  Ra: Promise của gói kết quả (xem fetchGoogleSheetData) hoặc null.
  *
- *  Với TK3/TK4 từ D1:
+ *  Với các dây chuyền từ D1:
  *    - chỉ xin các tháng từ apiThangMacDinh() trở đi;
  *    - gói nhận về được GỘP vào kho (API_V2_KHO, api_v2.js) rồi dựng bảng từ CẢ
  *      kho — nên các tháng cũ đã tải thêm trước đó vẫn còn khi làm mới;
@@ -160,6 +173,8 @@ async function fetchGoogleSheetData(url, bienDoi, nhanEtag) {
 function apiTai(ten) {
     const kv = ten === 'TK3' ? (API_KEY_TK3 && API_KEY_TK3 + API_QUERY)
              : ten === 'TK4' ? (API_KEY_TK4 && API_KEY_TK4 + API_QUERY)
+             : ten === 'TK1' ? API_KEY_TK1
+             : ten === 'TK2' ? API_KEY_TK2
              : API_KEY_VATTU;
     const quaKV = function () { return kv ? fetchGoogleSheetData(kv) : Promise.resolve(null); };
     const v2 = API_NGUON === 'd1' ? API_V2[ten] : '';
@@ -174,7 +189,7 @@ function apiTai(ten) {
         });
     }
 
-    /* TK3/TK4 phải dựng lại bảng ngang. Thiếu api_v2.js (nạp hỏng) -> dùng thẳng KV */
+    /* Dây chuyền phải dựng lại bảng ngang. Thiếu api_v2.js (nạp hỏng) -> dùng thẳng KV */
     if (typeof apiV2NhanGoi !== 'function') return quaKV();
     let etag = '';
     const bienDoi = function (goi) { return apiV2NhanGoi(ten, goi, true, etag); };
@@ -192,12 +207,14 @@ function apiTai(ten) {
         });
 }
 
-/* Bắn 4 cuộc gọi NGAY khi file được nạp, không đợi trang dựng xong. */
+/* Bắn 6 cuộc gọi NGAY khi file được nạp, không đợi trang dựng xong. */
 (function apiKhoiDongSom() {
     if (!API_KEY_TK3 && !API_KEY_TK4) return;      // chạy ở máy, chưa có API
     API_PREWARM.batDauLuc = Date.now();
     API_PREWARM.TK3 = apiTai('TK3');
     API_PREWARM.TK4 = apiTai('TK4');
+    API_PREWARM.TK1 = apiTai('TK1');
+    API_PREWARM.TK2 = apiTai('TK2');
     if (API_KEY_VATTU) API_PREWARM.VATTU = apiTai('VATTU');
     API_PREWARM.CHI_SO = apiTaiChiSo();
     console.info('[Dữ liệu] Đã bắn cuộc gọi API ngay từ lúc nạp api_config.js (nguồn: '

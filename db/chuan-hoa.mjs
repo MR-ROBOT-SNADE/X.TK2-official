@@ -48,7 +48,9 @@
  *             kế hoạch), 'thong_ke' (trung bình, độ lệch...), 'chu' (chữ).
  * ===========================================================================*/
 
-export const DAY_CHUYEN = ['TK3', 'TK4'];
+/* TK1, TK2 (Xưởng Thiêu kết 1) chỉ vào D1 qua đường khối-ngày (apps-script/tk12-nguon.gs),
+   cần D1 đã chạy migrations/0007_tk12.sql (bỏ CHECK TK3/TK4 của so_lieu). */
+export const DAY_CHUYEN = ['TK3', 'TK4', 'TK1', 'TK2'];
 
 /* Nhận ra cột mở đầu khối. '_1' ở cuối: Google Sheet tự thêm khi hai cột trùng
    tên, vd 'Thời gian (chất lượng than)_1' là khối than thứ hai. */
@@ -56,6 +58,16 @@ const RE_NGAY = /^Thời gian \((.+)\)(_\d+)?$/;
 const RE_CA = /^Ca\/kíp \((.+)\)(_\d+)?$/;
 /* Cột nhân sự: 'STT (A)', 'Mã nhân viên (B)'... — là danh sách người, không theo ngày */
 const RE_NHAN_SU = /^(STT|Mã nhân viên|Vị trí công việc|Status)(?: \(([ABC])\))?$/;
+/* NGUỒN NHÂN SỰ (từ 20/10/2026): sheet "Danh sách định biên nhân sự" của xưởng,
+   đẩy qua POST /api/nhan-su (apps-script/nhan-su.gs — dự án Apps Script riêng,
+   db/nhan-su.mjs) vào bảng RIÊNG nhan_su_xuong (migrations/0009); trang đọc ở
+   /api/v2/nhan-su. Nhân sự không còn dính gì tới TK3.
+   false (mặc định): các cột nhân sự trong tab DATABASE vẫn được NHẬN RA (không
+   thành cột lạ) nhưng KHÔNG còn đọc — đồng bộ cũ, đẩy khối-ngày, db:nap thôi ghi
+   bảng nhan_su cũ, và /api/v2/tk3 thôi gửi kèm gói 'nhan-su' (db/goi-v2.mjs).
+   true: quay về kiểu cũ (nhập tay ở tab DATABASE) — khi đó còn phải sửa lại
+   js/components/personnel.js đọc từ cột TK3. */
+export const NHAN_SU_TU_SHEET = false;
 const TRUONG_NHAN_SU = { 'STT': 'stt', 'Mã nhân viên': 'nhan_vien', 'Vị trí công việc': 'vi_tri', 'Status': 'trang_thai' };
 /* Khối Công tác cải tiến (CTCT): danh sách đề tài, không theo ngày, dashboard
    không dùng -> chưa lưu. Cần thì thêm bảng riêng. */
@@ -278,6 +290,9 @@ function docNgayNho(v) {
  *              nhận. Bỏ trống = lấy hết (scripts/nap-lich-su.mjs). Cloudflare
  *              dùng để chỉ xử lý vài tuần mỗi lần đẩy — xử lý cả lịch sử thì
  *              vượt giới hạn 10 ms CPU của gói Free.
+ *              { goiYCot: { 'tên cột': ',' | '.' | null } }: gợi ý dấu thập phân
+ *              của từng cột, Apps Script tính sẵn trên CẢ cột (db/day-khoi-ngay.mjs
+ *              chỉ nhận vài hàng). Cột không có trong đây thì tự dò như cũ.
  *
  * Ra: {
  *   chiTieu     Map<mã, { ma, khoi, cot_sheet, loai }>   danh mục cột
@@ -295,6 +310,7 @@ function docNgayNho(v) {
 export function chuanHoaDayChuyen(dayChuyen, rows, capNhat, tuyChon) {
     if (DAY_CHUYEN.indexOf(dayChuyen) < 0) throw new Error('Dây chuyền lạ: ' + dayChuyen);
     const locNgay = tuyChon && tuyChon.locNgay;
+    const goiYCot = tuyChon && tuyChon.goiYCot;
 
     /* BƯỚC 1 — Lấy danh sách cột theo đúng thứ tự sheet. Apps Script dựng mọi
        hàng từ CÙNG một hàng tiêu đề nên chỉ cần hàng đầu; gộp thêm hàng cuối
@@ -324,6 +340,9 @@ export function chuanHoaDayChuyen(dayChuyen, rows, capNhat, tuyChon) {
         /* Gợi ý dấu thập phân cho từng cột — chỉ thật sự dò cả cột khi gặp ô
            mơ hồ kiểu '1,500' (rất hiếm), và chỉ dò một lần */
         const goiY = k.cot.map(cot => {
+            /* Gợi ý tính sẵn trên CẢ cột (đường đẩy khối-ngày chỉ gửi vài hàng, tự
+               dò thì có thể đoán khác so với khi có cả cột) */
+            if (goiYCot && Object.prototype.hasOwnProperty.call(goiYCot, cot)) { const g = goiYCot[cot]; return () => g; }
             let da = false, kq = null;
             return () => { if (!da) { kq = dauThapPhanCot(rows.map(r => r[cot])); da = true; } return kq; };
         });
@@ -451,9 +470,11 @@ export function chuanHoaDayChuyen(dayChuyen, rows, capNhat, tuyChon) {
     }
 
     /* BƯỚC 5 — Nhân sự. Các cột nhân sự là danh sách dọc: hàng i của 'STT (A)'
-       đi với hàng i của 'Mã nhân viên (A)', 'Vị trí công việc (A)'... */
+       đi với hàng i của 'Mã nhân viên (A)', 'Vị trí công việc (A)'...
+       Tắt (NHAN_SU_TU_SHEET = false) -> danh sách rỗng: mọi nơi gọi đều coi rỗng
+       là "không đụng tới bảng nhan_su". */
     const nhanSu = [];
-    for (const kip of ['A', 'B', 'C']) {
+    for (const kip of NHAN_SU_TU_SHEET ? ['A', 'B', 'C'] : []) {
         const cot = {};
         for (const c of cotNhanSu) if (c.kip === kip) cot[c.truong] = c.cot;
         if (!cot.stt && !cot.nhan_vien) continue;

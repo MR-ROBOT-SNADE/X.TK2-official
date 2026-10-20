@@ -10,7 +10,8 @@
  *     4) ghi D1 theo quy tắc KHỐI-NGÀY (xem dưới) + tính lại ngày
  *        cuối có số của khối (moc_khoi)                           napExcel
  *     5) dựng lại các gói tháng /api/v2 bị ảnh hưởng               dungLaiGoi
- *   Kèm: huỷ một lần nạp (huyNap), liệt kê các lần nạp gần đây (dsLanNap).
+ *   Kèm: huỷ một lần nạp (huyNap), liệt kê các lần nạp gần đây (dsLanNap), các
+ *   khối-ngày đã nạp trong một khoảng ngày (khoiNgayDaNap).
  *   functions/api/[[route]].js gọi các hàm này SAU KHI đã kiểm khoá NAP_KEY.
  *
  * QUY TẮC KHỐI-NGÀY (chi tiết: migrations/0005_nap_excel.sql)
@@ -30,11 +31,15 @@
  *       "cot":  ["R2", "TFe", "FeO"],                   tên cột y như trên dashboard
  *       "hang": [["2026-09-01", "A", [1.92, 56.1, 8.4]],     [ngày, kíp, giá trị theo cot]
  *                ["2026-09-01", "A", [1.95, null, 8.2]],     null = ô trống
- *                ["2026-09-01", "B", [2.01, 56.3, "Hỏng"]]]  chữ = ô chữ
- *     }, ...]
+ *                ["2026-09-01", "B", [2.01, 56.3, "Hỏng"]]], chữ = ô chữ
+ *       "ngay_trong": ["2026-09-02"]          tuỳ chọn: ngày file CÓ nói tới mà khối
+ *     }, ...]                                 không có mẫu -> khối-ngày để trống
  *   }
  *   Thứ tự hàng trong một ngày = thứ tự mẫu: hàng thứ n của ngày D có stt = n,
  *   như trong sheet. Hàng không có ô nào có giá trị bị bỏ.
+ *   ngay_trong: vd phiếu BK tháng 8 không có mẫu QTH D201C ngày 02/08 -> ngày đó
+ *   QTH phải trống, không được giữ số sheet cũ (nhập sai). Nhận khối-ngày như ngày
+ *   có hàng (xoá hết ô cũ, sheet không ghi vào nữa, huỷ lần nạp thì trả lại).
  *
  * GIỚI HẠN (gói Free: 10 ms CPU/lượt, 100.000 dòng ghi D1/ngày)
  *   Tối đa 10.000 ô mỗi lượt gửi (~ 1,5 tháng chất lượng QTK của cả hai dây
@@ -51,6 +56,7 @@ export const GIOI_HAN = {
     phan: 20,           /* khối mỗi lần nạp */
     hang: 5000,         /* hàng mỗi khối */
     cot: 60,            /* cột mỗi khối */
+    ngayTrong: 400,     /* ngày để trống (ngay_trong) mỗi khối */
     doDaiChu: 200,      /* ký tự mỗi ô chữ */
     doDaiTen: 100,      /* ký tự tên cột / tên file / tên người nạp */
 };
@@ -170,6 +176,11 @@ const SQL = {
         SELECT c.ma, n.day_chuyen, n.ngay FROM ngay_nap AS n JOIN chi_tieu AS c ON c.khoi = n.khoi
         WHERE n.lan_nap = ?1)`,
     xoaKhoiNgayCuaLan: 'DELETE FROM ngay_nap WHERE lan_nap = ?1',
+    /* Quên dấu vân tay khối-ngày của các khối-ngày lần nạp ?1 còn giữ (xem huyNap) */
+    quenNgayCuaLan: `DELETE FROM van_tay_ngay WHERE (day_chuyen, khoi, ngay) IN (
+        SELECT day_chuyen, khoi, ngay FROM ngay_nap WHERE lan_nap = ?1)`,
+    quenThangCuaLan: `DELETE FROM van_tay_thang WHERE (day_chuyen, khoi, thang) IN (
+        SELECT DISTINCT day_chuyen, khoi, substr(ngay, 1, 7) FROM ngay_nap WHERE lan_nap = ?1)`,
     danhDauHuy: 'UPDATE lan_nap SET huy_luc = ?2 WHERE id = ?1',
     /* Quên etag đã đồng bộ -> lần Apps Script đẩy kế tiếp, đồng bộ chạy lại dù
        sheet không đổi, trả số sheet về cho các ngày gần đây. ?1 = ['tk3', ...] */
@@ -178,6 +189,7 @@ const SQL = {
     /* --- liệt kê --- */
     dsLan: 'SELECT id, nguoi, ten_file, mau, so_o, so_ghi, tom_tat, huy_luc FROM lan_nap ORDER BY id DESC LIMIT 30',
     demKhoiNgay: 'SELECT lan_nap, COUNT(*) AS n FROM ngay_nap GROUP BY lan_nap',
+    khoiNgayDaNap: 'SELECT khoi, ngay FROM ngay_nap WHERE day_chuyen = ?1 AND ngay BETWEEN ?2 AND ?3',
     dsGoi: 'SELECT tuyen, thang, ds_cot FROM goi_thang',
 };
 
@@ -186,8 +198,9 @@ const SQL = {
  * ===========================================================================*/
 
 /** Kiểm từng phần, từng hàng, từng ô. Sai ở đâu -> ném LoiNap nói rõ chỗ sai.
- *  Ra: [{ dc, khoi, cot: [tên cột], hang: [[ngày, kíp, [giá trị]]] }] đã làm gọn
- *  (chữ chuẩn NFC, kíp viết hoa, ô chữ rỗng -> null). */
+ *  Ra: [{ dc, khoi, cot: [tên cột], hang: [[ngày, kíp, [giá trị]]], ngayTrong: [ngày] }]
+ *  đã làm gọn (chữ chuẩn NFC, kíp viết hoa, ô chữ rỗng -> null; ngayTrong bỏ ngày
+ *  đã có hàng). */
 export function kiemGoi(j, homNay) {
     if (!j || typeof j !== 'object') throw new LoiNap('Gói gửi lên không phải đối tượng JSON');
     if (!Array.isArray(j.phan) || !j.phan.length) throw new LoiNap('Thiếu "phan" (danh sách khối cần nạp)');
@@ -216,7 +229,16 @@ export function kiemGoi(j, homNay) {
         });
         if (new Set(cot).size !== cot.length) throw new LoiNap(ten + ': có hai cột trùng tên');
 
-        if (!Array.isArray(p.hang) || !p.hang.length || p.hang.length > GIOI_HAN.hang) {
+        /* ngay_trong (tuỳ chọn): ngày file có nói tới mà khối không có mẫu nào ->
+           vẫn nhận khối-ngày đó, để TRỐNG (xoá số sheet cũ). Ngày đã có hàng thì bỏ. */
+        if (p.ngay_trong !== undefined && (!Array.isArray(p.ngay_trong) || p.ngay_trong.length > GIOI_HAN.ngayTrong)) {
+            throw new LoiNap(ten + ': ngay_trong phải là danh sách tối đa ' + GIOI_HAN.ngayTrong + ' ngày');
+        }
+        const ngayTrong = [...new Set(p.ngay_trong || [])].map(function (d) {
+            if (!ngayHopLe(d) || d < NGAY_SOM_NHAT || d > homNay) throw new LoiNap(ten + ': ngay_trong có ngày "' + d + '" không hợp lệ');
+            return d;
+        });
+        if (!Array.isArray(p.hang) || p.hang.length > GIOI_HAN.hang || (!p.hang.length && !ngayTrong.length)) {
             throw new LoiNap(ten + ': cần từ 1 đến ' + GIOI_HAN.hang + ' hàng');
         }
         const hang = p.hang.map(function (h, k) {
@@ -248,7 +270,9 @@ export function kiemGoi(j, homNay) {
             soO++;                                  /* ô kíp của hàng */
             return [h[0], kip, gt];
         });
-        return { dc: p.day_chuyen, khoi: khoi, cot: cot, hang: hang };
+        const coHang = new Set(hang.map(function (h) { return h[0]; }));
+        return { dc: p.day_chuyen, khoi: khoi, cot: cot, hang: hang,
+            ngayTrong: ngayTrong.filter(function (d) { return !coHang.has(d); }) };
     });
     if (soO > GIOI_HAN.o) {
         throw new LoiNap('File có ' + soO + ' ô, quá giới hạn ' + GIOI_HAN.o + ' ô mỗi lần nạp — chia file theo tháng');
@@ -321,6 +345,7 @@ export function timMa(phan, ds) {
  *  Mỗi hàng ra một ô kíp (cột Ca/kíp, chữ 'A') + một ô cho mỗi giá trị khác null.
  *  Ô kíp giữ cho hàng tồn tại kể cả khi chỉ có vài cột có số (trình duyệt dựng
  *  hàng từ các ô — xem js/api/api_v2.js).
+ *  Ngày trong ngayTrong: thành khối-ngày nhưng không có ô nào (ngày để trống).
  *  Ra: { o         [[ma, dc, ngay, stt, ca, kip, gia_tri, chu]]
  *        khoiNgay  [[dc, khoi, ngay]]
  *        tomTat    [[dc, khoi, từ ngày, đến ngày, số ngày]]
@@ -337,13 +362,17 @@ export function dungO(phan) {
             if (!theoNgay.has(h[0])) theoNgay.set(h[0], []);
             theoNgay.get(h[0]).push(h);
         }
-        if (!theoNgay.size) throw new LoiNap(p.dc + ' — ' + p.khoi + ': không có hàng nào có số liệu');
-        const cacNgay = [...theoNgay.keys()].sort();
+        /* Ngày để trống (ngay_trong) — kể cả ngày mà mọi hàng đều trống — cũng
+           thành khối-ngày của lần nạp này: xoaThua xoá hết ô cũ, không ghi ô mới */
+        const trong = (p.ngayTrong || []).filter(function (d) { return !theoNgay.has(d); });
+        if (!theoNgay.size && !trong.length) throw new LoiNap(p.dc + ' — ' + p.khoi + ': không có hàng nào có số liệu');
+        const cacNgay = [...theoNgay.keys()].concat(trong).sort();
         const tuyen = p.dc.toLowerCase();
         if (!thang.has(tuyen)) thang.set(tuyen, new Set());
         for (const d of cacNgay) {
             khoiNgay.push([p.dc, p.khoi, d]);
             thang.get(tuyen).add(d.slice(0, 7));
+            if (!theoNgay.has(d)) continue;
             let ca = 0, kipTruoc = null;
             theoNgay.get(d).forEach(function (h, i) {
                 const stt = i + 1, kip = h[1];
@@ -464,6 +493,18 @@ export async function huyNap(db, id, luc) {
         thang.get(t).add(x.ngay.slice(0, 7));
     }
     const kJson = JSON.stringify([...khoiNap.values()]);
+    /* Quên dấu vân tay khối-ngày (migrations/0006, db/day-khoi-ngay.mjs) của các
+       khối-ngày trả về cho sheet -> lượt Apps Script đẩy khối-ngày kế tiếp gửi lại
+       số sheet của chúng ngay. Phải làm TRƯỚC khi xoá ngay_nap (câu dựa vào nó).
+       Bảng chưa có (chưa chạy 0006) thì bỏ qua. */
+    try {
+        await db.batch([
+            db.prepare(SQL.quenNgayCuaLan).bind(id),
+            db.prepare(SQL.quenThangCuaLan).bind(id),
+        ]);
+    } catch (e) {
+        if (!/no such table/i.test(String(e && e.message))) throw e;
+    }
     const kq = await db.batch([
         db.prepare(SQL.xoaSoLieuCuaLan).bind(id),
         db.prepare(SQL.xoaKhoiNgayCuaLan).bind(id),
@@ -490,3 +531,20 @@ export async function dsLanNap(db) {
             tom_tat: tomTat, huy_luc: x.huy_luc, so_khoi_ngay_con: con.get(x.id) || 0 };
     });
 }
+
+/** Các khối-ngày của dây chuyền dc, từ ngày tu đến ngày den, ĐANG thuộc Excel
+ *  (bảng ngay_nap). Trang nạp dùng để KHÔNG gửi lại ngày đã nạp mà số trên
+ *  dashboard vẫn y hệt file (js/nap/nap_lieu.js, locNgayDaCo) — phiếu BK cũ
+ *  không bao giờ đổi, gửi lại chỉ phí dòng ghi D1.
+ *  Ra: [[khối, ngày], ...] */
+export async function khoiNgayDaNap(db, dc, tu, den) {
+    if (typeof dc !== 'string' || !/^TK\d$/.test(dc)) throw new LoiNap('Dây chuyền "' + dc + '" không hợp lệ');
+    if (!ngayHopLe(tu) || !ngayHopLe(den) || tu > den) throw new LoiNap('Khoảng ngày không hợp lệ (cần tu, den dạng YYYY-MM-DD)');
+    if (Date.parse(den) - Date.parse(tu) > 400 * 86400000) throw new LoiNap('Khoảng ngày tối đa 400 ngày');
+    const { results } = await db.prepare(SQL.khoiNgayDaNap).bind(dc, tu, den).all();
+    return (results || []).map(function (x) { return [x.khoi, x.ngay]; });
+}
+
+/* Dùng lại ở db/day-khoi-ngay.mjs (đường đẩy khối-ngày của Apps Script): cùng câu
+   ghi ô / xoá ô thừa của khối-ngày / tính lại moc_khoi, cùng cách dựng lại gói. */
+export { SQL as SQL_NAP, dungLaiGoi };

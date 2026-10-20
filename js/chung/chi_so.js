@@ -602,6 +602,8 @@ var CB_TRO_DUNG = {
  *   'daoDong' -> chênh lệch giữa NGÀY MỚI NHẤT và NGÀY LIỀN TRƯỚC đạt ngưỡng
  *                thì cảnh báo                        (%SiO2 dao động >= 0,5%)
  * Ngưỡng để ngay trong từng dòng, sửa tại chỗ. nguong: null = tắt phép đo đó.
+ * Tuỳ chọn: tru = cột bị trừ (giá trị = cot − tru, cùng hàng); ngayCol / caCol
+ * = cột ngày / kíp riêng khi cột nằm ở khối khác khối của chỉ tiêu.
  * -------------------------------------------------------------------------- */
 var CL_CHI_TIEU = [
     {
@@ -648,9 +650,19 @@ var CL_CHI_TIEU = [
         ten: 'Chất lượng than', bieuTuong: '🔥', nhay: 'chat-luong-than',
         ngayCol: 'Thời gian (chất lượng than)', caCol: 'Ca/kíp (chất lượng than)',
         phep: [
-            { nhan: 'Cỡ hạt <0,5mm — than nghiền', cot: 'Cỡ hạt < 0,5mm (than nghiền)',
+            /* Cỡ hạt <0,5mm: phiếu BK không ghi thẳng. Từ 11/08/2026 BK ghi 4 số
+               0,5-1 ; <1 ; 1-3 ; >3 — số 0,5-1 nằm TRONG số <1 (đã soát 418 mẫu than
+               ở silo dây chuyền), nên <0,5 = <1 − (0,5-1): cot trừ tru. Cột sheet
+               tên "< 0,5mm" thật ra chứa số <1mm (js/nap/mau_nap.js, coHatThan), so
+               thẳng với 20% là gần như luôn vượt. Ca chỉ có 3 số (không có 0,5-1)
+               thì không tách được -> bỏ qua ca đó.
+               Than coke nằm ở khối riêng: đọc theo cột ngày / kíp của khối đó. */
+            { nhan: 'Cỡ hạt <0,5mm — than nghiền',
+              cot: 'Cỡ hạt < 0,5mm (than nghiền)', tru: 'Cỡ hạt 0,5-1mm (than nghiền)',
               huong: 'tren', nguong: 20, donVi: '%' },
-            { nhan: 'Cỡ hạt <0,5mm — than coke', cot: 'Cỡ hạt < 0,5mm (than coke)',
+            { nhan: 'Cỡ hạt <0,5mm — than coke',
+              cot: 'Cỡ hạt < 0,5mm (than coke)', tru: 'Cỡ hạt 0,5-1mm (than coke)',
+              ngayCol: 'Thời gian (chất lượng than)_1', caCol: 'Ca/kíp (chất lượng than)_1',
               huong: 'tren', nguong: 20, donVi: '%' },
             /* "Độ tro than 3A" = cột AK của than nghiền. Than coke thì KHÔNG
                chấm độ tro và chất bốc, theo đúng yêu cầu. */
@@ -819,20 +831,24 @@ function cbChamChiTieu(ct, rows3, rows4, now) {
  *  Mỗi ngày lấy số của ca CUỐI CÙNG có số. Ra mảng xếp mới nhất trước:
  *    [{ ngay: {d,m,y}, giaTri }, ...]   hoặc null nếu không có cột.
  *  Dùng cho phép so ngưỡng (chỉ cần ngày mới nhất) lẫn phép dao động (cần thêm
- *  ngày liền trước). */
-function cbLayNgayGanNhat(rows, cfg, dsCot, soNgay, now) {
+ *  ngày liền trước).
+ *  cotTru (tuỳ chọn): giá trị = cột dsCot TRỪ cột cotTru của cùng hàng; hàng mà
+ *  cotTru trống thì bỏ (vd cỡ hạt than <0,5 = <1 − (0,5-1), chỉ ca ghi 4 số). */
+function cbLayNgayGanNhat(rows, cfg, dsCot, soNgay, now, cotTru) {
     if (!rows || !rows.length) return null;
     var cNgay = cbTimCot(rows, [cfg.ngayCol]);
     var cCa = cbTimCot(rows, [cfg.caCol]);
     var cot = cbTimCot(rows, Array.isArray(dsCot) ? dsCot : [dsCot]);
     if (!cot) return null;
+    var cTru = cotTru ? cbTimCot(rows, [cotTru]) : null;
+    if (cotTru && !cTru) return null;
 
     var thang = now.getMonth() + 1, nam = now.getFullYear();
     var homNay = now.getDate();
 
     var theoNgay = {}, thuTu = [];
     var ngay = null;
-    var tp = cbDauTP(rows, cot);
+    var tp = cbDauTP(rows, cot), tpTru = cbDauTP(rows, cTru);
     rows.forEach(function (row) {
         if (cNgay && row[cNgay] && String(row[cNgay]).trim() !== '') {
             var d = cbNgay(row[cNgay]);
@@ -846,6 +862,11 @@ function cbLayNgayGanNhat(rows, cfg, dsCot, soNgay, now) {
         /* Bỏ qua ô = 0: với chỉ tiêu chất lượng, 0 nghĩa là CHƯA LẤY MẪU chứ
            không phải kết quả thật (không có mẫu nào %CaO = 0). */
         if (v === 0) return;
+        if (cTru) {
+            var vTru = cbSo(row[cTru], tpTru);
+            if (vTru === null) return;
+            v = Math.round((v - vTru) * 1e4) / 1e4;
+        }
         var k = ngay.d;
         if (theoNgay[k] === undefined) thuTu.push(k);
         theoNgay[k] = { ngay: { d: ngay.d, m: ngay.m, y: ngay.y }, giaTri: v };   /* ca sau đè ca trước */
@@ -861,7 +882,9 @@ function cbLayNgayGanNhat(rows, cfg, dsCot, soNgay, now) {
  *      hoặc null nếu dây đó không có cột / không có số. */
 function clChamPhep(rows, ct, p, now) {
     var canNgay = p.huong === 'daoDong' ? 2 : 1;
-    var ds = cbLayNgayGanNhat(rows, ct, p.cot, canNgay, now);
+    /* Phép đo có ngayCol / caCol riêng (cột nằm ở khối khác, vd than coke) */
+    var khoi = p.ngayCol ? { ngayCol: p.ngayCol, caCol: p.caCol } : ct;
+    var ds = cbLayNgayGanNhat(rows, khoi, p.cot, canNgay, now, p.tru);
     if (!ds || !ds.length) return null;
 
     var moi = ds[0];
@@ -997,7 +1020,7 @@ function cotChiSoCanDoc() {
     CB_TRO_DUNG.dong.forEach(function (m) { them([m.ngay, m.luyKe]); });
     CL_CHI_TIEU.forEach(function (ct) {
         them([ct.ngayCol, ct.caCol]);
-        ct.phep.forEach(function (p) { them(p.cot); });
+        ct.phep.forEach(function (p) { them(p.cot); them([p.tru, p.ngayCol, p.caCol]); });
     });
     return ds;
 }

@@ -47,9 +47,9 @@
     <!--Lớp tải dữ liệu, nạp trong <head> để api_config.js BẮN cuộc gọi API ngay khi
         trang vừa mở, không đợi tải xong phần còn lại. Thứ tự bắt buộc: api_v2.js
         (hàm dựng bảng) -> api_config.js (bắn cuộc gọi) -> api_loaded.js (nhận kết quả).-->
-    <script src="js/api/api_v2.js?v=1.1"></script>
-    <script src="js/api/api_config.js?v=3.1"></script>
-    <script src="js/api/api_loaded.js?v=3.1"></script>
+    <script src="js/api/api_v2.js?v=1.2"></script>
+    <script src="js/api/api_config.js?v=3.3"></script>
+    <script src="js/api/api_loaded.js?v=3.2"></script>
     <!--Biểu tượng trên tab trình duyệt + các file giao diện (CSS):
           base        biến màu (:root), phông, kiểu chung
           components  thẻ, nút, trang chủ, sơ đồ nhân sự (đi cặp personnel.js)
@@ -58,7 +58,7 @@
           diagram     khung sơ đồ công nghệ   cb: bảng nhận xét   vt: mục vật tư-->
     <link rel="icon" href="images/logo-hoa-phat-3.webp">
     <link rel="stylesheet" href="css/base.css?v=1.3">
-    <link rel="stylesheet" href="css/components.css?v=1.4">
+    <link rel="stylesheet" href="css/components.css?v=1.5">
     <link rel="stylesheet" href="css/layout.css?v=1.4">
     <link rel="stylesheet" href="css/navigation.css?v=1.0">
     <link rel="stylesheet" href="css/diagram.css?v=1.0">
@@ -86,6 +86,7 @@
                 <a href="javascript:void(0)" onclick="showSubContent('tieu-hao-dien')">⚡ Tiêu hao điện</a>
                 <a href="javascript:void(0)" onclick="showSubContent('tieu-hao-quang')">🧱 Tiêu hao quặng chứa sắt</a>
                 <a href="javascript:void(0)" onclick="showSubContent('tieu-hao-khi-than')">💨 Tiêu hao khí than</a>
+                <a href="javascript:void(0)" onclick="showSubContent('tieu-hao-hoi-nuoc')">♨️ Tiêu hao hơi nước nóng</a>
                 <a href="javascript:void(0)" onclick="showSubContent('ti-le-quang-hoi')">🔄 Tỉ lệ quặng hồi</a>
             </div>
 
@@ -325,8 +326,8 @@
             </div>
             <div class="panel-content personnel-grid">
                 <!--Để trống: personnel.js tự dựng sơ đồ tổ chức của kíp vào đây từ
-                    các cột STT/Mã nhân viên/Vị trí công việc/Status của bảng tính.
-                    Ảnh chân dung: images/nhan-su/<giá trị cột Mã nhân viên>.jpg-->
+                    danh sách /api/v2/nhan-su (sheet nhân sự của xưởng, apps-script/nhan-su.gs).
+                    Ảnh chân dung: images/nhan-su/<họ tên>.jpg-->
             </div>
         </section>
         <!--Section để display nhân sự của kíp B-->
@@ -337,8 +338,8 @@
             </div>
             <div class="panel-content personnel-grid">
                 <!--Để trống: personnel.js tự dựng sơ đồ tổ chức của kíp vào đây từ
-                    các cột STT/Mã nhân viên/Vị trí công việc/Status của bảng tính.
-                    Ảnh chân dung: images/nhan-su/<giá trị cột Mã nhân viên>.jpg-->
+                    danh sách /api/v2/nhan-su (sheet nhân sự của xưởng, apps-script/nhan-su.gs).
+                    Ảnh chân dung: images/nhan-su/<họ tên>.jpg-->
             </div>
         </section>
         <!--Section để display nhân sự của kíp C-->
@@ -349,8 +350,8 @@
             </div>
             <div class="panel-content personnel-grid">
                 <!--Để trống: personnel.js tự dựng sơ đồ tổ chức của kíp vào đây từ
-                    các cột STT/Mã nhân viên/Vị trí công việc/Status của bảng tính.
-                    Ảnh chân dung: images/nhan-su/<giá trị cột Mã nhân viên>.jpg-->
+                    danh sách /api/v2/nhan-su (sheet nhân sự của xưởng, apps-script/nhan-su.gs).
+                    Ảnh chân dung: images/nhan-su/<họ tên>.jpg-->
             </div>
         </section>
         <!--Khu vực hiển thị các biểu đồ liên quan đến sản lượng-->
@@ -418,9 +419,13 @@
                     <div>
                         <label style="font-weight: bold; margin-right: 5px;">Chọn dây chuyền: </label>
                         <select id="sinterline-nhietri" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
-                            <option value="all">Dây chuyền 3 + 4</option>
+                            <option value="all">Cả 4 dây chuyền</option>
+                            <option value="TK34">Dây chuyền 3 + 4</option>
+                            <option value="TK12">Dây chuyền 1 + 2</option>
                             <option value="TK3">Dây chuyền 3</option>
                             <option value="TK4">Dây chuyền 4</option>
+                            <option value="TK1">Dây chuyền 1</option>
+                            <option value="TK2">Dây chuyền 2</option>
                         </select>
                     </div>
                     <button onclick="applyUniversalFilter('nhietri')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
@@ -457,9 +462,13 @@
                     <div>
                         <label style="font-weight: bold; margin-right: 5px;">Chọn dây chuyền: </label>
                         <select id="sinterline-ccd" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
-                            <option value="all">Dây chuyền 3 + 4</option>
+                            <option value="all">Cả 4 dây chuyền</option>
+                            <option value="TK34">Dây chuyền 3 + 4</option>
+                            <option value="TK12">Dây chuyền 1 + 2</option>
                             <option value="TK3">Dây chuyền 3</option>
                             <option value="TK4">Dây chuyền 4</option>
+                            <option value="TK1">Dây chuyền 1</option>
+                            <option value="TK2">Dây chuyền 2</option>
                         </select>
                     </div>
                     <button onclick="applyUniversalFilter('ccd')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
@@ -498,21 +507,34 @@
                     <div>
                         <label style="font-weight: bold; margin-right: 5px;">Chọn dây chuyền: </label>
                         <select id="sinterline-lime" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
-                            <option value="all">Dây chuyền 3 + 4</option>
+                            <option value="all">Cả 4 dây chuyền</option>
+                            <option value="TK34">Dây chuyền 3 + 4</option>
+                            <option value="TK12">Dây chuyền 1 + 2</option>
                             <option value="TK3">Dây chuyền 3</option>
                             <option value="TK4">Dây chuyền 4</option>
+                            <option value="TK1">Dây chuyền 1</option>
+                            <option value="TK2">Dây chuyền 2</option>
                         </select>
                     </div>
                     <button onclick="applyUniversalFilter('lime')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
                     <button onclick="clearUniversalFilter('lime')" style="padding: 5px 15px; cursor: pointer; background: #95a5a6; color: white; border: none; border-radius: 4px; font-weight: bold;">Xoá lọc</button>
                 </div>
-                <div class="fluxconsume-chart-lime" style="width: 100%; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
-                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">TIÊU HAO QUY ĐỔI VÔI NUNG</h3>
-                    <div style="position: relative; height: 550px; width: 100%;">
-                        <canvas id="flux-chart-lime"
-                            style="width: 100%; height: 550px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
-                        </canvas><!--Thẻ canvas thay cho thẻ div cũ, dùng để display thư viện và nhận dữ liệu nạp vào từ js-->
+                <!--BIỂU ĐỒ HAI TRANG: mũi tên ‹ › hai bên đổi giữa (1) tiêu hao QUY ĐỔI vôi
+                    nung và (2) vôi nung + bột đá vôi tiêu hao riêng. Hai trang dùng chung
+                    canvas và bộ lọc -lime ở trên (chart_cook.js: chartConfigs.lime.cacTrang,
+                    latTrangBieuDo; tiêu đề h3 và chấm .lat-cham do JS đổi theo trang).-->
+                <div class="lat-khung" id="lat-lime">
+                    <button type="button" class="lat-nut lat-nut--trai" onclick="latTrangBieuDo('lime', -1)" aria-label="Biểu đồ trước">&#8249;</button>
+                    <div class="fluxconsume-chart-lime" style="width: 100%; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                        <h3 class="lat-tieu-de" style="text-align: center; color: var(--primary-blue); font-size: 16px;">TIÊU HAO QUY ĐỔI VÔI NUNG</h3>
+                        <div class="lat-cham" aria-hidden="true"><span class="is-dang-xem"></span><span></span></div>
+                        <div style="position: relative; height: 550px; width: 100%;">
+                            <canvas id="flux-chart-lime"
+                                style="width: 100%; height: 550px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
+                            </canvas><!--Thẻ canvas thay cho thẻ div cũ, dùng để display thư viện và nhận dữ liệu nạp vào từ js-->
+                        </div>
                     </div>
+                    <button type="button" class="lat-nut lat-nut--phai" onclick="latTrangBieuDo('lime', 1)" aria-label="Biểu đồ sau">&#8250;</button>
                 </div>
 
                 <div id="sorter-dolomite" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
@@ -536,21 +558,32 @@
                     <div>
                         <label style="font-weight: bold; margin-right: 5px;">Chọn dây chuyền: </label>
                         <select id="sinterline-dolomite" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
-                            <option value="all">Dây chuyền 3 + 4</option>
+                            <option value="all">Cả 4 dây chuyền</option>
+                            <option value="TK34">Dây chuyền 3 + 4</option>
+                            <option value="TK12">Dây chuyền 1 + 2</option>
                             <option value="TK3">Dây chuyền 3</option>
                             <option value="TK4">Dây chuyền 4</option>
+                            <option value="TK1">Dây chuyền 1</option>
+                            <option value="TK2">Dây chuyền 2</option>
                         </select>
                     </div>
                     <button onclick="applyUniversalFilter('dolomite')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
                     <button onclick="clearUniversalFilter('dolomite')" style="padding: 5px 15px; cursor: pointer; background: #95a5a6; color: white; border: none; border-radius: 4px; font-weight: bold;">Xoá lọc</button>
                 </div>
-                <div class="fluxconsume-chart-dolomite" style="width: 100%; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
-                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">TIÊU HAO QUY ĐỔI ĐÁ DOLOMITE</h3>
-                    <div style="position: relative; height: 550px; width: 100%;">
-                        <canvas id="flux-chart-dolomite"
-                            style="width: 100%; height: 550px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
-                        </canvas><!--Thẻ canvas thay cho thẻ div cũ, dùng để display thư viện và nhận dữ liệu nạp vào từ js-->
+                <!--Hai trang như biểu đồ vôi ở trên: (1) quy đổi đá dolomite, (2) dolomite
+                    nung + bột đá dolomite riêng (chartConfigs.dolomite.cacTrang)-->
+                <div class="lat-khung" id="lat-dolomite">
+                    <button type="button" class="lat-nut lat-nut--trai" onclick="latTrangBieuDo('dolomite', -1)" aria-label="Biểu đồ trước">&#8249;</button>
+                    <div class="fluxconsume-chart-dolomite" style="width: 100%; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                        <h3 class="lat-tieu-de" style="text-align: center; color: var(--primary-blue); font-size: 16px;">TIÊU HAO QUY ĐỔI ĐÁ DOLOMITE</h3>
+                        <div class="lat-cham" aria-hidden="true"><span class="is-dang-xem"></span><span></span></div>
+                        <div style="position: relative; height: 550px; width: 100%;">
+                            <canvas id="flux-chart-dolomite"
+                                style="width: 100%; height: 550px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
+                            </canvas><!--Thẻ canvas thay cho thẻ div cũ, dùng để display thư viện và nhận dữ liệu nạp vào từ js-->
+                        </div>
                     </div>
+                    <button type="button" class="lat-nut lat-nut--phai" onclick="latTrangBieuDo('dolomite', 1)" aria-label="Biểu đồ sau">&#8250;</button>
                 </div>
             </div>
             
@@ -578,9 +611,13 @@
                     <div>
                         <label style="font-weight: bold; margin-right: 5px;">Chọn dây chuyền: </label>
                         <select id="sinterline-dien" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
-                            <option value="all">Dây chuyền 3 + 4</option>
+                            <option value="all">Cả 4 dây chuyền</option>
+                            <option value="TK34">Dây chuyền 3 + 4</option>
+                            <option value="TK12">Dây chuyền 1 + 2</option>
                             <option value="TK3">Dây chuyền 3</option>
                             <option value="TK4">Dây chuyền 4</option>
+                            <option value="TK1">Dây chuyền 1</option>
+                            <option value="TK2">Dây chuyền 2</option>
                         </select>
                     </div>
                     <div>
@@ -594,13 +631,21 @@
                     <button onclick="applyUniversalFilter('dien')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
                     <button onclick="clearUniversalFilter('dien')" style="padding: 5px 15px; cursor: pointer; background: #95a5a6; color: white; border: none; border-radius: 4px; font-weight: bold;">Xoá lọc</button>
                 </div>
-                <div class="electriconsume-chart-full" style="width: 100%; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
-                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">TIÊU HAO ĐIỆN</h3>
-                    <div style="position: relative; height: 550px; width: 100%;">
-                    <canvas id="electric-chart"
-                        style="width: 100%; height: 550px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
-                    </canvas>
+                <!--BIỂU ĐỒ HAI TRANG theo xưởng: (1) TK3 + TK4, (2) TK1 + TK2 — mũi tên ‹ ›
+                    như biểu đồ vôi; chọn dây ở ô "Dây chuyền" tự lật sang trang có dây đó
+                    (chart_cook.js: chartConfigs.dien.cacTrang / trangTheoDay)-->
+                <div class="lat-khung" id="lat-dien">
+                    <button type="button" class="lat-nut lat-nut--trai" onclick="latTrangBieuDo('dien', -1)" aria-label="Biểu đồ trước">&#8249;</button>
+                    <div class="electriconsume-chart-full" style="width: 100%; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                        <h3 class="lat-tieu-de" style="text-align: center; color: var(--primary-blue); font-size: 16px;">TIÊU HAO ĐIỆN — XƯỞNG THIÊU KẾT 2 (TK3, TK4)</h3>
+                        <div class="lat-cham" aria-hidden="true"><span class="is-dang-xem"></span><span></span></div>
+                        <div style="position: relative; height: 550px; width: 100%;">
+                        <canvas id="electric-chart"
+                            style="width: 100%; height: 550px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
+                        </canvas>
+                        </div>
                     </div>
+                    <button type="button" class="lat-nut lat-nut--phai" onclick="latTrangBieuDo('dien', 1)" aria-label="Biểu đồ sau">&#8250;</button>
                 </div>
             </div>
             <!----------------------------------------------------------->
@@ -626,9 +671,13 @@
                     <div>
                         <label style="font-weight: bold; margin-right: 5px;">Chọn dây chuyền: </label>
                         <select id="sinterline-feOre" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
-                            <option value="all">Dây chuyền 3 + 4</option>
+                            <option value="all">Cả 4 dây chuyền</option>
+                            <option value="TK34">Dây chuyền 3 + 4</option>
+                            <option value="TK12">Dây chuyền 1 + 2</option>
                             <option value="TK3">Dây chuyền 3</option>
                             <option value="TK4">Dây chuyền 4</option>
+                            <option value="TK1">Dây chuyền 1</option>
+                            <option value="TK2">Dây chuyền 2</option>
                         </select>
                     </div>
                     <button onclick="applyUniversalFilter('feOre')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
@@ -666,9 +715,13 @@
                     <div>
                         <label style="font-weight: bold; margin-right: 5px;">Chọn dây chuyền: </label>
                         <select id="sinterline-CO" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
-                            <option value="all">Dây chuyền 3 + 4</option>
+                            <option value="all">Cả 4 dây chuyền</option>
+                            <option value="TK34">Dây chuyền 3 + 4</option>
+                            <option value="TK12">Dây chuyền 1 + 2</option>
                             <option value="TK3">Dây chuyền 3</option>
                             <option value="TK4">Dây chuyền 4</option>
+                            <option value="TK1">Dây chuyền 1</option>
+                            <option value="TK2">Dây chuyền 2</option>
                         </select>
                     </div>
                     <button onclick="applyUniversalFilter('CO')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
@@ -678,6 +731,48 @@
                     <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">TIÊU HAO KHÍ THAN</h3>
                     <div style="position: relative; height: 550px; width: 100%;">
                         <canvas id="COconsume-chart"
+                            style="width: 100%; height: 550px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
+                        </canvas>
+                    </div>
+                </div>
+            </div>
+            <!--Tiêu hao hơi nước nóng: biểu đồ cột theo ca TK3 / TK4. Số lấy ở cột "Tiêu hao
+                hơi nước nóng" cuối khối QH của sheet (có từ 09/2026) — chart_cook.js:
+                chartConfigs.hoiNuoc, chart_core.js: drawSteamConsumeChart-->
+            <div id="tieu-hao-hoi-nuoc" class="panel-content chart-group" style="display: none; gap: 30px; margin-bottom: 40px; flex-wrap: wrap;">
+                <div id="sorter-hoiNuoc" style="display: flex; gap: 15px; justify-content: center; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%;">
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Từ ngày: </label>
+                        <input type="date" id="start-hoiNuoc" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Đến ngày: </label>
+                        <input type="date" id="end-hoiNuoc" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn ca/kíp: </label>
+                        <select id="shift-hoiNuoc" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Tất cả các ca</option>
+                            <option value="A">Kíp A</option>
+                            <option value="B">Kíp B</option>
+                            <option value="C">Kip C</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight: bold; margin-right: 5px;">Chọn dây chuyền: </label>
+                        <select id="sinterline-hoiNuoc" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
+                            <option value="all">Dây chuyền 3 + 4</option>
+                            <option value="TK3">Dây chuyền 3</option>
+                            <option value="TK4">Dây chuyền 4</option>
+                        </select>
+                    </div>
+                    <button onclick="applyUniversalFilter('hoiNuoc')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
+                    <button onclick="clearUniversalFilter('hoiNuoc')" style="padding: 5px 15px; cursor: pointer; background: #95a5a6; color: white; border: none; border-radius: 4px; font-weight: bold;">Xoá lọc</button>
+                </div>
+                <div class="steamconsume-chart" style="width: 100%; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+                    <h3 style="text-align: center; color: var(--primary-blue); font-size: 16px;">TIÊU HAO HƠI NƯỚC NÓNG</h3>
+                    <div style="position: relative; height: 550px; width: 100%;">
+                        <canvas id="steamconsume-chart"
                             style="width: 100%; height: 550px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); padding: 15px;">
                         </canvas>
                     </div>
@@ -706,9 +801,13 @@
                     <div>
                         <label style="font-weight: bold; margin-right: 5px;">Chọn dây chuyền: </label>
                         <select id="sinterline-HLC" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
-                            <option value="all">Dây chuyền 3 + 4</option>
+                            <option value="all">Cả 4 dây chuyền</option>
+                            <option value="TK34">Dây chuyền 3 + 4</option>
+                            <option value="TK12">Dây chuyền 1 + 2</option>
                             <option value="TK3">Dây chuyền 3</option>
                             <option value="TK4">Dây chuyền 4</option>
+                            <option value="TK1">Dây chuyền 1</option>
+                            <option value="TK2">Dây chuyền 2</option>
                         </select>
                     </div>
                     <button onclick="applyUniversalFilter('HLC')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
@@ -744,9 +843,13 @@
                     <div>
                         <label style="font-weight: bold; margin-right: 5px;">Chọn dây chuyền: </label>
                         <select id="sinterline-HN" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-family: Roboto;">
-                            <option value="all">Dây chuyền 3 + 4</option>
+                            <option value="all">Cả 4 dây chuyền</option>
+                            <option value="TK34">Dây chuyền 3 + 4</option>
+                            <option value="TK12">Dây chuyền 1 + 2</option>
                             <option value="TK3">Dây chuyền 3</option>
                             <option value="TK4">Dây chuyền 4</option>
+                            <option value="TK1">Dây chuyền 1</option>
+                            <option value="TK2">Dây chuyền 2</option>
                         </select>
                     </div>
                     <button onclick="applyUniversalFilter('HN')" style="padding: 5px 15px; cursor: pointer; background: var(--primar-blue, #0033a1); color: white; border: none; border-radius: 4px; font-weight: bold;">Lọc dữ liệu</button>
@@ -1374,14 +1477,14 @@
       DiagramApp.jsx sơ đồ công nghệ (module riêng, Vite gói tách)-->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
-<script src="js/chung/chi_so.js?v=1.0"></script>
-<script src="js/components/Charts/chart_core.js?v=1.1"></script>
-<script src="js/components/Charts/chart_cook.js?v=1.2"></script>
-<script src="js/components/Charts/canhbao.js?v=2.1"></script>
-<script src="js/components/personnel.js?v=1.3"></script>
+<script src="js/chung/chi_so.js?v=1.1"></script>
+<script src="js/components/Charts/chart_core.js?v=1.9"></script>
+<script src="js/components/Charts/chart_cook.js?v=1.8"></script>
+<script src="js/components/Charts/canhbao.js?v=2.2"></script>
+<script src="js/components/personnel.js?v=1.4"></script>
 <script src="js/components/Charts/vattu.js?v=1.0"></script>
 <script src="js/components/sidebar.js?v=2"></script>
-<script src="js/api/api_thang.js?v=1.0"></script>
+<script src="js/api/api_thang.js?v=1.1"></script>
 <script src="js/main/main.js?v=2.1"></script>
 <script type="module" src="js/components/SinteringDiagram/DiagramApp.jsx"></script>
 </body>

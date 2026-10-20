@@ -15,35 +15,34 @@
  *   Khung luôn được dựng đủ, kể cả khi bảng tính chưa có ai: ô trống hiện nét
  *   đứt để thấy trước chỗ, nạp dữ liệu vào là tự đầy.
  *
- * NGUỒN DỮ LIỆU
- *   Các cột trong tab DATABASE của Google Sheet TK3 (window.masterSheetDataTK3):
- *       STT (A) | Mã nhân viên (A) | Vị trí công việc (A) | Status (A)   (và B, C)
- *   Đây là DANH SÁCH dọc, không theo ngày: hàng i của các cột (A) là người thứ i
- *   của kíp A. Cột "Mã nhân viên" thực tế đang ghi HỌ TÊN — trang hiện nguyên
- *   văn cột đó làm tên.
- *   Xếp người vào nhóm nào DỰA VÀO cột "Vị trí công việc" — xem NHOM_RULES.
+ * NGUỒN DỮ LIỆU — RIÊNG, không dính gì tới số liệu TK3 (từ 20/10/2026)
+ *   Sheet "Danh sách định biên nhân sự" của xưởng (tab NHÂN SỰ KIP A/B/C)
+ *     -> apps-script/nhan-su.gs (dự án Apps Script riêng; gọt họ tên + vị trí)
+ *     -> POST /api/nhan-su -> bảng nhan_su_xuong (D1, migrations/0009)
+ *     -> GET /api/v2/nhan-su (API_V2.NHAN_SU trong js/api/api_config.js)
+ *     -> FILE NÀY.
+ *   Mỗi người trong gói: [kíp, stt, họ tên, vị trí, trạng thái]. stt = thứ tự
+ *   trên sheet trong kíp, trang xếp theo đó. Trang hiện họ tên làm tên thẻ.
+ *   Xếp người vào nhóm nào DỰA VÀO vị trí — xem NHOM_RULES.
+ *   (Trước đây danh sách là các cột 'STT (A)', 'Mã nhân viên (A)'... trong tab
+ *   DATABASE của sheet TK3, đi kèm số liệu TK3 — nay bỏ hẳn.)
  *
  * LUỒNG CHẠY
  *   1) Mở trang: dựng ngay từ BẢN NHỚ trong máy (localStorage) nếu có.
- *   2) Sự kiện TK3DataReady: rút phần nhân sự, so vân tay với thứ đang hiện —
- *      khác thì vẽ lại và ghi đè bản nhớ, giống thì thôi.
+ *   2) Gọi /api/v2/nhan-su (lúc mở trang, rồi 30 phút một lần): so vân tay với
+ *      thứ đang hiện — khác thì vẽ lại và ghi đè bản nhớ, giống thì thôi. Gọi
+ *      lỗi thì giữ nguyên thứ đang hiện.
  *
  * NẾU DANH SÁCH KHÔNG HIỆN
- *   Mở web -> F12 -> Console, gõ:
- *       Object.keys(window.masterSheetDataTK3[0]).filter(k => k.includes('nhân viên'))
- *   Ra mảng rỗng nghĩa là dữ liệu không có các cột nhân sự (tab DATABASE).
+ *   Mở <địa chỉ web>/api/trang-thai, xem mục "nhanSu": lần Apps Script nhan-su.gs
+ *   gửi gần nhất, lỗi nếu có. F12 -> Console có dòng [Nhân sự] nói lý do.
  * ===========================================================================*/
 
-/* --- Tên cột của từng kíp. Sheet đổi tên cột thì sửa ở đây. ----------------
-   section: id mục trong index.html. Mỗi trường là DANH SÁCH tên có thể có —
-   lấy tên đầu tiên tìm thấy. */
-const KIP_COLUMNS = {
-    A: { section: 'kip-A', stt: ['STT (A)'], ma: ['Mã nhân viên (A)'],
-         viTri: ['Vị trí công việc (A)'], status: ['Status (A)'] },
-    B: { section: 'kip-B', stt: ['STT (B)'], ma: ['Mã nhân viên (B)'],
-         viTri: ['Vị trí công việc (B)'], status: ['Status (B)'] },
-    C: { section: 'kip-C', stt: ['STT (C)'], ma: ['Mã nhân viên (C)'],
-         viTri: ['Vị trí công việc (C)'], status: ['Status (C)'] },
+/* --- Mục của từng kíp trong index.html (section: id mục). ------------------ */
+const KIP_MUC = {
+    A: { section: 'kip-A' },
+    B: { section: 'kip-B' },
+    C: { section: 'kip-C' },
 };
 
 /* --- QUY TẮC PHÂN NHÓM ----------------------------------------------------
@@ -139,42 +138,29 @@ const nsKey = (v) => nsText(v)
     .toLowerCase()
     .replace(/\s+/g, ' ');
 
-/** Trong danh sách tên `names`, lấy tên đầu tiên thực sự là một cột của rows. */
-function nsFindCol(rows, names) {
-    if (!rows || !rows.length) return null;
-    const keys = Object.keys(rows[0]);
-    return names.find(n => keys.includes(n)) || null;
-}
-
 /** Status này có tính là "đang làm việc" không (xem STATUS_DANG_LAM). */
 function nsDangLam(status) {
     const s = nsKey(status);
     return STATUS_DANG_LAM.some(k => s.includes(nsKey(k)));
 }
 
-/** Đọc toàn bộ nhân sự của một kíp -> [{ stt, ma, viTri, status }], xếp theo STT
- *  (nếu mọi người đều có STT). Trả null nếu bảng tính thiếu cột "Mã nhân viên". */
-function nsReadKip(rows, cfg) {
-    const colMa = nsFindCol(rows, cfg.ma);
-    if (!colMa) return null;
-
-    const colStt = nsFindCol(rows, cfg.stt);
-    const colViTri = nsFindCol(rows, cfg.viTri);
-    const colStatus = nsFindCol(rows, cfg.status);
-
-    const list = [];
-    rows.forEach(row => {
-        const ma = nsText(row[colMa]);
-        if (!ma) return;                       // hàng trống -> bỏ
-        list.push({
-            stt: colStt ? Number(nsText(row[colStt])) || null : null,
-            ma,
-            viTri: colViTri ? nsText(row[colViTri]) : '',
-            status: colStatus ? nsText(row[colStatus]) : '',
-        });
+/** Gói /api/v2/nhan-su ([[kíp, stt, họ tên, vị trí, trạng thái], ...]) ->
+ *  { A: [{ stt, ma, viTri, status }], B: [...], C: [...] }, mỗi kíp xếp theo stt.
+ *  "ma" là HỌ TÊN (tên trường giữ từ thời cột "Mã nhân viên" — bản nhớ cũ trong
+ *  máy người xem vẫn đọc được). Người không có tên thì bỏ. */
+function nsTuGoi(ds) {
+    const out = {};
+    Object.keys(KIP_MUC).forEach(k => { out[k] = []; });
+    (ds || []).forEach(p => {
+        if (!Array.isArray(p) || !out[p[0]]) return;
+        const ma = nsText(p[2]);
+        if (!ma) return;
+        out[p[0]].push({ stt: Number(p[1]) || null, ma, viTri: nsText(p[3]), status: nsText(p[4]) });
     });
-    if (list.length && list.every(p => p.stt !== null)) list.sort((a, b) => a.stt - b.stt);
-    return list;
+    Object.keys(out).forEach(k => {
+        if (out[k].every(p => p.stt !== null)) out[k].sort((a, b) => a.stt - b.stt);
+    });
+    return out;
 }
 
 /** Chia danh sách vào các nhóm theo NHOM_RULES.
@@ -589,7 +575,7 @@ function nsWireSide(side, main) {
 }
 
 /** Dựng TOÀN BỘ một kíp vào mục cfg.section (vd #kip-A).
- *  list: kết quả nsReadKip (null = thiếu cột -> hiện thông báo lỗi). */
+ *  list: danh sách của kíp từ nsTuGoi (null = chưa tải được -> hiện thông báo). */
 function nsRenderKip(key, cfg, list) {
     const section = document.getElementById(cfg.section);
     if (!section) return;
@@ -611,10 +597,7 @@ function nsRenderKip(key, cfg, list) {
 
     if (list === null) {
         grid.appendChild(nsNotice(`Chưa lấy được danh sách kíp ${key}`,
-            `thiếu cột: ${cfg.ma.join(' | ')}`));
-        console.warn(`[Nhân sự] Kíp ${key}: không tìm thấy cột nào trong `
-            + `${cfg.ma.join(' | ')}. Tra tên cột thật bằng: `
-            + `Object.keys(window.masterSheetDataTK3[0])`);
+            'xem /api/trang-thai, mục nhanSu'));
         return;
     }
 
@@ -638,7 +621,7 @@ function nsRenderKip(key, cfg, list) {
        phải nằm TRONG cột nội dung — thả thẳng vào lưới 2 cột là nó chiếm mất ô
        đầu và đẩy lệch cả bố cục. */
     if (!list.length) {
-        main.appendChild(nsNotice(`Kíp ${key} chưa có nhân sự trong bảng tính — `
+        main.appendChild(nsNotice(`Kíp ${key} chưa có nhân sự trong sheet nhân sự — `
             + `khung dưới đây là chỗ dành sẵn`));
     }
     main.appendChild(nsEl('p', 'ns-result is-hidden'));
@@ -715,20 +698,9 @@ function nsCacheWrite(data, fp) {
     } catch { /* hết chỗ hoặc bị chặn — bỏ qua, không ảnh hưởng hiển thị */ }
 }
 
-/** Rút gọn bảng tính thành đúng phần nhân sự 3 kíp: { A: [...], B: [...], C: [...] }
- *  — vừa để nhớ (nhẹ), vừa để so vân tay (số liệu sản xuất đổi không làm vẽ
- *  lại sơ đồ nhân sự). */
-function nsExtractAll(rows) {
-    const out = {};
-    Object.keys(KIP_COLUMNS).forEach(key => {
-        out[key] = nsReadKip(rows, KIP_COLUMNS[key]);
-    });
-    return out;
-}
-
-/** Vẽ cả 3 kíp từ dữ liệu đã rút gọn. */
+/** Vẽ cả 3 kíp từ { A: [...], B: [...], C: [...] } (null = kíp đó chưa tải được). */
 function nsRenderFrom(data) {
-    Object.keys(KIP_COLUMNS).forEach(key => nsRenderKip(key, KIP_COLUMNS[key], data[key]));
+    Object.keys(KIP_MUC).forEach(key => nsRenderKip(key, KIP_MUC[key], data[key] === undefined ? null : data[key]));
 }
 
 let nsShownFp = null;          // dấu vân tay của thứ đang hiện trên màn hình
@@ -742,18 +714,7 @@ function nsBootFromCache() {
     console.info('[Nhân sự] Đã dựng từ bản nhớ trong máy — không phải chờ tải dữ liệu.');
 }
 
-/* Thẻ <script> đặt ở CUỐI body nên 3 mục #kip-A/B/C đã có sẵn khi file này chạy
-   -> dựng NGAY, không chờ DOMContentLoaded. Chỉ khi chưa thấy mục nào (thẻ script
-   bị dời lên <head>) mới phải chờ.
-   Quan trọng: nếu chờ DOMContentLoaded mà dữ liệu API về TRƯỚC thì bản nhớ thành
-   vô dụng — vẫn đúng nhưng mất hết tác dụng tăng tốc. */
-if (document.getElementById(KIP_COLUMNS.A.section)) {
-    nsBootFromCache();
-} else {
-    document.addEventListener('DOMContentLoaded', nsBootFromCache);
-}
-
-/* --- 2) Dữ liệu tải xong: chỉ vẽ lại KHI phần nhân sự thật sự đổi --- */
+/* --- 2) Tải danh sách: chỉ vẽ lại KHI danh sách thật sự đổi --- */
 
 /** Kiểm tra components.css có đúng bản đi kèm không.
  *  Vì sao cần: JS và CSS là hai file rời, chép nhầm bản cũ là thanh bên hiện ra
@@ -771,13 +732,12 @@ function nsKiemTraCss() {
     }
 }
 
-/** Gọi mỗi khi có số liệu TK3 mới: rút phần nhân sự, khác thì vẽ lại + nhớ. */
-function nsRenderAll() {
-    const data = nsExtractAll(window.masterSheetDataTK3);
+/** Có danh sách mới { A, B, C }: khác thứ đang hiện thì vẽ lại + nhớ. */
+function nsApDung(data) {
     const fp = nsFingerprint(data);
 
     if (fp === nsShownFp) {
-        console.info('[Nhân sự] Bảng tính không đổi — giữ nguyên, không vẽ lại.');
+        console.info('[Nhân sự] Danh sách không đổi — giữ nguyên, không vẽ lại.');
         return;
     }
 
@@ -785,7 +745,45 @@ function nsRenderAll() {
     nsShownFp = fp;
     nsCacheWrite(data, fp);
     nsKiemTraCss();
-    console.info('[Nhân sự] Bảng tính có thay đổi — đã cập nhật sơ đồ tổ chức 3 kíp A / B / C.');
+    console.info('[Nhân sự] Danh sách có thay đổi — đã cập nhật sơ đồ tổ chức 3 kíp A / B / C.');
 }
 
-document.addEventListener('TK3DataReady', nsRenderAll);
+/* Đường dẫn danh sách (js/api/api_config.js). Rỗng = trang không chạy trên
+   Cloudflare Pages (npm run dev ở máy) -> không có API, chỉ hiện bản nhớ nếu có. */
+const NS_URL = (typeof API_V2 !== 'undefined' && API_V2.NHAN_SU) || '';
+const NS_LAP_LAI_MS = 30 * 60 * 1000;     /* hỏi lại mỗi 30 phút khi trang còn mở */
+
+/** Gọi /api/v2/nhan-su. Danh sách không đổi thì trình duyệt tự nhận 304 (ETag)
+ *  và dùng lại bản đã tải — rất nhẹ. Lỗi: giữ thứ đang hiện; chưa hiện gì thì
+ *  hiện khung báo "chưa lấy được". */
+async function nsTai() {
+    if (!NS_URL) return;
+    try {
+        const r = await fetch(NS_URL);
+        const j = await r.json().catch(() => null);
+        if (!r.ok || !j || j.status !== 'success' || !Array.isArray(j.nhan_su)) {
+            throw new Error('mã ' + r.status + (j && j.message ? ' — ' + j.message : ''));
+        }
+        nsApDung(nsTuGoi(j.nhan_su));
+    } catch (e) {
+        console.warn('[Nhân sự] Không tải được ' + NS_URL + ' (' + (e && e.message) + ')'
+            + (nsShownFp ? ' — giữ danh sách đang hiện.' : ''));
+        if (!nsShownFp) nsRenderFrom({});
+    }
+}
+
+/** Khởi động: dựng từ bản nhớ, rồi tải danh sách mới và hẹn hỏi lại. */
+function nsKhoiDong() {
+    nsBootFromCache();
+    nsTai();
+    setInterval(nsTai, NS_LAP_LAI_MS);
+}
+
+/* Thẻ <script> đặt ở CUỐI body nên 3 mục #kip-A/B/C đã có sẵn khi file này chạy
+   -> làm NGAY, không chờ DOMContentLoaded. Chỉ khi chưa thấy mục nào (thẻ script
+   bị dời lên <head>) mới phải chờ. */
+if (document.getElementById(KIP_MUC.A.section)) {
+    nsKhoiDong();
+} else {
+    document.addEventListener('DOMContentLoaded', nsKhoiDong);
+}

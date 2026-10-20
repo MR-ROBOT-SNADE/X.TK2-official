@@ -20,10 +20,10 @@
  *          -> applyUniversalFilter(loại): đọc ô lọc, smartFilter(), gọi draw của
  *             chartConfigs[loại] -> hàm draw...Chart trong chart_core.js
  *
- *   GHÉP TK3 + TK4 THEO VỊ TRÍ: nhãn trục ngang lấy của TK3; số TK4 ở hàng thứ i
- *   được vẽ vào nhãn thứ i của TK3. Hai sheet có cùng mẫu hàng nên khớp nhau —
- *   đó là lý do mọi chỗ khác (D1, tải theo tháng) phải giữ nguyên số hàng của
- *   từng dây.
+ *   GHÉP TK3 + TK4 THEO NGÀY + KÍP (ghepTheoNgayKip): số của hai dây (và của hai
+ *   khối, như than nghiền + than coke) cùng ngày, cùng kíp thì đứng cùng một điểm
+ *   trên trục ngang, dù mỗi dây có số hàng khác nhau. (Trước 05/10/2026 ghép theo
+ *   VỊ TRÍ hàng: nạp phiếu BK của TK4 có nhiều hàng hơn TK3 là số TK4 trượt ngày.)
  *
  * TỪ NGỮ
  *   "khối"   một nhóm biểu đồ hiện cùng lúc khi bấm một mục menu, vd khối
@@ -46,11 +46,19 @@
    { labels: [...], <key>: [số...], ... } — xem processAllModulesData. */
 window.AppChartData = {};
 
-/* Đã nhận số liệu của dây nào chưa. Đủ CẢ HAI mới ghép và vẽ được. */
+/* Đã nhận số liệu của dây nào chưa. Đủ CẢ HAI dây TK3, TK4 mới ghép và vẽ được;
+   TK1, TK2 (Xưởng Thiêu kết 1) về lúc nào thì ghép thêm lúc đó, thiếu thì thôi. */
 const appState = {
     isTK3Ready : false,
-    isTK4Ready : false
+    isTK4Ready : false,
+    isTK1Ready : false,
+    isTK2Ready : false
 };
+
+/* Thứ tự dây khi ghép: TK3 PHẢI đứng đầu (dungTrucCa giữ nguyên trục ca của nguồn
+   đầu, các nguồn sau chèn vào). TK1, TK2 là dây "thêm": chưa có số thì bỏ qua. */
+const DAY_CHUYEN_GHEP = ['TK3', 'TK4', 'TK1', 'TK2'];
+const DAY_BAT_BUOC = ['TK3', 'TK4'];
 
 /* =============================================================================
  * 1. KHAI BÁO CỘT CỦA TỪNG BIỂU ĐỒ
@@ -75,6 +83,20 @@ const colLime = [
 const colDolomite = [
     "Tiêu hao quy đổi đá dolomite",
     "Tiêu hao quy đổi đá dolomite (tích luỹ)"
+];
+/* Trợ dung tiêu hao THẬT, chưa quy đổi (4 cột thêm cuối khối THTD, có số từ
+   09/2026) — trang 2 của biểu đồ vôi / dolomite (chartConfigs.lime.cacTrang) */
+const colLimeTach = [
+    "Tiêu hao vôi nung",
+    "Tiêu hao bột đá vôi"
+];
+const colDolomiteTach = [
+    "Tiêu hao dolomite nung",
+    "Tiêu hao bột đá dolomite"
+];
+/* Cột cuối khối QH (quặng hồi) của sheet, có số từ 09/2026 */
+const colHoiNuoc = [
+    "Tiêu hao hơi nước nóng"
 ];
 const colElec = [
     "Tiêu hao điện (ca)",
@@ -111,16 +133,14 @@ const colCLHLC = [
     "%SiO2 (HLC)"
 ];
 
+/* Cỡ hạt than. Tên cột theo tiêu đề sheet nhưng SỐ trong đó là <1 / 1-3 / >3mm
+   (P.QLCL xác nhận 04/10/2026); "0,5-1mm" là cột chỉ phiếu BK 4 số mới có
+   (js/nap/mau_nap.js, coHatThan). Than coke nằm ở khối riêng 'chất lượng than_1'. */
 const colCoHatThanNghien = [
+    "Cỡ hạt 0,5-1mm (than nghiền)",
     "Cỡ hạt < 0,5mm (than nghiền)",
     "Cỡ hạt 0,5-3mm (than nghiền)",
     "Cỡ hạt >3mm (than nghiền)"
-];
-
-const colCoHatThanCoke = [
-    "Cỡ hạt < 0,5mm (than coke)",
-    "Cỡ hạt 0,5-3mm (than coke)",
-    "Cỡ hạt >3mm (than coke)"
 ];
 
 const colChatluongthan = [
@@ -157,13 +177,16 @@ const colburntDolomite = [
  *   namespaceKey  tên trong window.AppChartData (vd AppChartData.CoalNhietri)
  *   timeCol       cột ngày của khối dữ liệu, vd "Thời gian (THthan)"
  *   shiftCol      cột ca/kíp của khối, vd "Ca/kíp (THthan)"
- *   dataCols      các cột cần rút (mảng col... ở trên)
+ *   dataCols      các cột cần rút của khối timeCol (mảng col... ở trên)
  *   mapping       cột nào của dây nào -> đặt tên khoá gì trong bộ số liệu ghép:
  *     valTK3/valTK4     số chính của từng dây
- *     avg               đường trung bình / định mức — LẤY TỪ TK3 (hai dây như nhau)
+ *     avg               đường trung bình / định mức — lấy TK3, TK3 trống thì TK4
  *     accTK3/accTK4     số phụ thứ nhất của từng dây (thường là luỹ kế)
  *     dsxTK3/dsxTK4     số phụ thứ hai (ban đầu cho điện "trừ DSX")
  *     customTK3/TK4     số phụ thứ ba
+ *   Tên vai trò tuỳ ý (vd tn051TK3): đuôi TK3 / TK4 nói số của dây nào, không có
+ *   đuôi thì lấy cả hai dây (như avg). Ô có thêm khoi: 'chất lượng than_1' thì
+ *   đọc ở khối đó (cột ngày / kíp riêng của khối), không phải khối timeCol.
  *   Tên các ô acc/dsx/custom là di sản: ở nhiều mục chúng chứa chỉ tiêu khác
  *   (CaO, cỡ hạt...), không phải luỹ kế. Đọc "key" để biết thật sự là gì.
  * --------------------------------------------------------------------------- */
@@ -213,6 +236,26 @@ const moduleConfigs = [
         }
     },
     {
+        namespaceKey: 'LimeTach',
+        timeCol: "Thời gian (THTD)", shiftCol: "Ca/kíp (THTD)", dataCols: colLimeTach,
+        mapping: {
+            valTK3: { key: 'voiNungTK3', sheetCol: "Tiêu hao vôi nung" },
+            valTK4: { key: 'voiNungTK4', sheetCol: "Tiêu hao vôi nung" },
+            accTK3: { key: 'daVoiTK3', sheetCol: "Tiêu hao bột đá vôi" },
+            accTK4: { key: 'daVoiTK4', sheetCol: "Tiêu hao bột đá vôi" }
+        }
+    },
+    {
+        namespaceKey: 'DolomiteTach',
+        timeCol: "Thời gian (THTD)", shiftCol: "Ca/kíp (THTD)", dataCols: colDolomiteTach,
+        mapping: {
+            valTK3: { key: 'dolomiteNungTK3', sheetCol: "Tiêu hao dolomite nung" },
+            valTK4: { key: 'dolomiteNungTK4', sheetCol: "Tiêu hao dolomite nung" },
+            accTK3: { key: 'daDolomiteTK3', sheetCol: "Tiêu hao bột đá dolomite" },
+            accTK4: { key: 'daDolomiteTK4', sheetCol: "Tiêu hao bột đá dolomite" }
+        }
+    },
+    {
         namespaceKey: 'Electricity',
         timeCol: "Thời gian (Điện)", shiftCol: "Ca/kíp (Điện)", dataCols: colElec,
         mapping: {
@@ -245,6 +288,14 @@ const moduleConfigs = [
             avg:    { key: 'dinhmuc', sheetCol: "Định mức tiêu hao khí than theo thiết kế"},
             accTK3: { key: 'tichluyTK3', sheetCol: "Tiêu hao khí than tích luỹ (khí than)"},
             accTK4: { key: 'tichluyTK4', sheetCol: "Tiêu hao khí than tích luỹ (khí than)"}
+        }
+    },
+    {
+        namespaceKey: 'HoiNuoc',
+        timeCol: "Thời gian (QH)", shiftCol: "Ca/kíp (QH)", dataCols: colHoiNuoc,
+        mapping: {
+            valTK3: { key: 'hoiNuocTK3', sheetCol: "Tiêu hao hơi nước nóng" },
+            valTK4: { key: 'hoiNuocTK4', sheetCol: "Tiêu hao hơi nước nóng" }
         }
     },
     {
@@ -292,27 +343,28 @@ const moduleConfigs = [
         }
     },
     {
-        namespaceKey: 'CoHatThanNghien',
+        /* Cỡ hạt than nghiền + than coke CHUNG một bộ số liệu (chung trục ca), để
+           ô chọn kíp (syncShiftDropdown) xét cả hai loại than ở cùng vị trí.
+           Khoá: '<0.5mm' = <1mm, '0.5-3mm' = 1-3mm (xem colCoHatThanNghien) */
+        namespaceKey: 'CoHatThan',
         timeCol: "Thời gian (chất lượng than)", shiftCol: "Ca/kíp (chất lượng than)", dataCols: colCoHatThanNghien,
         mapping: {
+            tn051TK3: { key: '0.5-1mmTNTK3', sheetCol: "Cỡ hạt 0,5-1mm (than nghiền)" },
+            tn051TK4: { key: '0.5-1mmTNTK4', sheetCol: "Cỡ hạt 0,5-1mm (than nghiền)" },
             valTK3: { key: '<0.5mmTNTK3', sheetCol: "Cỡ hạt < 0,5mm (than nghiền)" },
             valTK4: { key: '<0.5mmTNTK4', sheetCol: "Cỡ hạt < 0,5mm (than nghiền)" },
             accTK3: { key: '0.5-3mmTNTK3', sheetCol: "Cỡ hạt 0,5-3mm (than nghiền)" },
             accTK4: { key: '0.5-3mmTNTK4', sheetCol: "Cỡ hạt 0,5-3mm (than nghiền)" },
             dsxTK3: { key: '>3mmTNTK3', sheetCol: "Cỡ hạt >3mm (than nghiền)" },
-            dsxTK4: { key: '>3mmTNTK4', sheetCol: "Cỡ hạt >3mm (than nghiền)" }
-        }
-    },
-    {
-        namespaceKey: 'CoHatThanCoke',
-        timeCol: "Thời gian (chất lượng than)", shiftCol: "Ca/kíp (chất lượng than)", dataCols: colCoHatThanCoke,
-        mapping: {
-            valTK3: { key: '<0.5mmTCTK3', sheetCol: "Cỡ hạt < 0,5mm (than coke)" },
-            valTK4: { key: '<0.5mmTCTK4', sheetCol: "Cỡ hạt < 0,5mm (than coke)" },
-            accTK3: { key: '0.5-3mmTCTK3', sheetCol: "Cỡ hạt 0,5-3mm (than coke)" },
-            accTK4: { key: '0.5-3mmTCTK4', sheetCol: "Cỡ hạt 0,5-3mm (than coke)" },
-            dsxTK3: { key: '>3mmTCTK3', sheetCol: "Cỡ hạt >3mm (than coke)" },
-            dsxTK4: { key: '>3mmTCTK4', sheetCol: "Cỡ hạt >3mm (than coke)" }
+            dsxTK4: { key: '>3mmTNTK4', sheetCol: "Cỡ hạt >3mm (than nghiền)" },
+            tc051TK3: { key: '0.5-1mmTCTK3', sheetCol: "Cỡ hạt 0,5-1mm (than coke)", khoi: 'chất lượng than_1' },
+            tc051TK4: { key: '0.5-1mmTCTK4', sheetCol: "Cỡ hạt 0,5-1mm (than coke)", khoi: 'chất lượng than_1' },
+            tc1TK3: { key: '<0.5mmTCTK3', sheetCol: "Cỡ hạt < 0,5mm (than coke)", khoi: 'chất lượng than_1' },
+            tc1TK4: { key: '<0.5mmTCTK4', sheetCol: "Cỡ hạt < 0,5mm (than coke)", khoi: 'chất lượng than_1' },
+            tc13TK3: { key: '0.5-3mmTCTK3', sheetCol: "Cỡ hạt 0,5-3mm (than coke)", khoi: 'chất lượng than_1' },
+            tc13TK4: { key: '0.5-3mmTCTK4', sheetCol: "Cỡ hạt 0,5-3mm (than coke)", khoi: 'chất lượng than_1' },
+            tc3TK3: { key: '>3mmTCTK3', sheetCol: "Cỡ hạt >3mm (than coke)", khoi: 'chất lượng than_1' },
+            tc3TK4: { key: '>3mmTCTK4', sheetCol: "Cỡ hạt >3mm (than coke)", khoi: 'chất lượng than_1' }
         }
     },
     {
@@ -383,7 +435,8 @@ const moduleConfigs = [
     }
 ];
 
-/* Chất lượng than cần 4 chỉ tiêu mỗi dây -> dùng thêm ô custom */
+/* Chất lượng than cần 4 chỉ tiêu mỗi dây -> dùng thêm ô custom. AK / V than coke
+   đọc ở khối riêng của nó ('chất lượng than_1'), ghép vào cùng trục ca */
 moduleConfigs.push({
     namespaceKey: 'ChatLuongThan',
     timeCol: "Thời gian (chất lượng than)", shiftCol: "Ca/kíp (chất lượng than)", dataCols: colChatluongthan,
@@ -392,12 +445,67 @@ moduleConfigs.push({
         valTK4: { key: 'AKTNTK4', sheetCol: "AK (than nghiền)" },
         accTK3: { key: 'VTNTK3', sheetCol: "V (Than nghiền)" },
         accTK4: { key: 'VTNTK4', sheetCol: "V (Than nghiền)" },
-        dsxTK3: { key: 'AKTCTK3', sheetCol: "Ak (than coke)" },
-        dsxTK4: { key: 'AKTCTK4', sheetCol: "Ak (than coke)" },
-        customTK3: { key: 'VTCTK3', sheetCol: "V (than coke)" },
-        customTK4: { key: 'VTCTK4', sheetCol: "V (than coke)" }
+        dsxTK3: { key: 'AKTCTK3', sheetCol: "Ak (than coke)", khoi: 'chất lượng than_1' },
+        dsxTK4: { key: 'AKTCTK4', sheetCol: "Ak (than coke)", khoi: 'chất lượng than_1' },
+        customTK3: { key: 'VTCTK3', sheetCol: "V (than coke)", khoi: 'chất lượng than_1' },
+        customTK4: { key: 'VTCTK4', sheetCol: "V (than coke)", khoi: 'chất lượng than_1' }
     }
 });
+
+/* -----------------------------------------------------------------------------
+ * TK1, TK2 (XƯỞNG THIÊU KẾT 1) — chỉ các biểu đồ TIÊU HAO có số rõ ràng.
+ * Apps Script (apps-script/tk12-nguon.gs) dựng bảng TK1/TK2 với ĐÚNG tên cột sheet
+ * TK3, nên mỗi vai trò (val / acc...) của TK3 được nhân thêm cho TK1, TK2: cùng
+ * cột, khoá đổi đuôi (nhietriTK3 -> nhietriTK1). 'acc' = luỹ kế, lấy từ hàng Tổng
+ * của file TK1/TK2.
+ * KHOAN NẠP (chưa có hoặc chưa rõ): hơi nước nóng (TK1, TK2 ghi chung một số tấn
+ * hơi), mọi biểu đồ chất lượng (2 sheet nguồn không có số chất lượng).
+ * Luỹ kế tỉ lệ HLC nối 10/10/2026 (hàng Tổng của file có số từ tối 10/10; trước
+ * đó công thức ra 0,00 — Apps Script bỏ số 0).
+ * Điện: TK1, TK2 ở trang RIÊNG của biểu đồ điện (chartConfigs.dien.cacTrang).
+ * --------------------------------------------------------------------------- */
+const DAY_THEM_VAI_TRO = {
+    CoalNhietri:  ['val', 'acc'],
+    CoalCcd:      ['val', 'acc'],
+    Lime:         ['val', 'acc'],
+    Dolomite:     ['val', 'acc'],
+    LimeTach:     ['val', 'acc'],       /* acc ở đây là bột đá vôi, không phải luỹ kế */
+    DolomiteTach: ['val', 'acc'],       /* acc = bột đá dolomite */
+    Electricity:  ['val', 'acc'],       /* không có DSX */
+    FeOre:        ['val'],
+    CO:           ['val', 'acc'],
+    HLC:          ['val', 'acc'],
+    HN:           ['val', 'acc'],
+};
+
+/* Định mức RIÊNG của TK1, TK2 (xưởng cho số, chưa có trong file nguồn) — vẽ đường
+   định mức từng dây + cột vượt thì nhấp nháy (chart_core.js datasetDayThem).
+   Biểu đồ không có ở đây: cột TK1/TK2 không nhấp nháy. */
+const DINH_MUC_DAY_THEM = {
+    dien: { TK1: 55, TK2: 44 },         /* kWh/tsp, 10/10/2026 */
+};
+moduleConfigs.forEach(function (mod) {
+    (DAY_THEM_VAI_TRO[mod.namespaceKey] || []).forEach(function (vai) {
+        const goc = mod.mapping[vai + 'TK3'];
+        if (!goc) return;
+        ['TK1', 'TK2'].forEach(function (dc) {
+            mod.mapping[vai + dc] = Object.assign({}, goc, { key: goc.key.replace(/TK3$/, dc) });
+        });
+    });
+});
+
+/** Gom số TK1, TK2 của một biểu đồ cho tham số "them" của các hàm vẽ
+ *  (chart_core.js datasetDayThem): dayThem(f, 'nhietri', 'tichluy') ->
+ *  { TK1: { val: f.nhietriTK1, acc: f.tichluyTK1, dm: null }, TK2: {...} }
+ *  dinhMuc: (tuỳ chọn) { TK1: số, TK2: số } — xem DINH_MUC_DAY_THEM. */
+function dayThem(f, val, acc, dinhMuc) {
+    const ra = {};
+    ['TK1', 'TK2'].forEach(function (dc) {
+        ra[dc] = { val: f[val + dc] || null, acc: acc ? (f[acc + dc] || null) : null,
+                   dm: dinhMuc && dinhMuc[dc] != null ? dinhMuc[dc] : null };
+    });
+    return ra;
+}
 
 /* =============================================================================
  * 2. GHÉP SỐ LIỆU KHI DỮ LIỆU VỀ
@@ -413,14 +521,146 @@ function henXuLy() {
 }
 document.addEventListener('TK3DataReady', () => { appState.isTK3Ready = true; henXuLy(); });
 document.addEventListener('TK4DataReady', () => { appState.isTK4Ready = true; henXuLy(); });
+document.addEventListener('TK1DataReady', () => { appState.isTK1Ready = true; henXuLy(); });
+document.addEventListener('TK2DataReady', () => { appState.isTK2Ready = true; henXuLy(); });
+
+/** Nhãn 'dd/mm/yyyy - A' -> [ngày dạng 'yyyy-mm-dd' ('' nếu không đọc được), kíp]. */
+function tachNhan(nhan) {
+    const s = String(nhan), i = s.lastIndexOf(' - ');
+    const ngay = i >= 0 ? s.slice(0, i).trim() : s.trim(), kip = i >= 0 ? s.slice(i + 3).trim() : '';
+    const m = ngay.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    return [m ? m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0') : '', kip];
+}
+
+/** TRỤC CA CHUNG của nhiều nguồn, ghép theo NGÀY + KÍP (thay cho ghép theo vị trí hàng).
+ *
+ *  dsNhan: [nhãn của nguồn 1, nhãn của nguồn 2, ...] (labels của extractChartData)
+ *  Ra: { labels: trục ca chung,
+ *        viTri: [mỗi nguồn: mảng "ca thứ i của nguồn -> vị trí trên trục", hoặc
+ *                null khi nguồn đó đứng y nguyên vị trí] }
+ *
+ *  Mỗi ca của mỗi nguồn có khoá (ngày, kíp, lần thứ n của cặp đó trong nguồn —
+ *  khối QTK của sheet có 4 hàng mỗi kíp). Hai nguồn cùng khoá = cùng một điểm trên
+ *  trục ngang. Nhờ vậy dây nào thiếu ca, thừa ca, nhiều mẫu hơn (phiếu BK) hay bắt
+ *  đầu từ tháng khác thì số vẫn rơi đúng ngày, đúng kíp. Trước đây số TK4 được vẽ
+ *  vào nhãn TK3 cùng VỊ TRÍ: nạp phiếu BK có số hàng mỗi ngày khác TK3 là số TK4
+ *  trượt sang các ngày sau (05/10/2026: số 01-04/10 bị vẽ tới 30/10).
+ *
+ *  Thứ tự: nguồn đầu (TK3) giữ nguyên thứ tự gốc; ca chỉ nguồn sau mới có thì chèn
+ *  ngay sau ca liền trước nó trong chính nguồn đó (cùng ngày), không có thì lên đầu
+ *  ngày đó; ngày mới thì chèn đúng chỗ theo lịch.
+ *  Lối tắt: mọi nguồn có CÙNG dãy nhãn (đa số khối: hai sheet cùng mẫu hàng) thì
+ *  trục = dãy đó, khỏi dò khoá — ra y hệt cách đầy đủ mà nhanh gấp nhiều lần. */
+function dungTrucCa(dsNhan) {
+    const nhan0 = dsNhan[0];
+    const giongNhan0 = function (l) {
+        if (l === nhan0) return true;
+        if (l.length !== nhan0.length) return false;
+        for (let i = 0; i < l.length; i++) if (l[i] !== nhan0[i]) return false;
+        return true;
+    };
+    if (dsNhan.every(giongNhan0)) return { labels: nhan0, viTri: dsNhan.map(function () { return null; }) };
+
+    const nut = new Map();                  /* khoá ca -> { nhan, ngay, sau, vt } */
+    const cacNgay = [];                     /* các ngày đã có, tăng dần */
+    const dauNgay = new Map(), cuoiNgay = new Map();
+    let dau = null;
+
+    /* Nút cuối của ngày gần nhất TRƯỚC ngay (null: chưa có ngày nào trước) */
+    const cuoiTruoc = function (ngay) {
+        let lo = 0, hi = cacNgay.length;
+        while (lo < hi) { const g = (lo + hi) >> 1; if (cacNgay[g] < ngay) lo = g + 1; else hi = g; }
+        return lo ? cuoiNgay.get(cacNgay[lo - 1]) : null;
+    };
+    const chenSau = function (truoc, x) {
+        if (truoc) { x.sau = truoc.sau; truoc.sau = x; } else { x.sau = dau; dau = x; }
+    };
+    const them = function (x, truocCungNgay) {
+        if (truocCungNgay) {
+            chenSau(truocCungNgay, x);
+            if (cuoiNgay.get(x.ngay) === truocCungNgay) cuoiNgay.set(x.ngay, x);
+        } else {
+            chenSau(cuoiTruoc(x.ngay), x);
+            if (!dauNgay.has(x.ngay)) {
+                let lo = 0, hi = cacNgay.length;
+                while (lo < hi) { const g = (lo + hi) >> 1; if (cacNgay[g] < x.ngay) lo = g + 1; else hi = g; }
+                cacNgay.splice(lo, 0, x.ngay);
+                cuoiNgay.set(x.ngay, x);
+            }
+            dauNgay.set(x.ngay, x);
+        }
+    };
+
+    const daTach = new Map();               /* nhãn -> tachNhan(nhãn): nhãn lặp lại giữa các nguồn */
+    const nutCuaNguon = dsNhan.map(function (nhanNguon) {
+        const dem = new Map();
+        let truoc = null;
+        return nhanNguon.map(function (nhan) {
+            let t = daTach.get(nhan);
+            if (!t) { t = tachNhan(nhan); daTach.set(nhan, t); }
+            const ngay = t[0];
+            const cap = (ngay || nhan) + '|' + t[1];
+            const lan = dem.get(cap) || 0;
+            dem.set(cap, lan + 1);
+            const khoa = cap + '|' + lan;
+            let x = nut.get(khoa);
+            if (!x) {
+                x = { nhan: nhan, ngay: ngay, sau: null, vt: 0 };
+                nut.set(khoa, x);
+                them(x, truoc && truoc.ngay === ngay ? truoc : null);
+            }
+            truoc = x;
+            return x;
+        });
+    });
+
+    const labels = [];
+    for (let x = dau; x; x = x.sau) { x.vt = labels.length; labels.push(x.nhan); }
+    return { labels: labels, viTri: nutCuaNguon.map(function (ds) { return ds.map(function (x) { return x.vt; }); }) };
+}
+
+/** GHÉP NHIỀU NGUỒN lên trục ca chung (dungTrucCa).
+ *
+ *  nguon: [{ khoa: 'TK3|cột ngày' (tên nguồn, để dùng lại trục),
+ *            du: kết quả extractChartData của MỘT dây, MỘT khối,
+ *            cot: [[tên cột sheet, khoá trong bộ số liệu ghép], ...] }, ...]
+ *  boNho: Map dùng chung trong một lượt processAllModulesData — các mục đọc cùng
+ *         bộ nguồn (4 biểu đồ QTK...) dựng trục MỘT lần.
+ *  Ra: { labels: [...], <khoá>: [số | null, ...] } — mỗi phần tử ứng với một ca.
+ *  Hai nguồn cùng ghi một khoá (đường định mức chung của hai dây): lấy nguồn đầu,
+ *  nguồn đầu trống thì lấy nguồn sau. */
+function ghepTheoNgayKip(nguon, boNho) {
+    const khoaTruc = boNho ? nguon.map(function (n) { return n.khoa; }).join('||') : '';
+    let truc = boNho ? boNho.get(khoaTruc) : null;
+    if (!truc) {
+        truc = dungTrucCa(nguon.map(function (n) { return n.du.labels; }));
+        if (boNho) boNho.set(khoaTruc, truc);
+    }
+    const ra = { labels: truc.labels.slice() };
+    nguon.forEach(function (n, s) {
+        const vt = truc.viTri[s];
+        n.cot.forEach(function (c) {
+            const v = n.du[c[0]] || [];
+            let dich = ra[c[1]];
+            if (!dich) dich = ra[c[1]] = new Array(ra.labels.length).fill(null);
+            for (let i = 0; i < v.length; i++) {
+                const j = vt ? vt[i] : i;
+                if (dich[j] === null && v[i] !== undefined) dich[j] = v[i];
+            }
+        });
+    });
+    return ra;
+}
 
 /** Ghép số TK3 + TK4 cho MỌI mục moduleConfigs vào window.AppChartData, vẽ lại
  *  trang chủ và khối biểu đồ đang mở. Chỉ chạy khi đã có số liệu CẢ HAI dây.
  *
- *  Với mỗi mục: rút cột của từng dây (extractChartData), rồi lập
- *    AppChartData[namespaceKey] = { labels: nhãn TK3,
- *                                   <valTK3.key>: số TK3, <valTK4.key>: số TK4, ... }
- *  (nhãn chỉ lấy của TK3 — số TK4 ghép theo VỊ TRÍ, xem đầu file). */
+ *  Với mỗi mục: gom các ô mapping theo (dây, khối) — vai trò đuôi TK3 / TK4 là của
+ *  dây đó, vai trò khác (avg) lấy cả hai dây; ô có 'khoi' thì đọc ở khối đó (than
+ *  coke nằm ở khối 'chất lượng than_1'), không thì ở khối timeCol của mục. Rồi
+ *  ghép theo ngày + kíp (ghepTheoNgayKip): AppChartData[namespaceKey] = { labels, <key>: số... }
+ *  Mỗi (dây, khối) chỉ rút MỘT lần bằng extractChartData cho mọi mục cần tới nó,
+ *  trục ca của cùng bộ nguồn chỉ dựng một lần — nhanh hơn rút / ghép từng mục. */
 function processAllModulesData() {
     if (!appState.isTK3Ready || !appState.isTK4Ready) return;
 
@@ -429,38 +669,44 @@ function processAllModulesData() {
     try { kpiVe(); } catch (e) { console.error('[Mục sản lượng]', e); }
     try { veBieuDoSanLuong(); } catch (e) { console.error('[Biểu đồ sản lượng]', e); }
 
-    moduleConfigs.forEach(mod => {
-
-    const tk3Data = extractChartData(window.masterSheetDataTK3, mod.timeCol, mod.shiftCol, mod.dataCols);
-    const tk4Data = extractChartData(window.masterSheetDataTK4, mod.timeCol, mod.shiftCol, mod.dataCols);
-
-        if (tk3Data && tk4Data) {
-                let mergedResult = { labels: tk3Data.labels };
-
-                mergedResult[mod.mapping.valTK3.key] = tk3Data[mod.mapping.valTK3.sheetCol];
-                mergedResult[mod.mapping.valTK4.key] = tk4Data[mod.mapping.valTK4.sheetCol];
-
-                if (mod.mapping.avg) {
-                    mergedResult[mod.mapping.avg.key] = tk3Data[mod.mapping.avg.sheetCol];
+    /* 1) Mỗi mục: các nhóm (dây, khối) cần đọc; gom cột cần rút của từng (dây, khối) */
+    const rut = new Map();                  /* 'TK3|cột ngày' -> { dc, timeCol, shiftCol, cot: [cột] } */
+    const cacMuc = moduleConfigs.map(mod => {
+        const nhom = new Map();             /* 'TK3|cột ngày' -> [[cột, khoá]] */
+        DAY_CHUYEN_GHEP.forEach(dc => {
+            Object.keys(mod.mapping).forEach(vaiTro => {
+                const m = mod.mapping[vaiTro];
+                if (!m) return;
+                const cuaDc = /TK[1-4]$/.test(vaiTro) ? vaiTro.slice(-3) : null;
+                /* Vai trò không đuôi (đường trung bình / định mức chung) chỉ đọc ở
+                   TK3, TK4 — sheet TK1, TK2 không có các cột đó */
+                if (!cuaDc && DAY_BAT_BUOC.indexOf(dc) < 0) return;
+                if (cuaDc && cuaDc !== dc) return;
+                const timeCol = m.khoi ? apiV2TenCot('Thời gian', m.khoi) : mod.timeCol;
+                const k = dc + '|' + timeCol;
+                if (!rut.has(k)) {
+                    rut.set(k, { dc, timeCol, shiftCol: m.khoi ? apiV2TenCot('Ca/kíp', m.khoi) : mod.shiftCol, cot: [] });
                 }
-
-                if (mod.mapping.accTK3 && mod.mapping.accTK4) {
-                    mergedResult[mod.mapping.accTK3.key] = tk3Data[mod.mapping.accTK3.sheetCol];
-                    mergedResult[mod.mapping.accTK4.key] = tk4Data[mod.mapping.accTK4.sheetCol];
-                }
-
-                if (mod.mapping.dsxTK3) {
-                mergedResult[mod.mapping.dsxTK3.key] = tk3Data[mod.mapping.dsxTK3.sheetCol];
-                mergedResult[mod.mapping.dsxTK4.key] = tk4Data[mod.mapping.dsxTK4.sheetCol];
-                }
-
-                if (mod.mapping.customTK3) {
-                mergedResult[mod.mapping.customTK3.key] = tk3Data[mod.mapping.customTK3.sheetCol];
-                mergedResult[mod.mapping.customTK4.key] = tk4Data[mod.mapping.customTK4.sheetCol];
-                }
-                // Gom vào một chỗ (window.AppChartData) thay vì rải biến lên window
-                window.AppChartData[mod.namespaceKey] = mergedResult;
-        }
+                const r = rut.get(k);
+                [m.sheetCol].concat(m.khoi ? [] : (mod.dataCols || [])).forEach(c => { if (r.cot.indexOf(c) < 0) r.cot.push(c); });
+                if (!nhom.has(k)) nhom.set(k, []);
+                nhom.get(k).push([m.sheetCol, m.key]);
+            });
+        });
+        return { mod, nhom };
+    });
+    /* 2) Rút: mỗi (dây, khối) một lần */
+    rut.forEach(r => { r.du = extractChartData(window['masterSheetData' + r.dc], r.timeCol, r.shiftCol, r.cot); });
+    /* 3) Ghép từng mục; trục ca của cùng bộ nguồn dùng lại (boNho) */
+    const boNho = new Map();
+    cacMuc.forEach(({ mod, nhom }) => {
+        /* TK1, TK2 chưa về / bảng rỗng -> bỏ nguồn đó, vẫn ghép TK3 + TK4 */
+        const nguon = [...nhom].map(([k, cot]) => ({ khoa: k, dc: rut.get(k).dc, du: rut.get(k).du, cot }))
+            .filter(n => n.du || DAY_BAT_BUOC.indexOf(n.dc) >= 0);
+        /* Thiếu số liệu của TK3 hoặc TK4 (bảng rỗng) thì chưa ghép, như trước */
+        if (nguon.some(n => !n.du)) return;
+        // Gom vào một chỗ (window.AppChartData) thay vì rải biến lên window
+        window.AppChartData[mod.namespaceKey] = ghepTheoNgayKip(nguon, boNho);
     });
 
     console.info("Đã hợp nhất toàn bộ hệ thống biểu đồ vào window.AppChartData");
@@ -499,6 +745,7 @@ const KHOI_BIEU_DO = {
     'tieu-hao-dien':              ['dien'],
     'tieu-hao-quang':             ['feOre'],
     'tieu-hao-khi-than':          ['CO'],
+    'tieu-hao-hoi-nuoc':          ['hoiNuoc'],
     'ti-le-quang-hoi':            ['HLC', 'HN'],
     'chat-luong-quang-trung-hoa': ['QTHTK3', 'QTHTK4'],
     'chat-luong-quang-hoi':       ['CLHLC'],
@@ -598,6 +845,7 @@ function ganMotLan() {
  *                 (riêng điện có thêm electype-dien: thường / DSX)
  *   defaultDays   số ngày hiện khi không lọc (mặc định 7; cỡ hạt than: 1)
  *   draw(f, canvasId, lineFilter, elecTypeFilter)  gọi hàm vẽ của chart_core.js
+ *   cacTrang      (tuỳ chọn) BIỂU ĐỒ NHIỀU TRANG — xem latTrangBieuDo ở cuối mục này
  * ===========================================================================*/
 const chartConfigs = {
     'nhietri': {
@@ -606,7 +854,7 @@ const chartConfigs = {
         keyTK4: 'nhietriTK4',
         canvasId: 'coal-chart-nhietri',
         filterSuffix: '-nhietri', // các ô lọc có id start-nhietri, end-nhietri, shift-nhietri, sinterline-nhietri
-        draw: (f, canvasId, lineFilter) => drawCoalConsumeChart(canvasId, f.labels, f.nhietriTK3, f.nhietriTK4, f.trungbinh, f.tichluyTK3, f.tichluyTK4, lineFilter)
+        draw: (f, canvasId, lineFilter) => drawCoalConsumeChart(canvasId, f.labels, f.nhietriTK3, f.nhietriTK4, f.trungbinh, f.tichluyTK3, f.tichluyTK4, lineFilter, dayThem(f, 'nhietri', 'tichluy'))
     },
     'ccd': {
         dataSource: () => window.AppChartData.CoalCcd,
@@ -614,15 +862,32 @@ const chartConfigs = {
         keyTK4: 'CcdTK4',
         canvasId: 'coal-chart-ccd',
         filterSuffix: '-ccd',
-        draw: (f, canvasId, lineFilter) => drawCoalConsumeChart(canvasId, f.labels, f.CcdTK3, f.CcdTK4, f.trungbinh, f.tichluyTK3, f.tichluyTK4, lineFilter)
+        draw: (f, canvasId, lineFilter) => drawCoalConsumeChart(canvasId, f.labels, f.CcdTK3, f.CcdTK4, f.trungbinh, f.tichluyTK3, f.tichluyTK4, lineFilter, dayThem(f, 'Ccd', 'tichluy'))
     },
+    /* Vôi / dolomite: biểu đồ HAI TRANG (mũi tên ‹ › hai bên khung), chung canvas
+       và bộ lọc. Trang 1 = cấu hình gốc (quy đổi + luỹ kế), trang 2 = vật liệu nung
+       và bột đá tiêu hao riêng. Mọi trang phải đọc cùng khối THTD: api_thang.js
+       chỉ dò khối qua dataSource GỐC. */
     'lime': {
         dataSource: () => window.AppChartData.Lime,
         keyTK3: 'limeTK3',
         keyTK4: 'limeTK4',
         canvasId: 'flux-chart-lime',
         filterSuffix: '-lime',
-        draw: (f, canvasId, lineFilter) => drawFluxConsumeChart(canvasId, f.labels, f.limeTK3, f.limeTK4, f.tichluyTK3, f.tichluyTK4, lineFilter)
+        draw: (f, canvasId, lineFilter) => drawFluxConsumeChart(canvasId, f.labels, f.limeTK3, f.limeTK4, f.tichluyTK3, f.tichluyTK4, lineFilter, dayThem(f, 'lime', 'tichluy')),
+        cacTrang: [
+            { tieuDe: 'TIÊU HAO QUY ĐỔI VÔI NUNG' },
+            {
+                tieuDe: 'TIÊU HAO VÔI NUNG VÀ BỘT ĐÁ VÔI',
+                dataSource: () => window.AppChartData.LimeTach,
+                keyTK3: 'voiNungTK3',
+                keyTK4: 'voiNungTK4',
+                draw: (f, canvasId, lineFilter) => drawFluxSplitChart(canvasId, f.labels, {
+                    tenNung: 'Vôi nung', nungTK3: f.voiNungTK3, nungTK4: f.voiNungTK4, nungTK1: f.voiNungTK1, nungTK2: f.voiNungTK2,
+                    tenDa: 'Bột đá vôi', daTK3: f.daVoiTK3, daTK4: f.daVoiTK4, daTK1: f.daVoiTK1, daTK2: f.daVoiTK2
+                }, lineFilter)
+            }
+        ]
     },
     'dolomite': {
         dataSource: () => window.AppChartData.Dolomite,
@@ -630,15 +895,45 @@ const chartConfigs = {
         keyTK4: 'dolomiteTK4',
         canvasId: 'flux-chart-dolomite',
         filterSuffix: '-dolomite',
-        draw: (f, canvasId, lineFilter) => drawFluxConsumeChart(canvasId, f.labels, f.dolomiteTK3, f.dolomiteTK4, f.tichluyTK3, f.tichluyTK4, lineFilter)
+        draw: (f, canvasId, lineFilter) => drawFluxConsumeChart(canvasId, f.labels, f.dolomiteTK3, f.dolomiteTK4, f.tichluyTK3, f.tichluyTK4, lineFilter, dayThem(f, 'dolomite', 'tichluy')),
+        cacTrang: [
+            { tieuDe: 'TIÊU HAO QUY ĐỔI ĐÁ DOLOMITE' },
+            {
+                tieuDe: 'TIÊU HAO DOLOMITE NUNG VÀ BỘT ĐÁ DOLOMITE',
+                dataSource: () => window.AppChartData.DolomiteTach,
+                keyTK3: 'dolomiteNungTK3',
+                keyTK4: 'dolomiteNungTK4',
+                draw: (f, canvasId, lineFilter) => drawFluxSplitChart(canvasId, f.labels, {
+                    tenNung: 'Dolomite nung', nungTK3: f.dolomiteNungTK3, nungTK4: f.dolomiteNungTK4, nungTK1: f.dolomiteNungTK1, nungTK2: f.dolomiteNungTK2,
+                    tenDa: 'Bột đá dolomite', daTK3: f.daDolomiteTK3, daTK4: f.daDolomiteTK4, daTK1: f.daDolomiteTK1, daTK2: f.daDolomiteTK2
+                }, lineFilter)
+            }
+        ]
     },
+    /* Điện: HAI TRANG theo xưởng, KHÔNG vẽ chung — trang 1 TK3 + TK4 (định mức của
+       sheet, luỹ kế thường + DSX), trang 2 TK1 + TK2 (định mức riêng từng dây).
+       trangTheoDay: chọn dây ở ô "Dây chuyền" là lật ngay sang trang có dây đó
+       ('all' giữ trang đang xem). khiDoiTrang: ô "Loại điện luỹ kế" (thường / DSX)
+       chỉ có nghĩa ở trang TK3, TK4 -> ẩn ở trang TK1, TK2. */
     'dien' : {
         dataSource: () => window.AppChartData.Electricity,
         keyTK3: 'elecTK3',
         keyTK4: 'elecTK4',
         canvasId: 'electric-chart',
         filterSuffix: '-dien',
-        draw: (f, canvasId, lineFilter, elecTypeFilter) => drawElectricConsumeChart(canvasId, f.labels, f.elecTK3, f.elecTK4, f.dinhmuc, f.tichluyTK3, f.tichluyTK4, f.dsxTK3, f.dsxTK4, lineFilter, elecTypeFilter)
+        draw: (f, canvasId, lineFilter, elecTypeFilter) => drawElectricConsumeChart(canvasId, f.labels, f.elecTK3, f.elecTK4, f.dinhmuc, f.tichluyTK3, f.tichluyTK4, f.dsxTK3, f.dsxTK4, lineFilter, elecTypeFilter),
+        cacTrang: [
+            { tieuDe: 'TIÊU HAO ĐIỆN — XƯỞNG THIÊU KẾT 2 (TK3, TK4)' },
+            {
+                tieuDe: 'TIÊU HAO ĐIỆN — XƯỞNG THIÊU KẾT 1 (TK1, TK2)',
+                draw: (f, canvasId, lineFilter) => drawElectricTK12Chart(canvasId, f.labels, dayThem(f, 'elec', 'tichluy', DINH_MUC_DAY_THEM.dien), lineFilter)
+            }
+        ],
+        trangTheoDay: { TK34: 0, TK3: 0, TK4: 0, TK12: 1, TK1: 1, TK2: 1 },
+        khiDoiTrang: function (i) {
+            const o = document.getElementById('electype-dien');
+            if (o && o.parentElement) o.parentElement.style.display = i === 1 ? 'none' : '';
+        }
     },
     'feOre' : {
         dataSource: () => window.AppChartData.FeOre,
@@ -646,7 +941,7 @@ const chartConfigs = {
         keyTK4: 'FeOreTK4',
         canvasId: 'feoreconsume-chart',
         filterSuffix: '-feOre',
-        draw: (f, canvasId, lineFilter) => drawIronOreConsumeChart(canvasId, f.labels, f.FeOreTK3, f.FeOreTK4, lineFilter)
+        draw: (f, canvasId, lineFilter) => drawIronOreConsumeChart(canvasId, f.labels, f.FeOreTK3, f.FeOreTK4, lineFilter, dayThem(f, 'FeOre'))
     },
     'CO'   : {
         dataSource: () => window.AppChartData.CO,
@@ -654,7 +949,15 @@ const chartConfigs = {
         keyTK4: 'COTK4',
         canvasId: 'COconsume-chart',
         filterSuffix: '-CO',
-        draw: (f, canvasId, lineFilter) => drawCOConsumeChart(canvasId, f.labels, f.COTK3, f.COTK4, f.dinhmuc, f.tichluyTK3, f.tichluyTK4, lineFilter)
+        draw: (f, canvasId, lineFilter) => drawCOConsumeChart(canvasId, f.labels, f.COTK3, f.COTK4, f.dinhmuc, f.tichluyTK3, f.tichluyTK4, lineFilter, dayThem(f, 'CO', 'tichluy'))
+    },
+    'hoiNuoc': {
+        dataSource: () => window.AppChartData.HoiNuoc,
+        keyTK3: 'hoiNuocTK3',
+        keyTK4: 'hoiNuocTK4',
+        canvasId: 'steamconsume-chart',
+        filterSuffix: '-hoiNuoc',
+        draw: (f, canvasId, lineFilter) => drawSteamConsumeChart(canvasId, f.labels, f.hoiNuocTK3, f.hoiNuocTK4, lineFilter)
     },
     'HLC'   : {
         dataSource: () => window.AppChartData.HLC,
@@ -662,7 +965,7 @@ const chartConfigs = {
         keyTK4: 'HLCTK4',
         canvasId: 'returnfinesrateHLC-chart',
         filterSuffix: '-HLC',
-        draw: (f, canvasId, lineFilter) => drawReturnFinesRate(canvasId, f.labels, f.HLCTK3, f.HLCTK4, f.tichluyTK3, f.tichluyTK4, lineFilter)
+        draw: (f, canvasId, lineFilter) => drawReturnFinesRate(canvasId, f.labels, f.HLCTK3, f.HLCTK4, f.tichluyTK3, f.tichluyTK4, lineFilter, dayThem(f, 'HLC', 'tichluy'))
     },
     'HN'    : {
         dataSource: () => window.AppChartData.HN,
@@ -670,7 +973,7 @@ const chartConfigs = {
         keyTK4: 'HNTK4',
         canvasId: 'returnfinesrateHN-chart',
         filterSuffix: '-HN',
-        draw: (f, canvasId, lineFilter) => drawReturnFinesRate(canvasId, f.labels, f.HNTK3, f.HNTK4, f.tichluyTK3, f.tichluyTK4, lineFilter)
+        draw: (f, canvasId, lineFilter) => drawReturnFinesRate(canvasId, f.labels, f.HNTK3, f.HNTK4, f.tichluyTK3, f.tichluyTK4, lineFilter, dayThem(f, 'HN', 'tichluy'))
     },
     /* Quặng trung hoà: mỗi dây MỘT biểu đồ riêng (TK3 / TK4), cùng một bộ số liệu */
     'QTHTK3'   : {
@@ -695,26 +998,26 @@ const chartConfigs = {
         filterSuffix: '-CLHLC',
         draw: (f, canvasId, lineFilter) => drawQHLCChart(canvasId, f.labels, f.SiO2HLCTK3, f.SiO2HLCTK4, lineFilter)
     },
-    /* Cỡ hạt than: hai biểu đồ tròn (nghiền, coke) DÙNG CHUNG một bộ ô lọc
-       '-CoHatThan' chỉ có MỘT ô ngày — xem nhánh 'CoHatThan' trong
-       applyUniversalFilter / clearUniversalFilter và syncShiftDropdown. */
+    /* Cỡ hạt than: hai biểu đồ cột (nghiền, coke) đọc CHUNG bộ số liệu CoHatThan
+       và DÙNG CHUNG một bộ ô lọc '-CoHatThan' chỉ có MỘT ô ngày — xem nhánh
+       'CoHatThan' trong applyUniversalFilter / clearUniversalFilter và syncShiftDropdown. */
     'CoHatThanNghien': {
-        dataSource: () => window.AppChartData.CoHatThanNghien,
+        dataSource: () => window.AppChartData.CoHatThan,
         keyTK3: '<0.5mmTNTK3',
         keyTK4: '<0.5mmTNTK4',
         canvasId: 'coalquality-chart-cohattn',
         filterSuffix: '-CoHatThan',
         defaultDays: 1,
-        draw: (f, canvasId, lineFilter) => drawCoalSizeChart(canvasId, f, lineFilter)
+        draw: (f, canvasId, lineFilter) => drawCoalSizeChart(canvasId, f, lineFilter, 'TN')
     },
     'CoHatThanCoke':  {
-        dataSource: () => window.AppChartData.CoHatThanCoke,
+        dataSource: () => window.AppChartData.CoHatThan,
         keyTK3: '<0.5mmTCTK3',
         keyTK4: '<0.5mmTCTK4',
         canvasId: 'coalquality-chart-cohatcoke',
         filterSuffix: '-CoHatThan',
         defaultDays: 1,
-        draw: (f, canvasId, lineFilter) => drawCoalSizeChart(canvasId, f, lineFilter)
+        draw: (f, canvasId, lineFilter) => drawCoalSizeChart(canvasId, f, lineFilter, 'TC')
     },
     'ChatLuongThan': {
         dataSource: () => window.AppChartData.ChatLuongThan,
@@ -880,10 +1183,10 @@ function applyUniversalFilter(chartType) {
         applyUniversalFilter('CoHatThanCoke');
         return;
     }
-    const config = chartConfigs[chartType];
+    const config = cauHinhDangXem(chartType);
     const data = config ? config.dataSource() : null;
 
-    if (!data) return;
+    if (!data) { if (config && config.cacTrang) xoaBieuDoTrangCu(config.canvasId); return; }
 
     // Ghép id các ô lọc từ đuôi filterSuffix
     const s_start = `start${config.filterSuffix}`;
@@ -901,6 +1204,9 @@ function applyUniversalFilter(chartType) {
             config.draw(f, config.canvasId, lineFilter, elecTypeFilter);
         }
     } else {
+        /* Biểu đồ nhiều trang: không xoá thì canvas còn hình của trang trước dưới
+           tiêu đề trang mới */
+        if (config.cacTrang) xoaBieuDoTrangCu(config.canvasId);
         console.warn(`Dữ liệu lọc ${chartType} rỗng.`);
     }
 }
@@ -953,15 +1259,128 @@ function clearUniversalFilter(chartType) {
     applyUniversalFilter(chartType);
 }
 
+/* -----------------------------------------------------------------------------
+ * BIỂU ĐỒ NHIỀU TRANG — một khung, một canvas, một bộ lọc; mũi tên ‹ › hai bên
+ * khung đổi giữa các "trang" (vd vôi: trang 1 quy đổi, trang 2 vôi nung + bột
+ * đá vôi riêng). Khai bằng chartConfigs[loại].cacTrang = [{ tieuDe, ... }]: mỗi
+ * trang GHI ĐÈ các trường của cấu hình gốc (dataSource, keyTK3/keyTK4, draw);
+ * trang chỉ có tieuDe thì dùng nguyên cấu hình gốc. canvasId và filterSuffix là
+ * của chung, nên bộ lọc đang chọn giữ nguyên khi lật trang và khi số liệu mới về.
+ * HTML: khung id="lat-<loại>" chứa h3.lat-tieu-de, .lat-cham (mỗi trang một
+ * <span>) và hai nút onclick="latTrangBieuDo('<loại>', -1 | 1)".
+ *
+ * NHỚ TRANG ĐANG XEM: mỗi lần lật, trang của mọi biểu đồ được ghi vào
+ * localStorage của máy người xem (khoá TRANG_KHOA_NHO) — tải lại trang, mở lại
+ * hôm sau vẫn ở đúng trang đã lật tới. Chỉ là tiện ích: trình duyệt chặn bộ nhớ
+ * (ẩn danh) thì mọi biểu đồ mở ở trang 1 như trước. Không gửi đi đâu.
+ * Xoá bằng: localStorage.removeItem('xtk2.trang.v1')
+ * --------------------------------------------------------------------------- */
+const TRANG_KHOA_NHO = 'xtk2.trang.v1';
+/* Biểu đồ sản lượng cũng lật trang (Xưởng TK2 / Xưởng TK1) — số trang = SL_TRANG.length
+   ở cuối file; khai sẵn ở đây vì docTrangDaNho chạy ngay lúc nạp file */
+const SO_TRANG_SAN_LUONG = 2;
+
+/** Đọc trang đã nhớ -> { loại: số trang }. Chỉ nhận số trang còn tồn tại (bớt
+ *  trang hay đổi tên biểu đồ thì bỏ qua); hỏng / bị chặn -> {} (= trang 1). */
+function docTrangDaNho() {
+    const ra = {};
+    try {
+        const nho = JSON.parse(window.localStorage.getItem(TRANG_KHOA_NHO) || '{}') || {};
+        Object.keys(nho).forEach(function (loai) {
+            const config = chartConfigs[loai], i = nho[loai];
+            /* 'sanLuong' = biểu đồ sản lượng (veBieuDoSanLuong), không nằm trong chartConfigs */
+            const soTrang = loai === 'sanLuong' ? SO_TRANG_SAN_LUONG
+                : (config && config.cacTrang ? config.cacTrang.length : 0);
+            if (Number.isInteger(i) && i >= 0 && i < soTrang) ra[loai] = i;
+        });
+    } catch (e) { /* hỏng hoặc bị chặn — mở trang 1 */ }
+    return ra;
+}
+
+/** Ghi trang đang xem; lỗi (hết chỗ, bị chặn) thì bỏ qua — không ảnh hưởng hiển thị. */
+function ghiTrangDaNho() {
+    try {
+        window.localStorage.setItem(TRANG_KHOA_NHO, JSON.stringify(TRANG_DANG_XEM));
+    } catch (e) { /* hết chỗ hoặc bị chặn — bỏ qua */ }
+}
+
+const TRANG_DANG_XEM = docTrangDaNho();   /* loại -> số thứ tự trang đang xem (chưa có = 0) */
+
+/** Cấu hình của trang đang xem: cấu hình gốc + các trường của trang đó.
+ *  Biểu đồ một trang -> chính chartConfigs[chartType]. */
+function cauHinhDangXem(chartType) {
+    const config = chartConfigs[chartType];
+    if (!config || !config.cacTrang) return config;
+    return Object.assign({}, config, config.cacTrang[TRANG_DANG_XEM[chartType] || 0]);
+}
+
+/** Huỷ biểu đồ đang vẽ trên canvas (lật sang trang không có số để vẽ). */
+function xoaBieuDoTrangCu(canvasId) {
+    if (chartInstances[canvasId]) {
+        chartInstances[canvasId].destroy();
+        delete chartInstances[canvasId];
+    }
+}
+
+/** Đưa tiêu đề + chấm của khung id="lat-<chartType>" về đúng trang đang xem. */
+function veKhungTrang(chartType) {
+    const config = chartConfigs[chartType];
+    const khung = document.getElementById('lat-' + chartType);
+    if (!config || !config.cacTrang || !khung) return;
+    const i = TRANG_DANG_XEM[chartType] || 0;
+    const tieuDe = khung.querySelector('.lat-tieu-de');
+    if (tieuDe) tieuDe.textContent = config.cacTrang[i].tieuDe;
+    khung.querySelectorAll('.lat-cham > span').forEach(function (cham, j) {
+        cham.classList.toggle('is-dang-xem', j === i);
+    });
+    if (config.khiDoiTrang) config.khiDoiTrang(i);
+}
+
+/** Mũi tên ‹ (buoc -1) / › (buoc 1) của biểu đồ chartType: sang trang kề (vòng
+ *  lại khi tới đầu / cuối), đổi tiêu đề + chấm, nhớ trang, vẽ trang mới với bộ
+ *  lọc đang chọn. */
+function latTrangBieuDo(chartType, buoc) {
+    const config = chartConfigs[chartType];
+    if (!config || !config.cacTrang) return;
+    const n = config.cacTrang.length;
+    TRANG_DANG_XEM[chartType] = (((TRANG_DANG_XEM[chartType] || 0) + buoc) % n + n) % n;
+    ghiTrangDaNho();
+    veKhungTrang(chartType);
+    applyUniversalFilter(chartType);
+}
+
+/* Mở trang: HTML viết sẵn tiêu đề + chấm của trang 1 -> khung nào được nhớ ở
+   trang khác thì đổi ngay, trước lần vẽ đầu (file này nạp cuối <body>, các khung
+   đã có). Lần vẽ đầu (DieuPhoi) tự vẽ đúng trang qua cauHinhDangXem. */
+Object.keys(TRANG_DANG_XEM).forEach(veKhungTrang);
+
+/* Biểu đồ nhiều trang chia theo xưởng (chartConfigs[loại].trangTheoDay, vd điện):
+   đổi ô "Dây chuyền" sang dây nằm ở trang khác thì lật ngay sang trang đó và vẽ
+   lại (như bấm "Lọc dữ liệu"); vẫn lật tay bằng ‹ › được như thường. */
+Object.keys(chartConfigs).forEach(function (loai) {
+    const config = chartConfigs[loai];
+    const o = config.trangTheoDay && document.getElementById('sinterline' + config.filterSuffix);
+    if (!o) return;
+    o.addEventListener('change', function () {
+        const i = config.trangTheoDay[o.value];
+        if (i === undefined || i === (TRANG_DANG_XEM[loai] || 0)) return;
+        TRANG_DANG_XEM[loai] = i;
+        ghiTrangDaNho();
+        veKhungTrang(loai);
+        applyUniversalFilter(loai);
+    });
+});
+
 /** Cập nhật danh sách kíp trong ô "Ca/kíp" của biểu đồ cỡ hạt than
  *  (#shift-CoHatThan): chỉ liệt kê những kíp THẬT SỰ có số trong ngày đang xem
  *  (ngày được chọn, hoặc ngày mới nhất có số). Một kíp được coi là "có số" nếu
- *  BẤT KỲ dây nào (TK3/TK4, than nghiền/coke) có giá trị < 0,5mm > 0.
+ *  BẤT KỲ dây nào (TK3/TK4, than nghiền/coke) có giá trị <1mm (khoá '<0.5mm...') > 0.
  *  Kíp đang chọn vẫn còn trong danh sách mới thì giữ; không thì chọn kíp đầu. */
 function syncShiftDropdown(chartType) {
 
-    const dataTN = window.AppChartData.CoHatThanNghien;
-    const dataTC = window.AppChartData.CoHatThanCoke;
+    /* Than nghiền và than coke chung một bộ số liệu (chung trục ca) */
+    const dataTN = window.AppChartData.CoHatThan;
+    const dataTC = dataTN;
 
     const shiftSelect = document.getElementById('shift-CoHatThan');
     const startInput = document.getElementById('start-CoHatThan');
@@ -1341,9 +1760,15 @@ function kpiVe() {
 
 /* -----------------------------------------------------------------------------
  * BIỂU ĐỒ SẢN LƯỢNG THÁNG NÀY (dưới các thẻ của mục SẢN LƯỢNG)
- *   - CỘT      : sản lượng TỪNG NGÀY của TK3 và TK4 (cộng các ca trong ngày)
+ *   - CỘT      : sản lượng TỪNG NGÀY của hai dây (cộng các ca trong ngày)
  *   - ĐƯỜNG    : luỹ kế cả xưởng, cộng dồn từ ngày 01 tới hôm nay
  *   - ĐƯỜNG ĐỎ : mục tiêu (sản lượng kế hoạch tháng của cả 2 dây)
+ *
+ * HAI TRANG, mỗi xưởng một trang — KHÔNG gộp chung; mũi tên ‹ › hai bên khung đổi
+ * trang như biểu đồ vôi / dolomite (trang đang xem được nhớ: TRANG_DANG_XEM.sanLuong):
+ *   trang 1  Xưởng Thiêu kết 2: TK3 + TK4, có đường mục tiêu
+ *   trang 2  Xưởng Thiêu kết 1: TK1 + TK2, CHƯA có mục tiêu (2 sheet nguồn của
+ *            TK1/TK2 không có kế hoạch tháng)
  *
  * HAI TRỤC là bắt buộc: cột mỗi ngày ~18 nghìn tấn, còn luỹ kế lên tới hơn 600
  * nghìn — để chung một trục thì mấy cột bẹp dí thành một vạch sát đáy.
@@ -1355,30 +1780,60 @@ function kpiVe() {
 
 let slChartInstance = null;      /* biểu đồ sản lượng đang vẽ (để huỷ khi vẽ lại) */
 
+/* Các trang của biểu đồ sản lượng (số trang phải bằng SO_TRANG_SAN_LUONG) */
+const SL_TRANG = [
+    { xuong: 'XƯỞNG THIÊU KẾT 2', day: ['TK3', 'TK4'], ten: ['Thiêu kết 3', 'Thiêu kết 4'],
+      mau: ['rgba(26,79,214,.85)', 'rgba(243,156,18,.85)'], mucTieu: true },
+    { xuong: 'XƯỞNG THIÊU KẾT 1', day: ['TK1', 'TK2'], ten: ['Thiêu kết 1', 'Thiêu kết 2'],
+      mau: [MAU_DAY_THEM.TK1, MAU_DAY_THEM.TK2], mucTieu: false },
+];
+
+/** Nút ‹ (buoc -1) / › (buoc 1) của biểu đồ sản lượng: sang xưởng kia, nhớ trang, vẽ lại. */
+function latTrangSanLuong(buoc) {
+    const n = SL_TRANG.length;
+    TRANG_DANG_XEM.sanLuong = (((TRANG_DANG_XEM.sanLuong || 0) + buoc) % n + n) % n;
+    ghiTrangDaNho();
+    veBieuDoSanLuong();
+}
+
 function veBieuDoSanLuong() {
     const sec = document.getElementById('san-luong-theo-thang');
     if (!sec || typeof Chart === 'undefined') return;
 
-    /* Tạo sẵn khung vẽ nếu index.html chưa có — khỏi phải sửa HTML */
+    /* Tạo sẵn khung vẽ nếu index.html chưa có — khỏi phải sửa HTML. Khung lật
+       trang dùng lại đúng các lớp .lat-khung / .lat-nut / .lat-cham của biểu đồ vôi */
     let box = document.getElementById('sanluong-chart-box');
     if (!box) {
-        box = document.createElement('div');
-        box.id = 'sanluong-chart-box';
-        box.className = 'chart-container sanluong-chart';
-        box.innerHTML = '<h3 class="sanluong-chart__title"></h3>'
-            + '<div class="sanluong-chart__canvas"><canvas id="sanluong-chart"></canvas></div>';
-        sec.appendChild(box);
+        const khung = document.createElement('div');
+        khung.className = 'lat-khung';
+        khung.id = 'lat-sanLuong';
+        khung.innerHTML = '<button type="button" class="lat-nut lat-nut--trai" onclick="latTrangSanLuong(-1)" aria-label="Xưởng trước">&#8249;</button>'
+            + '<div id="sanluong-chart-box" class="chart-container sanluong-chart">'
+            + '<h3 class="sanluong-chart__title lat-tieu-de"></h3>'
+            + '<div class="lat-cham" aria-hidden="true">' + SL_TRANG.map(function () { return '<span></span>'; }).join('') + '</div>'
+            + '<div class="sanluong-chart__canvas"><canvas id="sanluong-chart"></canvas></div>'
+            + '</div>'
+            + '<button type="button" class="lat-nut lat-nut--phai" onclick="latTrangSanLuong(1)" aria-label="Xưởng sau">&#8250;</button>';
+        sec.appendChild(khung);
+        box = document.getElementById('sanluong-chart-box');
     }
+
+    const iTrang = TRANG_DANG_XEM.sanLuong || 0;
+    const trang = SL_TRANG[iTrang];
+    box.querySelectorAll('.lat-cham > span').forEach(function (cham, j) { cham.classList.toggle('is-dang-xem', j === iTrang); });
 
     const now = new Date();
     const thang = now.getMonth() + 1, nam = now.getFullYear();
     const soNgay = soNgayTrongThang(thang, nam);
+    const tieuDe = box.querySelector('.sanluong-chart__title');
+    if (tieuDe) tieuDe.textContent = 'SẢN LƯỢNG THÁNG ' + thang + '/' + nam + ' — ' + trang.xuong
+        + ' (' + trang.day.join(' + ') + ') — theo ngày và luỹ kế';
 
-    /* Sản lượng từng ngày { ngày: tấn }: bản máy chủ tính sẵn nếu có, không thì
-       tự tính (cùng hàm slTheoNgay trong js/chung/chi_so.js) */
-    const may = (typeof chiSoMayChu === 'function') ? chiSoMayChu() : null;
-    const m3 = may ? may.sanLuongNgay.TK3 : slTheoNgay(window.masterSheetDataTK3, thang, nam);
-    const m4 = may ? may.sanLuongNgay.TK4 : slTheoNgay(window.masterSheetDataTK4, thang, nam);
+    /* Sản lượng từng ngày { ngày: tấn }: trang TK3 + TK4 dùng bản máy chủ tính sẵn
+       nếu có, không thì tự tính (cùng hàm slTheoNgay trong js/chung/chi_so.js) */
+    const may = (iTrang === 0 && typeof chiSoMayChu === 'function') ? chiSoMayChu() : null;
+    const m3 = may ? may.sanLuongNgay.TK3 : slTheoNgay(window['masterSheetData' + trang.day[0]] || [], thang, nam);
+    const m4 = may ? may.sanLuongNgay.TK4 : slTheoNgay(window['masterSheetData' + trang.day[1]] || [], thang, nam);
 
     /* TRỤC NGÀY: luôn từ NGÀY 01 tới HÔM NAY của tháng hiện tại.
        (Không lấy "ngày cuối có số liệu": sang tháng mới, ngày 01/09 chỉ hiện
@@ -1404,14 +1859,16 @@ function veBieuDoSanLuong() {
            không kéo ngang giả tạo tới cuối tháng. */
         luyKe.push(coNgay ? cong : null);
     }
-    if (!coSo) return;                      // cả tháng chưa có số nào
+    if (!coSo) {                            // cả tháng chưa có số nào
+        /* Huỷ hình của trang kia (lật trang) cho khỏi hiện số xưởng khác dưới tiêu đề này */
+        if (slChartInstance) { slChartInstance.destroy(); slChartInstance = null; }
+        if (tieuDe) tieuDe.textContent += ' — chưa có số liệu tháng này';
+        return;
+    }
 
-    const kq = ribbonTinh();
+    /* Mục tiêu = kế hoạch tháng của TK3 + TK4 (ribbonTinh); xưởng TK1 chưa có */
+    const kq = trang.mucTieu ? ribbonTinh() : null;
     const mucTieu = kq && kq.tongKH ? kq.tongKH : null;
-
-    const tieuDe = box.querySelector('.sanluong-chart__title');
-    if (tieuDe) tieuDe.textContent = 'SẢN LƯỢNG THÁNG ' + thang + '/' + nam
-        + ' — theo ngày và luỹ kế';
 
     const ds = [
         {
@@ -1422,13 +1879,13 @@ function veBieuDoSanLuong() {
             yAxisID: 'y_luyke', order: 1, datalabels: { display: false }
         },
         {
-            type: 'bar', label: 'Thiêu kết 3', data: tk3,
-            backgroundColor: 'rgba(26,79,214,.85)', yAxisID: 'y_ngay', order: 3,
+            type: 'bar', label: trang.ten[0], data: tk3,
+            backgroundColor: trang.mau[0], yAxisID: 'y_ngay', order: 3,
             datalabels: { display: false }
         },
         {
-            type: 'bar', label: 'Thiêu kết 4', data: tk4,
-            backgroundColor: 'rgba(243,156,18,.85)', yAxisID: 'y_ngay', order: 4,
+            type: 'bar', label: trang.ten[1], data: tk4,
+            backgroundColor: trang.mau[1], yAxisID: 'y_ngay', order: 4,
             datalabels: { display: false }
         }
     ];

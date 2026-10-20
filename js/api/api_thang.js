@@ -19,9 +19,11 @@
  *   mọi lần dữ liệu mới về: biểu đồ đang mở tự vẽ lại, GIỮ NGUYÊN bộ lọc đang chọn.
  *
  * QUY TẮC VÀNG: LUÔN TẢI CHO CẢ HAI DÂY CÙNG LÚC
- *   Biểu đồ gộp TK3 + TK4 ghép số TK4 vào nhãn ngày của TK3 THEO VỊ TRÍ hàng.
- *   Một dây có thêm tháng mà dây kia không là số bị vẽ lệch ngày. Vì vậy chỉ gộp
- *   khi CẢ HAI dây cùng tải về được, và cùng danh mục cột.
+ *   Biểu đồ gộp TK3 + TK4 (ghép theo ngày + kíp, chart_cook.js ghepTheoNgayKip).
+ *   Một dây có thêm tháng mà dây kia không thì biểu đồ trông như dây kia không
+ *   có số những tháng đó. Vì vậy chỉ gộp khi CẢ HAI dây cùng tải về được, và
+ *   cùng danh mục cột. TK1, TK2 (Xưởng Thiêu kết 1, có số từ 10/2026) tải cùng
+ *   khoảng tháng nhưng là dây "thêm": hỏng thì bỏ, không chặn TK3, TK4.
  *
  * VỊ TRÍ NẠP: SAU chart_cook.js (cần DieuPhoi, chartConfigs, moduleConfigs) và
  * TRƯỚC main.js. Đang dùng bản KV (vốn đủ mọi tháng) thì file này không làm gì.
@@ -82,7 +84,11 @@ function apiThangDamBao(tu, lyDo) {
     if (tu >= dangCo) return Promise.resolve(false);   /* đã có đủ */
     const den = apiV2CongThang(dangCo, -1);
 
-    API_THANG.dangTai = Promise.all([apiThangXin('TK3', tu, den), apiThangXin('TK4', tu, den)])
+    /* TK1, TK2 (dây "thêm", đang dùng D1) tải cùng khoảng tháng; hỏng thì thôi,
+       không chặn TK3, TK4 */
+    const them = ['TK1', 'TK2'].filter(function (ten) { return !!API_V2_KHO[ten]; });
+    API_THANG.dangTai = Promise.all([apiThangXin('TK3', tu, den), apiThangXin('TK4', tu, den)]
+            .concat(them.map(function (ten) { return apiThangXin(ten, tu, den); })))
         .then(function (goi) {
             API_THANG.dangTai = null;
             const k3 = API_V2_KHO.TK3, k4 = API_V2_KHO.TK4;
@@ -94,6 +100,15 @@ function apiThangDamBao(tu, lyDo) {
             }
             ['TK3', 'TK4'].forEach(function (ten, i) {
                 const rows = apiV2NhanGoi(ten, goi[i], false);
+                if (rows) apiApDung(ten, rows, apiV2VanTayKho(ten), 'D1 thêm tháng ' + tu + '..' + den + ' (' + lyDo + ')');
+            });
+            them.forEach(function (ten, i) {
+                const g = goi[2 + i], k = API_V2_KHO[ten];
+                if (!g || !k || g.van_tay !== k.vanTay) {
+                    console.warn('[Dữ liệu] ' + ten + ': chưa tải thêm được tháng ' + tu + '..' + den + ' (' + lyDo + ').');
+                    return;
+                }
+                const rows = apiV2NhanGoi(ten, g, false);
                 if (rows) apiApDung(ten, rows, apiV2VanTayKho(ten), 'D1 thêm tháng ' + tu + '..' + den + ' (' + lyDo + ')');
             });
             return true;
@@ -170,7 +185,7 @@ function apiThangChoKhoi(idKhoi) {
 
 /** Trường hợp hiếm: một dây lỡ phải dùng bản KV (đủ mọi tháng) trong khi dây kia
  *  dùng D1 chỉ từ tháng này -> tải nốt mọi tháng cho dây D1, kẻo biểu đồ gộp
- *  lệch ngày. */
+ *  hụt số của dây đó ở các tháng cũ. */
 function apiThangCanHaiDay() {
     const k = API_V2_KHO.TK3 || API_V2_KHO.TK4;
     if (!k || (API_V2_KHO.TK3 && API_V2_KHO.TK4)) return;   /* cả hai cùng D1 hoặc cùng KV: ổn */

@@ -30,8 +30,9 @@
  *   mỗi dây; tải thêm tháng cũ (js/api/api_thang.js) thì gộp vào kho rồi dựng lại
  *   bảng từ cả kho. Hai quy tắc:
  *     - kho luôn là một dải tháng LIỀN NHAU, từ kho.tu đến hết;
- *     - TK3 và TK4 luôn cùng một dải: biểu đồ gộp ghép số TK4 vào nhãn ngày của
- *       TK3 THEO VỊ TRÍ HÀNG — hai dây lệch dải tháng là số bị vẽ lệch ngày.
+ *     - TK3 và TK4 luôn cùng một dải: biểu đồ gộp hai dây (ghép theo ngày + kíp,
+ *       chart_cook.js ghepTheoNgayKip) — lệch dải tháng thì một dây bị hụt số ở
+ *       những tháng dây kia có.
  *
  * CHẠY Ở HAI NƠI
  *   - Trình duyệt: script thường (không phải module), các hàm thành biến toàn cục.
@@ -175,8 +176,10 @@ function apiV2BangNgang(goi, tuyChon) {
        tu        tháng sớm nhất đang có trong kho
        etag      ETag của lượt tải mặc định gần nhất
        soLanThem số lần đã tải thêm tháng cũ }
-   null = dây đó đang dùng bản KV (vốn đủ mọi tháng) hoặc chưa tải. */
-var API_V2_KHO = { TK3: null, TK4: null };
+   null = dây đó đang dùng bản KV (vốn đủ mọi tháng) hoặc chưa tải.
+   TK1, TK2 (Xưởng Thiêu kết 1) có số từ 10/2026; bản KV của hai dây này chỉ
+   có tháng đang chạy. */
+var API_V2_KHO = { TK3: null, TK4: null, TK1: null, TK2: null };
 
 /** Cộng n tháng vào 'YYYY-MM' (n âm = lùi): ('2026-01', -1) -> '2025-12'. */
 function apiV2CongThang(t, n) {
@@ -232,5 +235,13 @@ function apiV2VanTayKho(ten) {
     return kho ? kho.etag + '+' + kho.tu + '+' + kho.soLanThem : '';
 }
 
-/* Cho máy chủ dùng (db/chi-so.mjs import file này như một module) */
-globalThis.XTK2_API_V2 = { bangNgang: apiV2BangNgang, tenCot: apiV2TenCot };
+/* Cho máy chủ dùng (db/chi-so.mjs import file này như một module). maNguon = mã
+   các hàm dựng bảng, dạng chữ: máy chủ băm vào ETag /api/v2/chi-so, để sửa các
+   hàm này rồi deploy là kết quả máy chủ đã nhớ tự hết hạn. */
+globalThis.XTK2_API_V2 = {
+    bangNgang: apiV2BangNgang, tenCot: apiV2TenCot,
+    maNguon: function () {
+        return [apiV2ChuoiSo, apiV2TenCot, apiV2NgaySheet, apiV2BangNgang].map(String).join('\n')
+            + JSON.stringify(API_V2_NHAN_SU);
+    },
+};

@@ -11,8 +11,11 @@
  * VÌ SAO KHÔNG CHÉP CẢ BẢNG MỖI LẦN
  *   Gói Free cho 10 ms CPU mỗi lượt gọi (thỉnh thoảng vượt thì được châm chước).
  *   Riêng JSON.parse gói 3 MB của TK3 đã ~8 ms; chuẩn hoá cả lịch sử thêm ~22 ms.
+ *   (Đo thật trên Cloudflare 04/10/2026: một lần đẩy CÓ đồng bộ tốn 60–72 ms.)
  *   Nên mỗi lần chỉ làm một phần nhỏ, và không phải lần đẩy nào cũng làm:
- *     - dữ liệu y nguyên lần trước (cùng etag)   -> bỏ qua;
+ *     - dữ liệu y nguyên lần trước (cùng etag)   -> bỏ qua. functions/api kiểm
+ *       việc này TRƯỚC khi parse (docSoDongBo + lyDoBoQua): lần đẩy y nguyên khỏi
+ *       parse, khỏi gọi file này — mà đa số lần đẩy là y nguyên;
  *     - chưa đủ NHIP_PHUT (20) phút từ lần trước  -> bỏ qua (lần sau lấy lại cả
  *       cửa sổ nên không lỡ gì, chỉ chậm vài phút);
  *     - còn lại: chuẩn hoá CỬA SỔ 14 ngày gần nhất + MỘT ĐOẠN CŨ dài 14 ngày.
@@ -42,7 +45,7 @@
  *   có". Danh sách đọc từ bảng ngay_nap mỗi lần đồng bộ (docKhoiNgayNap).
  * ===========================================================================*/
 
-import { chuanHoaDayChuyen, chuanHoaVatTu } from './chuan-hoa.mjs';
+import { chuanHoaDayChuyen, chuanHoaVatTu, NHAN_SU_TU_SHEET } from './chuan-hoa.mjs';
 import { docDanhMuc, cacThang, SQL_GOI_THANG, SQL_GOI_NHAN_SU, thamSoGoiThang, thamSoGoiNhanSu } from './goi-v2.mjs';
 
 export const CUA_SO_NGAY = 14;      /* độ dài cửa sổ gần nhất và mỗi đoạn cũ (ngày) */
@@ -326,7 +329,9 @@ async function dungLaiGoi(db, tuyen, p, doi, luc) {
     for (const [t, ds] of daCo) if (t !== 'nhan-su' && ds !== dm.vanTay) can.add(t);
     if (doi.cuaSo) p.thang.cuaSo.forEach(t => can.add(t));
     if (doi.doanCu) p.thang.doanCu.forEach(t => can.add(t));
-    const canNhanSu = daCo.get('nhan-su') !== dm.vanTay || doi.nhanSu > 0;
+    /* Gói nhân sự cũ (theo TK3): chỉ dựng khi còn nhập tay ở tab DATABASE —
+       bình thường nhân sự đi đường riêng (db/nhan-su.mjs) */
+    const canNhanSu = NHAN_SU_TU_SHEET && (daCo.get('nhan-su') !== dm.vanTay || doi.nhanSu > 0);
 
     const cau = [...can].sort().map(t => db.prepare(SQL_GOI_THANG).bind(...thamSoGoiThang(tuyen, t, luc, dm)));
     if (canNhanSu) cau.push(db.prepare(SQL_GOI_NHAN_SU).bind(...thamSoGoiNhanSu(tuyen, luc, dm)));
@@ -353,6 +358,27 @@ function cauVatTu(db, data) {
     };
 }
 
+/** Đọc sổ dong_bo của một tuyến (lần đồng bộ trước) -> { etag, luc, doan_cu, so_goi } | null.
+ *  functions/api đọc TRƯỚC khi parse gói vừa đẩy, để lần đẩy y nguyên khỏi parse
+ *  (xem lyDoBoQua); rồi chuyển luôn cho dongBoD1, khỏi đọc lại. */
+export async function docSoDongBo(db, tuyen) {
+    return db.prepare(SQL.docDongBo).bind(tuyen).first();
+}
+
+/** Lần đẩy này có phải đồng bộ không. Ra lý do BỎ QUA (chuỗi), hoặc null = phải làm.
+ *    - dữ liệu y nguyên lần đồng bộ trước (cùng etag) và đã có gói /api/v2;
+ *    - chưa đủ NHIP_PHUT phút từ lần trước (lần đẩy sau lấy lại cả cửa sổ).
+ *  truoc = docSoDongBo(...) (null = chưa đồng bộ lần nào -> phải làm). */
+export function lyDoBoQua(truoc, tuyen, etag, luc) {
+    if (truoc && truoc.etag === etag && (tuyen === 'vattu' || truoc.so_goi > 0)) {
+        return 'dữ liệu y nguyên lần đồng bộ trước';
+    }
+    if (truoc && truoc.luc && luc - truoc.luc < NHIP_PHUT * 60000) {
+        return 'chưa đủ ' + NHIP_PHUT + ' phút từ lần đồng bộ trước';
+    }
+    return null;
+}
+
 /**
  * HÀM CHÍNH — đồng bộ một lần đẩy của Apps Script vào D1.
  *
@@ -362,6 +388,7 @@ function cauVatTu(db, data) {
  *   j      gói JSON Apps Script vừa đẩy, ĐÃ parse sẵn (không parse lại lần hai)
  *   etag   dấu vân tay functions/api/[[route]].js vừa tính cho gói đó
  *   luc    Date.now()
+ *   truoc  (tuỳ chọn) sổ dong_bo nơi gọi đã đọc bằng docSoDongBo — có thì khỏi đọc lại
  * Ra:
  *   { boQua: 'lý do' }                 nếu lần này không cần làm gì
  *   { soO, soGhi, soGoi, ghiChu }      số ô đã so, số dòng D1 đổi, số gói dựng lại
@@ -374,16 +401,12 @@ function cauVatTu(db, data) {
  *   4) Đếm dòng đổi theo nhóm, ghi vào sổ.
  *   5) Dựng lại các gói tháng bị ảnh hưởng.
  */
-export async function dongBoD1(db, tuyen, j, etag, luc) {
+export async function dongBoD1(db, tuyen, j, etag, luc, truoc) {
     const laVatTu = tuyen === 'vattu';
     /* 1) */
-    const truoc = await db.prepare(SQL.docDongBo).bind(tuyen).first();
-    if (truoc && truoc.etag === etag && (laVatTu || truoc.so_goi > 0)) {
-        return { boQua: 'dữ liệu y nguyên lần đồng bộ trước' };
-    }
-    if (truoc && truoc.luc && luc - truoc.luc < NHIP_PHUT * 60000) {
-        return { boQua: 'chưa đủ ' + NHIP_PHUT + ' phút từ lần đồng bộ trước' };
-    }
+    if (truoc === undefined) truoc = await docSoDongBo(db, tuyen);
+    const boQua = lyDoBoQua(truoc, tuyen, etag, luc);
+    if (boQua) return { boQua: boQua };
 
     /* 2) */
     const doanCu = (truoc && truoc.doan_cu) || 0;
@@ -408,10 +431,28 @@ export async function dongBoD1(db, tuyen, j, etag, luc) {
         soGhi += doi[t];
     }
     await db.prepare(SQL.ghiSoGhi).bind(tuyen, soGhi).run();
+    if (!laVatTu) await quenVanTay(db, tuyen.toUpperCase());
 
     /* 5) */
     const soGoi = laVatTu ? 0 : await dungLaiGoi(db, tuyen, p, doi, luc);
     return { soO: p.soO, soGhi: soGhi, soGoi: soGoi, ghiChu: p.ghiChu };
+}
+
+/** Lần đồng bộ này vừa ghi số sheet vào so_lieu bằng đường KHÁC đường đẩy
+ *  khối-ngày (db/day-khoi-ngay.mjs) -> quên mọi dấu vân tay khối-ngày của dây
+ *  chuyền (migrations/0006): lượt đẩy khối-ngày sau thấy lệch hết, gửi lại hết, hai
+ *  bên khớp lại. Chỉ xảy ra khi đường mới chưa dùng (bảng trống) hoặc đã ngừng
+ *  > 6 giờ (functions/api chỉ cho đường cũ đồng bộ lúc đó). Bảng chưa có (chưa
+ *  chạy 0006) thì bỏ qua. */
+async function quenVanTay(db, dc) {
+    try {
+        await db.batch([
+            db.prepare('DELETE FROM van_tay_ngay WHERE day_chuyen = ?1').bind(dc),
+            db.prepare('DELETE FROM van_tay_thang WHERE day_chuyen = ?1').bind(dc),
+        ]);
+    } catch (e) {
+        if (!/no such table/i.test(String(e && e.message))) throw e;
+    }
 }
 
 /** Ghi lỗi đồng bộ vào sổ dong_bo để /api/trang-thai hiện ra.
@@ -429,3 +470,7 @@ export async function docTrangThaiDongBo(db) {
     for (const x of results || []) ra[x.tuyen] = x;
     return ra;
 }
+
+/* Dùng lại ở db/day-khoi-ngay.mjs: câu ghi danh mục chỉ tiêu (chỉ thêm mới) và
+   danh sách nhân sự — y như lần đồng bộ cả sheet. */
+export { SQL as SQL_DONG_BO };

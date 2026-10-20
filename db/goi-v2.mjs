@@ -32,11 +32,13 @@
  *     "pham_vi": { "tu": "2026-09", "den": "9999-12" },
  *     "thang": {
  *       "2026-09": [[0, 1, 1, "A", 1234], [1, 1, 1, "A", 56.2], ...],
- *       "2026-10": [...],
- *       "nhan-su": [["A", 1, <họ tên>, <vị trí>, <trạng thái>], ...]
+ *       "2026-10": [...]
  *     }
  *   }
  *   Mỗi ô trong gói tháng = [số thứ tự cột, ngày trong tháng, stt, kíp, giá trị].
+ *   (Trước 20/10/2026 "thang" còn kèm "nhan-su": danh sách nhân sự 3 kíp lấy từ
+ *   tab DATABASE. Nay nhân sự có đường riêng /api/v2/nhan-su — db/nhan-su.mjs; gói
+ *   'nhan-su' cũ chỉ còn gửi nếu đặt NHAN_SU_TU_SHEET = true ở db/chuan-hoa.mjs.)
  *
  * TẢI THEO THÁNG (?tu=YYYY-MM&den=YYYY-MM)
  *   Trình duyệt mặc định chỉ xin từ tháng này (10 ngày đầu tháng thì từ tháng
@@ -45,6 +47,8 @@
  *   lời cho trình duyệt biết đang có những tháng nào và ngày cuối có số của
  *   từng khối — đủ để biết phải xin thêm gì.
  * ===========================================================================*/
+
+import { NHAN_SU_TU_SHEET } from './chuan-hoa.mjs';
 
 /* Cột bảng tính mà dashboard KHÔNG dùng (dò bằng cách tìm tên cột trong js/,
    ngày 30/09/2026). Vẫn lưu trong D1 để truy vấn, chỉ không gửi ra trình duyệt.
@@ -215,7 +219,9 @@ export async function docPhienV2(db, tuyen, pv) {
     let tong = 0, so = 0;
     const cacThang = [];
     for (const x of ds) {
-        if (x.thang === 'nhan-su') { if (pv.dau) { tong += x.phien; so++; } continue; }
+        /* Gói nhân sự cũ (theo TK3) chỉ còn gửi khi quay về nhập tay ở tab DATABASE;
+           bình thường nhân sự có đường riêng /api/v2/nhan-su (db/nhan-su.mjs) */
+        if (x.thang === 'nhan-su') { if (pv.dau && NHAN_SU_TU_SHEET) { tong += x.phien; so++; } continue; }
         cacThang.push(x.thang);
         if (x.thang >= pv.tu && x.thang <= pv.den) { tong += x.phien; so++; }
     }
@@ -235,7 +241,7 @@ export async function docGoiV2(db, tuyen, pv, mucLuc) {
     const [goi, dong, ct] = await db.batch([
         db.prepare(`SELECT thang, ds_cot, json FROM goi_thang WHERE tuyen = ?1
             AND ((thang BETWEEN ?2 AND ?3) OR (?4 = 1 AND thang = 'nhan-su')) ORDER BY thang`)
-            .bind(tuyen, pv.tu, pv.den, pv.dau ? 1 : 0),
+            .bind(tuyen, pv.tu, pv.den, pv.dau && NHAN_SU_TU_SHEET ? 1 : 0),
         db.prepare('SELECT luc FROM dong_bo WHERE tuyen = ?1').bind(tuyen),
         db.prepare('SELECT ma, khoi, cot_sheet FROM chi_tieu ORDER BY ma'),
     ]);

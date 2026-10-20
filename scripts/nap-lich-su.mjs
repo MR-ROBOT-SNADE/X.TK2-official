@@ -53,7 +53,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { execSync } from 'node:child_process';
-import { chuanHoaDayChuyen, chuanHoaVatTu, docSo, docNgay, dauThapPhanCot, taoMa, doanLoai } from '../db/chuan-hoa.mjs';
+import { chuanHoaDayChuyen, chuanHoaVatTu, docSo, docNgay, dauThapPhanCot, taoMa, doanLoai, NHAN_SU_TU_SHEET } from '../db/chuan-hoa.mjs';
 import { lapDanhMuc, noiGoi, cacThang, SQL_GOI_THANG, SQL_GOI_NHAN_SU, thamSoGoiThang, thamSoGoiNhanSu }
     from '../db/goi-v2.mjs';
 import { mocKhoi } from '../db/dong-bo-d1.mjs';
@@ -232,6 +232,11 @@ function taoSql(kq, luc) {
         ...upsert('chi_tieu', ['ma', 'khoi', 'cot_sheet', 'loai'], ['ma'], chiTieu),
         ...upsert('so_lieu', ['chi_tieu', 'day_chuyen', 'ngay', 'stt', 'ca', 'kip', 'gia_tri', 'chu', 'cap_nhat'],
             ['chi_tieu', 'day_chuyen', 'ngay', 'stt'], kq.soLieu, LOC_KHOI_NGAY_EXCEL),
+        /* Vừa ghi số sheet bằng đường KHÁC đường đẩy khối-ngày -> quên dấu vân tay
+           (migrations/0006): lượt Apps Script đẩy khối-ngày sau gửi lại hết, D1 khớp
+           lại đúng sheet hiện tại (bản KV dùng ở đây có thể cũ vài giờ). */
+        'DELETE FROM van_tay_ngay WHERE day_chuyen IN (\'TK3\', \'TK4\');',
+        'DELETE FROM van_tay_thang WHERE day_chuyen IN (\'TK3\', \'TK4\');',
     ];
     if (dcNhanSu.length) {
         cau.push('DELETE FROM nhan_su WHERE day_chuyen IN (' + dcNhanSu.map(sql).join(', ') + ');');
@@ -250,7 +255,9 @@ function taoSql(kq, luc) {
         for (const t of cacThang(pv.tu, pv.den)) cau.push(dienThamSo(SQL_GOI_THANG, thamSoGoiThang(tuyen, t, luc, dm)));
         cau.push(dienThamSo(SQL_GOI_THANG_EXCEL, [tuyen, luc, dm.vanTay, JSON.stringify(dm.maGui),
             tuyen.toUpperCase(), pv.tu.slice(0, 7), pv.den.slice(0, 7)]));
-        cau.push(dienThamSo(SQL_GOI_NHAN_SU, thamSoGoiNhanSu(tuyen, luc, dm)));
+        /* Gói nhân sự cũ theo TK3: chỉ khi còn nhập tay ở tab DATABASE (nay nhân
+           sự có bảng + đường riêng: migrations/0009, db/nhan-su.mjs) */
+        if (NHAN_SU_TU_SHEET) cau.push(dienThamSo(SQL_GOI_NHAN_SU, thamSoGoiNhanSu(tuyen, luc, dm)));
     }
     /* Ngày cuối có số của từng khối — tính trọn từ cả lịch sử (lúc đồng bộ,
        Function chỉ đẩy mốc này tiến lên chứ không tính lại) */
@@ -352,7 +359,8 @@ async function doiChieu(fileSql, duLieu, kq) {
     }
 
     const nsDb = db.prepare('SELECT COUNT(*) n FROM nhan_su').get().n;
-    bao(nsDb === kq.nhanSu.length, 'nhan_su: ' + nsDb + ' người');
+    bao(nsDb === kq.nhanSu.length, NHAN_SU_TU_SHEET ? 'nhan_su: ' + nsDb + ' người'
+        : 'nhan_su: không nạp — nguồn là sheet nhân sự của xưởng (POST /api/nhan-su), D1 giữ nguyên');
     const vt = db.prepare("SELECT (SELECT COUNT(*) FROM vat_tu_ton) t, (SELECT COUNT(*) FROM vat_tu_phieu) p, (SELECT COUNT(*) FROM vat_tu_phieu WHERE ngay IS NULL AND ngay_thieu_nam IS NULL) k").get();
     bao(kq.vatTu && vt.t === kq.vatTu.ton.length && vt.p === kq.vatTu.phieu.length,
         'vật tư: ' + vt.t + ' dòng tồn kho, ' + vt.p + ' phiếu (' + vt.k + ' phiếu không tách được ngày)');
@@ -570,7 +578,7 @@ for (const dc of ['TK3', 'TK4']) {
 console.log('  Danh mục: ' + kq.chiTieu.size + ' chỉ tiêu — '
     + Object.entries([...kq.chiTieu.values()].reduce((a, c) => (a[c.loai] = (a[c.loai] || 0) + 1, a), {}))
         .map(([k, n]) => k + ' ' + n).join(', '));
-console.log('  Nhân sự: ' + kq.nhanSu.length + ' người; vật tư: ' + kq.vatTu.ton.length + ' tồn kho + ' + kq.vatTu.phieu.length + ' phiếu');
+console.log('  Nhân sự: ' + (NHAN_SU_TU_SHEET ? kq.nhanSu.length + ' người' : 'không lấy từ sheet TK3 (nguồn: /api/nhan-su)') + '; vật tư: ' + kq.vatTu.ton.length + ' tồn kho + ' + kq.vatTu.phieu.length + ' phiếu');
 for (const t of ['tk3', 'tk4']) {
     console.log('  Ngày cuối có số (' + t.toUpperCase() + '): ' + Object.entries(kq.moc[t]).sort((a, b) => a[1] < b[1] ? -1 : 1)
         .map(([k, n]) => k + ' ' + n.slice(5).split('-').reverse().join('/')).join(', '));

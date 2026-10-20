@@ -216,8 +216,10 @@ function clDungDong(kq) {
     }
 
     if (kq.thieuCot.length) {
+        /* Không có cột, hoặc có cột mà tháng này chưa có số dùng được (vd cỡ hạt
+           <0,5mm than cần phiếu BK ghi 4 số) */
         giua.appendChild(cbEl('span', 'cb-row__phu',
-            'Chưa có cột trong bảng tính: ' + kq.thieuCot.join(', ')));
+            'Chưa có số tháng này (hoặc bảng tính chưa có cột): ' + kq.thieuCot.join(', ')));
     }
 
     dong.appendChild(giua);

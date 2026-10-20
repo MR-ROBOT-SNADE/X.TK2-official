@@ -46,9 +46,12 @@ CREATE TABLE IF NOT EXISTS chi_tieu (
 -- cùng một kíp lặp lại nhiều hàng liền nhau.
 -- Ví dụ ô 'Điện năng' kíp A ngày 01/10 của TK3:
 --   ('dien.dien_nang', 'TK3', '2026-10-01', 1, 1, 'A', 1234, NULL, 1759300000000)
+-- day_chuyen KHÔNG có CHECK: danh sách dây chuyền (TK1..TK4) kiểm trong code
+-- (DAY_CHUYEN ở db/chuan-hoa.mjs). D1 tạo trước 09/10/2026 có CHECK TK3/TK4 ->
+-- chạy migrations/0007_tk12.sql một lần (npm run db:mo-tk12).
 CREATE TABLE IF NOT EXISTS so_lieu (
     chi_tieu    TEXT    NOT NULL REFERENCES chi_tieu(ma),
-    day_chuyen  TEXT    NOT NULL CHECK (day_chuyen IN ('TK3', 'TK4')),
+    day_chuyen  TEXT    NOT NULL,
     ngay        TEXT    NOT NULL,       -- 'YYYY-MM-DD' (ô ngày gộp đã được điền xuôi)
     stt         INTEGER NOT NULL,       -- thứ tự hàng trong NGÀY của khối, từ 1;
                                         -- 0 = hàng mở đầu ngày CHƯA có kíp, chỉ giữ ô

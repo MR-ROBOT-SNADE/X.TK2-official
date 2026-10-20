@@ -8,8 +8,10 @@
  *     2) với mỗi tuyến, đổ dữ liệu vào biến chung của trang:
  *          window.masterSheetDataTK3    mảng hàng của bảng tính TK3
  *          window.masterSheetDataTK4    mảng hàng của bảng tính TK4
+ *          window.masterSheetDataTK1/TK2  bảng TK1, TK2 (Xưởng Thiêu kết 1)
  *          window.masterSheetDataVATTU  { TK3: {tongHop,nhap,xuat}, TK4: {...} }
- *        rồi bắn sự kiện 'TK3DataReady' / 'TK4DataReady' / 'VATTUDataReady';
+ *        rồi bắn sự kiện 'TK3DataReady' / 'TK4DataReady' / 'TK1DataReady' /
+ *        'TK2DataReady' / 'VATTUDataReady';
  *     3) nhận chỉ số trang chủ máy chủ tính sẵn, bắn 'ChiSoReady'.
  *   Các file biểu đồ (chart_cook.js, canhbao.js, personnel.js, vattu.js...) chỉ
  *   việc lắng nghe các sự kiện đó và đọc các biến trên.
@@ -33,6 +35,10 @@
 
 window.masterSheetDataTK3 = [];
 window.masterSheetDataTK4 = [];
+/* TK1, TK2 (Xưởng Thiêu kết 1): cùng dạng bảng như TK3 (cùng tên cột), chỉ có các
+   khối tiêu hao + sản lượng — xem apps-script/tk12-nguon.gs */
+window.masterSheetDataTK1 = [];
+window.masterSheetDataTK2 = [];
 /* Vật tư có dạng khác hẳn: { TK3: {tongHop,nhap,xuat}, TK4: {...} } */
 window.masterSheetDataVATTU = null;
 
@@ -255,6 +261,8 @@ async function apiNhanChiSo(loiHua) {
 async function loadGoogleSheetData() {
     const p3 = apiLayLoiHua('TK3');
     const p4 = apiLayLoiHua('TK4');
+    const p1 = apiLayLoiHua('TK1');
+    const p2 = apiLayLoiHua('TK2');
     const pVT = apiLayLoiHua('VATTU');
     const pCS = apiLayLoiHua('CHI_SO');
 
@@ -268,6 +276,8 @@ async function loadGoogleSheetData() {
         apiNhanChiSo(pCS),
         apiMotDay('TK3', p3),
         apiMotDay('TK4', p4),
+        apiMotDay('TK1', p1),
+        apiMotDay('TK2', p2),
         apiMotDay('VATTU', pVT),
     ]);
 

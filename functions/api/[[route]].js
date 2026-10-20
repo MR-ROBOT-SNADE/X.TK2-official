@@ -14,19 +14,29 @@
  *
  * CÁC ĐƯỜNG DẪN
  *   POST /api/tk3 | tk4 | vattu   Apps Script đẩy dữ liệu (phải có header x-push-key)
- *   GET  /api/tk3 | tk4 | vattu   bản KV: nguyên văn lần đẩy gần nhất (đường lui)
- *   GET  /api/v2/tk3 | tk4        số liệu từ D1, theo khoảng tháng ?tu=YYYY-MM&den=YYYY-MM
+ *   POST /api/tk1 | tk2           bản cả bảng của TK1/TK2 — CHỈ giữ trong KV (TUYEN_CHI_KHOI_NGAY)
+ *   POST /api/day/tk1..tk4        Apps Script đẩy các KHỐI-NGÀY đã đổi (apps-script/khoi-ngay.gs,
+ *                                 db/day-khoi-ngay.mjs) — nhẹ, thay cho đẩy cả sheet; khi đường
+ *                                 này đang chạy, POST /api/tk3 chỉ còn giữ bản KV (xem apiDay)
+ *   GET  /api/tk1..tk4 | vattu    bản KV: nguyên văn lần đẩy gần nhất (đường lui)
+ *   GET  /api/v2/tk1..tk4         số liệu từ D1, theo khoảng tháng ?tu=YYYY-MM&den=YYYY-MM
  *   GET  /api/v2/vattu            vật tư từ D1
  *   GET  /api/v2/chi-so           số liệu trang chủ đã tính sẵn (dải chỉ số, sản lượng,
  *                                 3 bảng cảnh báo)
+ *   POST /api/nhan-su             Apps Script đẩy danh sách nhân sự 3 kíp đọc từ sheet nhân sự
+ *                                 của xưởng (apps-script/nhan-su.gs, db/nhan-su.mjs) — nguồn
+ *                                 RIÊNG, không dính TK3
+ *   GET  /api/v2/nhan-su          danh sách nhân sự cho sơ đồ tổ chức (js/components/personnel.js)
  *   GET  /api/trang-thai          tình trạng đẩy + đồng bộ; mở thẳng trên trình duyệt được
- *   GET  /api/nap, POST /api/nap, POST /api/nap/huy
- *                                 trang nạp Excel (nap-lieu.html): danh sách / nạp / huỷ
+ *   GET  /api/nap, GET /api/nap/da-nap, POST /api/nap, POST /api/nap/huy
+ *                                 trang nạp Excel (nap-lieu.html): danh sách / ngày đã nạp /
+ *                                 nạp / huỷ
  *                                 — cần header x-nap-key (xem apiNap)
  *
  * "TUYẾN" LÀ GÌ
  *   Một luồng dữ liệu riêng: 'tk3' (dây chuyền Thiêu kết 3), 'tk4' (Thiêu kết 4),
- *   'vattu' (kho vật tư). Mỗi tuyến có Apps Script đẩy riêng, ô KV riêng.
+ *   'vattu' (kho vật tư), 'tk1' / 'tk2' (Xưởng Thiêu kết 1 — chưa lên biểu đồ).
+ *   Mỗi tuyến có Apps Script đẩy riêng, ô KV riêng.
  *
  * CÀI ĐẶT LẦN ĐẦU (Cloudflare > Workers & Pages > xtk2-profile > Settings)
  *   1) Bindings -> KV namespace XTK2_SHEET, tên biến SHEET_KV.
@@ -50,13 +60,17 @@
  *   10 ms CPU mỗi lượt gọi; KV 1.000 lần ghi/ngày; D1 100.000 dòng ghi/ngày.
  * ===========================================================================*/
 
-import { dongBoD1, ghiLoiDongBo, docTrangThaiDongBo } from '../../db/dong-bo-d1.mjs';
+import { dongBoD1, ghiLoiDongBo, docTrangThaiDongBo, docSoDongBo, lyDoBoQua } from '../../db/dong-bo-d1.mjs';
 import { docPhienV2, docGoiV2, docPhienVatTu, docVatTuV2, phamViThang } from '../../db/goi-v2.mjs';
-import { docPhienChiSo, docChiSo } from '../../db/chi-so.mjs';
-import { napExcel, huyNap, dsLanNap, LoiNap } from '../../db/nap-excel.mjs';
+import { docPhienChiSo, layChiSo } from '../../db/chi-so.mjs';
+import { napExcel, huyNap, dsLanNap, khoiNgayDaNap, LoiNap } from '../../db/nap-excel.mjs';
+import { soSanhKhoiNgay, ghiKhoiNgay, dayChuyenCuaTuyen, tuyenKhoiNgay } from '../../db/day-khoi-ngay.mjs';
+import { ghiNhanSu, docNhanSu, DONG_BO_NHAN_SU } from '../../db/nhan-su.mjs';
 
 /** /api/nap — NẠP SỐ LIỆU TỪ FILE EXCEL (trang nap-lieu.html, db/nap-excel.mjs)
  *    GET  /api/nap        30 lần nạp gần nhất (trang dùng luôn để kiểm khoá)
+ *    GET  /api/nap/da-nap?dc=TK4&tu=YYYY-MM-DD&den=YYYY-MM-DD
+ *                         các khối-ngày đã nạp trong khoảng đó (để không gửi lại)
  *    POST /api/nap        nạp một file (gói JSON: xem đầu db/nap-excel.mjs)
  *    POST /api/nap/huy    { "id": <mã lần nạp> } — huỷ một lần nạp
  *  Mọi lượt phải có header x-nap-key = NAP_KEY (Cloudflare > Settings > Variables
@@ -79,6 +93,13 @@ async function apiNap(request, env, doan) {
             r.headers.set('cache-control', 'no-store');
             return r;
         }
+        if (request.method === 'GET' && viec === 'da-nap') {
+            const q = new URL(request.url).searchParams;
+            const r = traJson({ status: 'success',
+                khoi_ngay: await khoiNgayDaNap(env.DB, q.get('dc'), q.get('tu'), q.get('den')) });
+            r.headers.set('cache-control', 'no-store');
+            return r;
+        }
         if (request.method === 'POST' && (!viec || viec === 'huy')) {
             const body = await request.text();
             if (body.length > 2000000) return traJson({ status: 'error', message: 'Gói quá 2 MB — chia file theo tháng' }, 413);
@@ -97,7 +118,15 @@ async function apiNap(request, env, doan) {
 
 /* Danh sách tuyến được phép. Thêm luồng dữ liệu mới thì thêm tên vào đây.
    Tên lạ bị từ chối, để người ngoài không ghi rác vào KV được. */
-const TUYEN = ['tk3', 'tk4', 'vattu'];
+const TUYEN = ['tk3', 'tk4', 'vattu', 'tk1', 'tk2'];
+/* Các tuyến là DÂY CHUYỀN (có đường đẩy khối-ngày). Thêm dây mới: thêm ở đây,
+   ở TUYEN, và DAY_CHUYEN trong db/chuan-hoa.mjs. */
+const TUYEN_DAY_CHUYEN = ['tk3', 'tk4', 'tk1', 'tk2'];
+/* Tuyến mà số vào D1 CHỈ qua đường khối-ngày: POST /api/<tuyến> (cả bảng) chỉ
+   giữ bản KV, KHÔNG BAO GIỜ đồng bộ D1. TK1/TK2: file nguồn chỉ chứa THÁNG ĐANG
+   CHẠY (apps-script/tk12-nguon.gs) — đồng bộ cũ (cửa sổ 14 ngày, xoá ô vắng) mà
+   chạy đầu tháng thì xoá mất các ngày cuối tháng trước. */
+const TUYEN_CHI_KHOI_NGAY = ['tk1', 'tk2'];
 
 /* Quá 6 giờ không có lần đẩy mới thì /api/trang-thai báo tuyến đó là "CŨ".
    Phải giữ bằng API_CANH_BAO_CU_GIAY trong js/api/api_config.js (trình duyệt
@@ -112,27 +141,135 @@ function khoaKV(ten) { return 'sheet:' + ten; }
    30 ngày mà phía web không có manh mối nào. Giờ /api/trang-thai hiện ra. */
 function khoaLoiKV(ten) { return 'loi:' + ten; }
 
+/* 'nhip:tk3': mốc lượt đẩy KHỐI-NGÀY gần nhất (POST /api/day/tk3, xem apiDay) —
+   giá trị rỗng, chỉ dùng metadata { at }. Đường mới không ghi lại cả sheet vào
+   'sheet:tk3', nên mốc "Apps Script còn đẩy" = cái nào MỚI HƠN trong hai ô (mocDay). */
+function khoaNhipKV(ten) { return 'nhip:' + ten; }
+
+/* Đường khối-ngày coi là ĐANG CHẠY nếu lượt gần nhất chưa quá ngưỡng này. Khi đó
+   đường cũ (POST /api/tk3, cả sheet) chỉ ghi KV, KHÔNG đồng bộ D1 — số sheet chỉ
+   một nơi ghi. Quá ngưỡng (Apps Script mới hỏng hay bị gỡ) thì đường cũ tự đồng bộ
+   lại như trước — không bao giờ để D1 đứng im. */
+const NGUONG_KHOI_NGAY_MS = 6 * 3600 * 1000;
+
+/** Metadata ô nhịp khối-ngày ({ at }) hoặc null. Không bao giờ ném lỗi. */
+async function docNhip(env, ten) {
+    if (TUYEN_DAY_CHUYEN.indexOf(ten) < 0) return null;
+    try {
+        const x = await env.SHEET_KV.getWithMetadata(khoaNhipKV(ten));
+        return (x && x.metadata) || null;
+    } catch (e) { return null; }
+}
+
+/** Mốc Apps Script đẩy gần nhất của một tuyến = mới hơn trong hai đường đẩy. */
+function mocDay(meta, nhip) { return Math.max((meta && meta.at) || 0, (nhip && nhip.at) || 0); }
+
 /** Băm SHA-1 một chuỗi -> 40 ký tự hex. Dùng làm ETag ("dấu vân tay" của dữ
  *  liệu): hai lần đẩy giống hệt nhau cho cùng một ETag. */
-async function tinhEtag(chuoi) {
-    const bytes = new TextEncoder().encode(chuoi);
-    const digest = await crypto.subtle.digest('SHA-1', bytes);
+/** ETag của một lần đẩy = SHA-1 (hex) của thân request, BỎ trường "timing" ở cuối
+ *  (xem soByteDeBam). Băm thẳng các BYTE nhận được: không dựng chuỗi rồi mã hoá
+ *  lại 3 MB (đỡ ~6 ms CPU với gói TK3), mà vẫn ra đúng giá trị như cách tính cũ
+ *  (băm chuỗi UTF-8 của cùng nội dung) — ETag cũ trong KV / D1 vẫn so khớp được. */
+async function tinhEtag(bytes) {
+    const digest = await crypto.subtle.digest('SHA-1', bytes.subarray(0, soByteDeBam(bytes)));
     return [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-/** Lấy phần của body dùng để tính ETag — tức là bỏ trường "timing" ở cuối.
+/** Số byte ĐẦU của thân dùng để tính ETag — tức là bỏ trường "timing" ở cuối.
  *
  *  Vì sao: Apps Script gửi kèm "timing" (số mili-giây nó chạy mỗi bước), lần đẩy
  *  nào cũng khác. Băm cả body thì ETag đổi sau MỖI lần đẩy dù bảng tính y
  *  nguyên -> trình duyệt tưởng có dữ liệu mới, tải lại hết, vẽ lại mọi biểu đồ.
  *
- *  An toàn: chỉ cắt khi CHẮC CHẮN timing là trường cuối cùng. Không đúng dạng đó
- *  thì băm cả body như cũ — vẫn đúng, chỉ kém hiệu quả, không bao giờ bỏ sót
- *  thay đổi của số liệu. */
-function phanDeBam(body, j) {
-    if (!j || !j.timing || typeof j.timing !== 'object') return body;
-    const duoi = '"timing":' + JSON.stringify(j.timing) + '}';
-    return body.endsWith(duoi) ? body.slice(0, body.length - duoi.length) : body;
+ *  Chỉ giải mã ~4 KB cuối, không đụng phần còn lại. An toàn: chỉ cắt khi thân
+ *  kết thúc bằng "timing":<giá trị>} mà <giá trị> là MỘT đối tượng JSON trọn vẹn,
+ *  viết đúng như JSON.stringify viết lại — tức "timing" là trường cuối của đối
+ *  tượng ngoài cùng (nằm sâu hơn thì phía sau còn dấu đóng khác, parse hỏng).
+ *  Cùng điều kiện với cách cũ (parse cả thân rồi so đuôi). Không đúng dạng thì
+ *  băm cả thân — vẫn đúng, chỉ kém hiệu quả, không bao giờ bỏ sót thay đổi. */
+function soByteDeBam(bytes) {
+    const n = Math.min(bytes.length, 4096);
+    const duoi = new TextDecoder().decode(bytes.subarray(bytes.length - n));
+    const i = duoi.lastIndexOf('"timing":');
+    if (i < 0 || !duoi.endsWith('}')) return bytes.length;
+    const giaTri = duoi.slice(i + '"timing":'.length, -1);
+    try {
+        const t = JSON.parse(giaTri);
+        if (!t || typeof t !== 'object' || JSON.stringify(t) !== giaTri) return bytes.length;
+    } catch (e) { return bytes.length; }
+    return bytes.length - new TextEncoder().encode(duoi.slice(i)).length;
+}
+
+/** KIỂM NHANH một lần đẩy cả sheet của DÂY CHUYỀN, KHÔNG JSON.parse cả thân.
+ *
+ *  Vì sao: khi đường khối-ngày đang chạy, lượt đẩy cả sheet (4 giờ một lần) chỉ
+ *  còn cất bản KV — vậy mà trước đây vẫn giải mã + JSON.parse cả 3,4 MB (TK3) /
+ *  2,2 MB (TK4), ~8–10 ms CPU, chỉ để kiểm dạng và đếm số dòng.
+ *
+ *  Dạng chờ đợi (JSON.stringify của Apps Script viết liền, không dấu cách):
+ *    {"status":"success","total_rows":1084,"data":[{...},{...}],"canh_bao":{...},"timing":{...}}
+ *  Hàm chỉ nhìn:
+ *    1) ĐẦU thân (≤ 2 KB đầu): byte đầu là "{"; các trường trước "data" đều là giá
+ *       trị đơn (chuỗi, số...); có "status":"success"; "data" là mảng mở bằng
+ *       [{ — tức có ít nhất một dòng;
+ *    2) CUỐI thân: ngay trước dấu "]" cuối cùng là "}" (dòng cuối), sau nó chỉ còn
+ *       "}" hoặc các trường khác (parse riêng đoạn đuôi ~1 KB này) — thân không bị
+ *       cắt cụt, và đuôi không lén ghi đè status / data;
+ *    3) SỐ DÒNG = 1 + số chỗ nối hai dòng },{" trong mảng data — tìm thẳng trên
+ *       byte, không giải mã. Thân có total_rows (TK3/TK4 gửi kèm) thì hai số phải
+ *       khớp nhau.
+ *  Ra { soDong } khi ĐÚNG dạng trên. Mọi trường hợp khác ra null -> nơi gọi kiểm
+ *  KỸ bằng JSON.parse như cũ, và cách cũ nói rõ lý do từ chối (trang HTML báo lỗi,
+ *  JSON rỗng, status lỗi, data rỗng...). Tức là hàm này chỉ làm NHANH những lần
+ *  đẩy tốt, không bao giờ nhận thứ mà cách cũ từ chối.
+ *  Đo trên bản thật (16/10/2026, máy cá nhân): ~1,4 ms (TK3) / ~1 ms (TK4) thay
+ *  vì ~10 ms / ~7 ms. */
+function kiemNhanhMang(bytes) {
+    const n = bytes.length;
+    if (n < 16 || bytes[0] !== 0x7B) return null;                   /* 0x7B = "{" */
+    /* 1) Đầu thân: duyệt từng trường "tên":giá trị cho tới "data":[ */
+    const dau = new TextDecoder().decode(bytes.subarray(0, Math.min(n, 2048)));
+    const truong = /"([A-Za-z_]+)":("(?:[^"\\]|\\.)*"|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|true|false|null|\[)/y;
+    let i = 1, thanhCong = false, tongDong = -1;
+    for (;;) {
+        truong.lastIndex = i;
+        const m = truong.exec(dau);
+        if (!m) return null;               /* trường lạ / giá trị lồng nhau / quá 2 KB */
+        i = truong.lastIndex;
+        if (m[2] === '[') {
+            if (m[1] !== 'data' || dau[i] !== '{') return null;    /* data rỗng / không phải dòng */
+            break;
+        }
+        if (m[1] === 'status') thanhCong = m[2] === '"success"';
+        else if (m[1] === 'total_rows') tongDong = Number(m[2]);
+        else if (m[1] === 'data') return null;                     /* data không phải mảng */
+        if (dau[i] !== ',') return null;
+        i++;
+    }
+    if (!thanhCong) return null;
+    const batDau = new TextEncoder().encode(dau.slice(0, i)).length;   /* byte của "{" dòng đầu */
+    /* 2) Cuối thân: dấu "]" cuối cùng phải là dấu đóng mảng data */
+    const dong = bytes.lastIndexOf(0x5D);                            /* 0x5D = "]" */
+    if (dong <= batDau || bytes[dong - 1] !== 0x7D) return null;     /* 0x7D = "}" */
+    const duoi = new TextDecoder().decode(bytes.subarray(dong + 1));
+    if (duoi !== '}') {
+        if (duoi[0] !== ',') return null;
+        let o;
+        try { o = JSON.parse('{' + duoi.slice(1)); } catch (e) { return null; }
+        for (const k of ['status', 'data', 'total_rows']) {
+            if (Object.prototype.hasOwnProperty.call(o, k)) return null;
+        }
+    }
+    /* 3) Đếm dòng: mỗi },{" (0x7D 0x2C 0x7B 0x22) trong mảng data là ranh giới hai
+       dòng (dòng mới mở bằng tên cột). Trong một ô chữ, dấu " luôn được viết \" nên
+       chỉ ô kết thúc đúng bằng },{ mới đếm nhầm — total_rows bắt được chuyện đó. */
+    const mang = bytes.subarray(batDau, dong);
+    let soDong = 1;
+    for (let k = mang.indexOf(0x7D); k >= 0; k = mang.indexOf(0x7D, k + 1)) {
+        if (mang[k + 1] === 0x2C && mang[k + 2] === 0x7B && mang[k + 3] === 0x22) soDong++;
+    }
+    if (tongDong >= 0 && tongDong !== soDong) return null;
+    return { soDong: soDong };
 }
 
 /** Trả một đối tượng JS dưới dạng JSON, kèm mã trạng thái HTTP (mặc định 200). */
@@ -202,7 +339,7 @@ async function apiV2(request, env, url, ten) {
     if (request.method !== 'GET' && request.method !== 'HEAD') {
         return traJson({ status: 'error', message: '/api/v2 chỉ để đọc' }, 405);
     }
-    if (TUYEN.indexOf(ten) < 0 && ten !== 'chi-so') {
+    if (TUYEN.indexOf(ten) < 0 && ten !== 'chi-so' && ten !== 'nhan-su') {
         return traJson({ status: 'error', message: 'Tuyến không hợp lệ: ' + ten }, 404);
     }
     if (!goiTuTrangNha(request, url)) {
@@ -212,20 +349,22 @@ async function apiV2(request, env, url, ten) {
     }
     if (!env.DB) return traJson({ status: 'error', message: 'Chưa gắn binding DB' }, 503);
     if (ten === 'chi-so') return apiChiSo(request, env);
+    if (ten === 'nhan-su') return apiV2NhanSu(request, env);
 
     try {
         const laVatTu = ten === 'vattu';
         const pv = phamViThang(url);              /* { tu, den, dau } từ ?tu=&den= */
         /* Bước 1 (rẻ): chỉ đọc "phiên" — đủ để tính ETag — song song với metadata
            KV (lấy mốc đẩy). Chưa đọc số liệu. */
-        const [phien, kv] = await Promise.all([
+        const [phien, kv, nhip] = await Promise.all([
             laVatTu ? docPhienVatTu(env.DB) : docPhienV2(env.DB, ten, pv),
             env.SHEET_KV.getWithMetadata(khoaKV(ten), { type: 'stream' }),
+            docNhip(env, ten),
         ]);
         if (kv.value) await kv.value.cancel();    /* chỉ cần metadata, bỏ luồng dữ liệu */
         if (!phien) return traJson({ status: 'error', message: 'D1 chưa có gói dữ liệu cho ' + ten }, 503);
 
-        const dayLuc = (kv.metadata && kv.metadata.at) || 0;
+        const dayLuc = mocDay(kv.metadata, nhip);    /* cả sheet hoặc khối-ngày, cái nào mới hơn */
         const moc = {
             'cache-control': 'private, no-cache',
             'vary':          'Sec-Fetch-Site',
@@ -257,6 +396,24 @@ async function apiV2(request, env, url, ten) {
     }
 }
 
+/** GET /api/v2/nhan-su — danh sách nhân sự 3 kíp (db/nhan-su.mjs docNhanSu), ~11 KB.
+ *  ETag theo nội dung: danh sách không đổi -> 304, trình duyệt dùng lại bản đã có.
+ *  Bảng chưa có ai / chưa có bảng -> 503: personnel.js giữ nguyên thứ đang hiện. */
+async function apiV2NhanSu(request, env) {
+    try {
+        const x = await docNhanSu(env.DB);
+        if (!x) return traJson({ status: 'error', message: 'Chưa có danh sách nhân sự — chờ Apps Script nhan-su.gs đẩy lượt đầu' }, 503);
+        const moc = { 'cache-control': 'private, no-cache', 'vary': 'Sec-Fetch-Site', 'etag': x.etag, 'x-xtk2-source': 'd1' };
+        if ((request.headers.get('if-none-match') || '').replace(/^W\//, '') === x.etag) {
+            return new Response(null, { status: 304, headers: moc });
+        }
+        return new Response(x.body, { headers: Object.assign({ 'content-type': 'application/json; charset=utf-8' }, moc) });
+    } catch (e) {
+        console.error('[v2] nhan-su lỗi:', e && e.message);
+        return traJson({ status: 'error', message: e instanceof LoiNap ? e.message : 'Không đọc được D1' }, 503);
+    }
+}
+
 /** GET /api/v2/chi-so — các con số của TRANG CHỦ, máy chủ tính sẵn.
  *
  *  Gồm: dải chỉ số chạy ngang, 4 thẻ Sản lượng, biểu đồ sản lượng tháng, 3 bảng
@@ -265,7 +422,10 @@ async function apiV2(request, env, url, ten) {
  *  không phải đợi tải và tính cả bảng.
  *
  *  Kết quả phụ thuộc NGÀY HÔM NAY (giờ Việt Nam: "luỹ kế đến hôm nay", "7 ngày
- *  gần nhất"...) nên ngày nằm trong ETag. Lỗi -> 503, trình duyệt tự tính lấy. */
+ *  gần nhất"...) nên ngày nằm trong ETag. Lỗi -> 503, trình duyệt tự tính lấy.
+ *
+ *  Phép tính tốn ~36 ms CPU nên mỗi ETag chỉ tính MỘT lần rồi nhớ lại (trong
+ *  isolate + bảng chi_so_nho của D1) — xem layChiSo trong db/chi-so.mjs. */
 async function apiChiSo(request, env) {
     try {
         const p = await docPhienChiSo(env.DB, Date.now());
@@ -278,7 +438,7 @@ async function apiChiSo(request, env) {
         if ((request.headers.get('if-none-match') || '').replace(/^W\//, '') === p.etag) {
             return new Response(null, { status: 304, headers: moc });
         }
-        const body = await docChiSo(env.DB, p);
+        const body = await layChiSo(env.DB, p);
         if (!body) return traJson({ status: 'error', message: 'Gói tháng đang dựng lại' }, 503);
         return new Response(body, {
             headers: Object.assign({ 'content-type': 'application/json; charset=utf-8' }, moc),
@@ -309,35 +469,55 @@ async function trangThai(env) {
         catch (e) { d1 = { loiDocD1: String(e && e.message).slice(0, 200) }; }
     }
     await Promise.all(TUYEN.map(async function (t) {
-        const [{ value, metadata }, loi] = await Promise.all([
+        const [{ value, metadata }, loi, nhip] = await Promise.all([
             env.SHEET_KV.getWithMetadata(khoaKV(t), { type: 'stream' }),
             env.SHEET_KV.getWithMetadata(khoaLoiKV(t)),
+            docNhip(env, t),
         ]);
         if (value) await value.cancel();
+        /* Lần đẩy gần nhất = đường cả sheet hoặc đường khối-ngày, cái nào mới hơn */
+        const moc = mocDay(metadata, nhip);
         /* Chỉ báo lỗi khi nó MỚI HƠN lần đẩy thành công gần nhất. Đẩy lại được
            rồi thì lỗi cũ tự thôi hiện — khỏi tốn một lần ghi KV để xoá nó. */
-        const loiMoi = loi && loi.metadata && loi.metadata.at
-            && (!metadata || !metadata.at || loi.metadata.at > metadata.at)
+        const loiMoi = loi && loi.metadata && loi.metadata.at && loi.metadata.at > moc
             ? { luc: gio(loi.metadata.at), viSao: loi.value } : null;
-        if (!metadata || !metadata.at) {
+        if (!moc) {
             tuyen[t] = { tinhTrang: value ? 'CÓ DỮ LIỆU NHƯNG THIẾU METADATA' : 'CHƯA CÓ LẦN ĐẨY NÀO' };
             if (loiMoi) tuyen[t].loiGanNhat = loiMoi;
             return;
         }
-        const tuoi = Math.round((bayGio - metadata.at) / 1000);
+        const tuoi = Math.round((bayGio - moc) / 1000);
         tuyen[t] = {
             tinhTrang: loiMoi ? 'LỖI — Apps Script có đẩy nhưng dữ liệu bị từ chối, xem loiGanNhat'
                 : tuoi > NGUONG_CU_GIAY ? 'CŨ — kiểm tra trigger Apps Script' : 'OK',
-            lanDayCuoi: gio(metadata.at),
+            lanDayCuoi: gio(moc),
             cachDayGiay: tuoi,
-            soDong: metadata.soDong || null,
+            soDong: (metadata && metadata.soDong) || null,
         };
+        if (nhip && nhip.at) {
+            /* Đường khối-ngày đang dùng: bản CẢ SHEET trong KV giờ chỉ đẩy vài giờ một
+               lần (đường lui của dashboard, nguồn db:chuan-bi) — cũ quá thì báo riêng */
+            const tuoiCaSheet = metadata && metadata.at ? Math.round((bayGio - metadata.at) / 1000) : null;
+            tuyen[t].khoiNgay = { lanSoSanhCuoi: gio(nhip.at), banCaSheet: tuoiCaSheet === null ? 'chưa có' : gio(metadata.at) };
+            if (tuoiCaSheet === null || tuoiCaSheet > NGUONG_CU_GIAY) {
+                tuyen[t].khoiNgay.canhBao = TUYEN_CHI_KHOI_NGAY.indexOf(t) >= 0
+                    ? 'Bản cả bảng trong KV cũ hơn 6 giờ — kiểm tra lịch dayTK12 (apps-script/tk12-nguon.gs)'
+                    : 'Bản cả sheet trong KV cũ hơn 6 giờ — kiểm tra lịch dayLenCloudflare (db:chuan-bi đang đọc bản này)';
+            }
+        }
         if (loiMoi) tuyen[t].loiGanNhat = loiMoi;
     }));
     /* Gắn thêm mục "d1" cho từng tuyến */
     for (const t of TUYEN) {
         if (!d1) { tuyen[t].d1 = 'chưa gắn binding DB'; continue; }
         if (d1.loiDocD1) { tuyen[t].d1 = 'không đọc được D1: ' + d1.loiDocD1; continue; }
+        /* Đường khối-ngày ghi sổ ở dòng riêng 'tk3/khoi-ngay' */
+        const y = d1[tuyenKhoiNgay(t)];
+        if (y && (y.luc || y.loi)) {
+            tuyen[t].d1KhoiNgay = { lanGhiCuoi: y.luc ? gio(y.luc) : null, soO: y.so_o, soDongDoi: y.so_ghi };
+            if (y.loi) tuyen[t].d1KhoiNgay.loi = { luc: gio(y.loi_luc), viSao: y.loi };
+        }
+        if (TUYEN_CHI_KHOI_NGAY.indexOf(t) >= 0) { tuyen[t].d1 = 'chỉ vào D1 qua đường khối-ngày — xem d1KhoiNgay'; continue; }
         const x = d1[t];
         if (!x || (!x.luc && !x.loi)) { tuyen[t].d1 = 'chưa đồng bộ lần nào'; continue; }
         tuyen[t].d1 = {
@@ -345,8 +525,27 @@ async function trangThai(env) {
             soO: x.so_o, soDongDoi: x.so_ghi,
         };
         if (x.loi) tuyen[t].d1.loi = { luc: gio(x.loi_luc), viSao: x.loi };
+        if (tuyen[t].khoiNgay) tuyen[t].d1.ghiChu = 'Đường cả sheet chỉ giữ bản KV — số sheet vào D1 qua đường khối-ngày (d1KhoiNgay)';
     }
-    return new Response(JSON.stringify({ status: 'success', nguongCuGiay: NGUONG_CU_GIAY, tuyen: tuyen }, null, 2), {
+    /* Danh sách nhân sự (POST /api/nhan-su — nguồn riêng, không thuộc tuyến nào):
+       Apps Script đẩy mỗi giờ, kể cả khi không đổi -> lâu không thấy lượt nào là
+       lịch dayNhanSu (apps-script/nhan-su.gs) đã dừng */
+    let nhanSu;
+    if (!d1 || d1.loiDocD1) nhanSu = !d1 ? 'chưa gắn binding DB' : 'không đọc được D1: ' + d1.loiDocD1;
+    else {
+        const y = d1[DONG_BO_NHAN_SU];
+        if (!y || (!y.luc && !y.loi)) nhanSu = 'chưa có lần đẩy nào — cài apps-script/nhan-su.gs';
+        else {
+            const tuoi = y.luc ? Math.round((bayGio - y.luc) / 1000) : null;
+            nhanSu = {
+                tinhTrang: y.loi ? 'LỖI — xem loi'
+                    : tuoi === null || tuoi > NGUONG_CU_GIAY ? 'CŨ — kiểm tra lịch dayNhanSu (apps-script/nhan-su.gs)' : 'OK',
+                lanDayCuoi: y.luc ? gio(y.luc) : null, soNguoi: y.so_o, soDongDoi: y.so_ghi,
+            };
+            if (y.loi) nhanSu.loi = { luc: gio(y.loi_luc), viSao: y.loi };
+        }
+    }
+    return new Response(JSON.stringify({ status: 'success', nguongCuGiay: NGUONG_CU_GIAY, tuyen: tuyen, nhanSu: nhanSu }, null, 2), {
         headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
     });
 }
@@ -356,12 +555,95 @@ async function trangThai(env) {
  * -----------------------------------------------------------------------------
  * Thứ tự xét (quan trọng — đổi thứ tự là đổi hành vi):
  *   0) /api/nap...        -> apiNap()  (khoá riêng, không cần KV)
+ *   0') /api/nhan-su      -> apiNhanSu() (danh sách nhân sự, không cần KV)
  *   1) /api/v2/...        -> apiV2()   (xét TRƯỚC nhánh POST, xem chú thích dưới)
+ *   1') /api/day/...      -> apiDay()  (đẩy khối-ngày; cũng phải trước nhánh POST)
  *   2) /api/trang-thai    -> trangThai()
  *   3) tên tuyến lạ       -> 404
  *   4) POST /api/<tuyến>  -> Apps Script đẩy dữ liệu
  *   5) GET  /api/<tuyến>  -> trả bản KV
  * ===========================================================================*/
+/** POST /api/day/<tuyến> — Apps Script đẩy các KHỐI-NGÀY đã đổi (apps-script/khoi-ngay.gs,
+ *  db/day-khoi-ngay.mjs) thay vì cả sheet. Khoá: x-push-key = PUSH_KEY như đường cũ.
+ *    { buoc: 'so-sanh', khoi, thang, nhan_su }  -> các tháng lệch + dấu từng ngày máy chủ giữ
+ *    { buoc: 'ghi', phan, nhan_su }             -> ghi các khối-ngày đã đổi
+ *  Mỗi lượt so sánh ghi ô 'nhip:<tuyến>' (mốc đẩy, xem khoaNhipKV). Gói sai (LoiNap)
+ *  -> 400 kèm lý do; lỗi khác -> 500. Cả hai ghi 'loi:<tuyến>' + sổ dong_bo để
+ *  /api/trang-thai hiện ra; Apps Script thấy mã lỗi thì không coi là xong, lượt
+ *  sau gửi lại. */
+async function apiDay(request, env, ten) {
+    if (request.method !== 'POST') return traJson({ status: 'error', message: '/api/day chỉ nhận POST' }, 405);
+    const khoa = request.headers.get('x-push-key') || '';
+    if (!env.PUSH_KEY || !khoaDung(khoa, env.PUSH_KEY)) {
+        console.warn('[Khối-ngày] ' + ten + ': sai khoá');      /* không ghi KV — xem POST cũ */
+        return traJson({ status: 'error', message: 'Sai khoá' }, 401);
+    }
+    const dc = TUYEN_DAY_CHUYEN.indexOf(ten) >= 0 ? dayChuyenCuaTuyen(ten) : '';
+    if (!dc) return traJson({ status: 'error', message: 'Tuyến không hợp lệ: ' + ten }, 404);
+    if (!env.DB) return traJson({ status: 'error', message: 'Chưa gắn binding DB' }, 503);
+    if (Number(request.headers.get('content-length') || 0) > 3000000) {
+        return traJson({ status: 'error', message: 'Gói quá 3 MB — chia nhỏ hơn' }, 413);
+    }
+    let j;
+    try { j = await request.json(); } catch (e) { j = null; }
+    const luc = Date.now();
+    try {
+        if (j && j.buoc === 'so-sanh') {
+            const kq = await soSanhKhoiNgay(env.DB, dc, j);
+            await env.SHEET_KV.put(khoaNhipKV(ten), '', { metadata: { at: luc } });
+            return traJson(Object.assign({ status: 'success' }, kq));
+        }
+        if (j && j.buoc === 'ghi') {
+            const kq = await ghiKhoiNgay(env.DB, dc, ten, j, luc);
+            console.info('[Khối-ngày] ' + ten + ': ' + kq.so_khoi_ngay + ' khối-ngày, ' + kq.so_o + ' ô, '
+                + kq.so_ghi + ' dòng đổi, dựng lại ' + kq.so_goi + ' gói');
+            return traJson(Object.assign({ status: 'success' }, kq));
+        }
+        throw new LoiNap(j ? '"buoc" phải là "so-sanh" hoặc "ghi"' : 'Không đọc được JSON');
+    } catch (e) {
+        const laLoiGoi = e instanceof LoiNap;
+        const viSao = (laLoiGoi ? '' : 'lỗi máy chủ: ') + String(e && e.message || e).slice(0, 280);
+        console.error('[Khối-ngày] ' + ten + ': ' + viSao);
+        try {
+            await env.SHEET_KV.put(khoaLoiKV(ten), 'đẩy khối-ngày: ' + viSao, { metadata: { at: Date.now(), bytes: 0 } });
+        } catch (x) { /* KV hỏng: còn sổ dong_bo */ }
+        await ghiLoiDongBo(env.DB, tuyenKhoiNgay(ten), e);
+        return traJson({ status: 'error', message: viSao }, laLoiGoi ? (e.ma || 400) : 500);
+    }
+}
+
+/** POST /api/nhan-su — Apps Script (apps-script/nhan-su.gs, dự án riêng) đẩy danh
+ *  sách nhân sự 3 kíp đọc từ sheet nhân sự của xưởng (db/nhan-su.mjs). Không thuộc
+ *  tuyến / dây chuyền nào, không cần KV. Khoá: x-push-key = PUSH_KEY như các
+ *  đường đẩy khác.
+ *  Gói sai -> 400 (409: nghi đọc sai sheet) kèm lý do; lỗi khác -> 500. Cả hai ghi
+ *  vào sổ dong_bo dòng 'nhan-su' để /api/trang-thai (mục nhanSu) hiện ra. */
+async function apiNhanSu(request, env) {
+    if (request.method !== 'POST') return traJson({ status: 'error', message: '/api/nhan-su chỉ nhận POST' }, 405);
+    const khoa = request.headers.get('x-push-key') || '';
+    if (!env.PUSH_KEY || !khoaDung(khoa, env.PUSH_KEY)) {
+        console.warn('[Nhân sự] sai khoá');
+        return traJson({ status: 'error', message: 'Sai khoá' }, 401);
+    }
+    if (!env.DB) return traJson({ status: 'error', message: 'Chưa gắn binding DB' }, 503);
+    if (Number(request.headers.get('content-length') || 0) > 300000) {
+        return traJson({ status: 'error', message: 'Gói quá 300 KB' }, 413);
+    }
+    let j;
+    try { j = await request.json(); } catch (e) { j = null; }
+    try {
+        const kq = await ghiNhanSu(env.DB, j, Date.now());
+        console.info('[Nhân sự] ' + kq.so_nguoi + ' người, ' + kq.so_ghi + ' dòng đổi');
+        return traJson(Object.assign({ status: 'success' }, kq));
+    } catch (e) {
+        const laLoiGoi = e instanceof LoiNap;
+        const viSao = (laLoiGoi ? '' : 'lỗi máy chủ: ') + String(e && e.message || e).slice(0, 280);
+        console.error('[Nhân sự] ' + viSao);
+        await ghiLoiDongBo(env.DB, DONG_BO_NHAN_SU, viSao);
+        return traJson({ status: 'error', message: viSao }, laLoiGoi ? (e.ma || 400) : 500);
+    }
+}
+
 export async function onRequest(context) {
     const { request, env } = context;
     const url = new URL(request.url);
@@ -372,6 +654,12 @@ export async function onRequest(context) {
     /* /api/nap...: nạp Excel — không cần KV, có khoá riêng */
     if (doan[1] === 'nap') return apiNap(request, env, doan);
 
+    /* /api/nhan-su: danh sách nhân sự từ sheet của xưởng — chỉ cần D1 */
+    if (doan[1] === 'nhan-su') {
+        if (doan.length !== 2) return traJson({ status: 'error', message: 'Đường dẫn là /api/nhan-su' }, 404);
+        return apiNhanSu(request, env);
+    }
+
     if (!env.SHEET_KV) {
         return traJson({ status: 'error', message: 'Chưa gắn KV binding SHEET_KV' }, 500);
     }
@@ -379,6 +667,9 @@ export async function onRequest(context) {
     /* /api/v2/<tuyến>: đọc từ D1. Phải xét TRƯỚC nhánh POST: một POST vào
        /api/v2/tk3 không được lọt xuống thành "Apps Script đẩy dữ liệu". */
     if (doan[1] === 'v2') return apiV2(request, env, url, doan.length === 3 ? ten : '');
+
+    /* /api/day/<tuyến>: Apps Script đẩy các khối-ngày đã đổi (đường mới, nhẹ) */
+    if (doan[1] === 'day') return apiDay(request, env, doan.length === 3 ? ten : '');
 
     if (ten === 'trang-thai' && request.method === 'GET') return trangThai(env);
 
@@ -389,6 +680,11 @@ export async function onRequest(context) {
     /* ---------------------------------------------------------------------
      * POST /api/<tuyến> — APPS SCRIPT ĐẨY DỮ LIỆU LÊN
      *   a) kiểm khoá PUSH_KEY       sai -> 401
+     *   a') nội dung y nguyên bản trong KV và D1 không cần đồng bộ -> chỉ ghi
+     *      lại KV (cập nhật mốc đẩy), trả 200 — khỏi b) và d) (tốn CPU nhất)
+     *   a'') nội dung MỚI mà không đồng bộ D1 (dây chuyền) -> kiểm nhanh đầu/cuối
+     *      thân (kiemNhanhMang), ghi KV, trả 200 — khỏi JSON.parse cả thân.
+     *      Kiểm nhanh không chắc -> xuống b) như thường
      *   b) kiểm dữ liệu đúng dạng   sai -> ghi lý do vào 'loi:<tuyến>', trả 400
      *   c) ghi nguyên văn vào KV    (dashboard đọc được ngay qua bản KV)
      *   d) chép sang D1 ở chế độ nền (không bắt Apps Script chờ)
@@ -403,7 +699,45 @@ export async function onRequest(context) {
             return traJson({ status: 'error', message: 'Sai khoá' }, 401);
         }
 
-        const body = await request.text();
+        /* Giữ thân dưới dạng BYTE: băm và ghi KV thẳng từ byte, chỉ giải mã thành
+           chuỗi khi thật sự phải parse */
+        const bytes = new Uint8Array(await request.arrayBuffer());
+        const etag = await tinhEtag(bytes);
+        const luc = Date.now();
+
+        /* LỐI TẮT CHO LẦN ĐẨY Y NGUYÊN (đa số: Apps Script đẩy 30–60 phút một lần,
+           bảng tính chỉ đổi vài lần mỗi ngày). Nếu nội dung TRÙNG bản đang có trong
+           KV (cùng etag — bản đó đã qua bước kiểm dạng khi được ghi) VÀ D1 không cần
+           đồng bộ, thì khỏi JSON.parse 3 MB, khỏi chuẩn hoá: chỉ ghi lại KV để cập
+           nhật mốc đẩy (trang-thai, cảnh báo "dữ liệu cũ" vẫn đúng nghĩa). CPU một
+           lần đẩy TK3 ~45 ms -> ~6 ms (đo ngày 04/10/2026, xem README).
+           Đọc metadata KV + sổ D1 song song; đọc D1 hỏng thì đi đường thường. */
+        const [kvCu, truoc, nhip] = await Promise.all([
+            env.SHEET_KV.getWithMetadata(khoaKV(ten), { type: 'stream' }),
+            env.DB ? docSoDongBo(env.DB, ten).catch(function () { return undefined; }) : null,
+            docNhip(env, ten),
+        ]);
+        if (kvCu.value) await kvCu.value.cancel();      /* chỉ cần metadata */
+        const meta = kvCu.metadata;
+        /* Đường khối-ngày (POST /api/day) đang chạy -> nó là nơi DUY NHẤT ghi số sheet
+           vào D1; đường này chỉ giữ bản KV (đường lui của dashboard, nguồn db:chuan-bi) */
+        const khoiNgayDangChay = !!(nhip && nhip.at && luc - nhip.at < NGUONG_KHOI_NGAY_MS);
+        const canDongBo = !!env.DB && !khoiNgayDangChay && TUYEN_CHI_KHOI_NGAY.indexOf(ten) < 0
+            && (truoc === undefined || lyDoBoQua(truoc, ten, etag, luc) === null);
+        if (meta && meta.etag === etag && meta.soDong && !canDongBo) {
+            await env.SHEET_KV.put(khoaKV(ten), bytes, { metadata: { at: luc, soDong: meta.soDong, etag: etag } });
+            return traJson({ status: 'success', message: 'Đã nhận ' + meta.soDong + ' dòng cho ' + ten + ' (y nguyên lần trước)' });
+        }
+        /* NỘI DUNG MỚI nhưng KHÔNG đồng bộ D1 (đường khối-ngày đang chạy, TK1/TK2,
+           hay chưa tới lượt đồng bộ): chỉ cần cất bản KV -> kiểm nhanh đầu/cuối thân
+           thay cho JSON.parse cả 3 MB. Kiểm nhanh không chắc (ra null) thì đi tiếp
+           bước b) như cũ. Đồng bộ D1 cần cả gói đã parse (j) nên luôn đi bước b). */
+        const nhanh = !canDongBo && TUYEN_DAY_CHUYEN.indexOf(ten) >= 0 ? kiemNhanhMang(bytes) : null;
+        if (nhanh) {
+            await env.SHEET_KV.put(khoaKV(ten), bytes, { metadata: { at: luc, soDong: nhanh.soDong, etag: etag } });
+            return traJson({ status: 'success', message: 'Đã nhận ' + nhanh.soDong + ' dòng cho ' + ten });
+        }
+        const body = new TextDecoder().decode(bytes);
 
         /* Chỉ nhận dữ liệu ĐÚNG DẠNG. Thiếu bước này thì một lần Apps Script lỗi
            (trả trang báo lỗi thay vì số liệu) là ghi đè mất bản tốt trong KV.
@@ -452,18 +786,18 @@ export async function onRequest(context) {
                 nhan_duoc_bytes: body.length }, 400);
         }
 
-        const etag = await tinhEtag(phanDeBam(body, j));
-
         /* Metadata đi kèm ô KV: at = lúc đẩy (ms), soDong, etag. Đọc metadata rẻ
-           hơn nhiều so với đọc cả ô — /api/trang-thai và /api/v2 chỉ đọc phần này. */
-        await env.SHEET_KV.put(khoaKV(ten), body, { metadata: { at: Date.now(), soDong: soDong, etag: etag } });
+           hơn nhiều so với đọc cả ô — /api/trang-thai và /api/v2 chỉ đọc phần này.
+           Ghi thẳng byte đã nhận (cùng nội dung với chuỗi, khỏi mã hoá lại). */
+        await env.SHEET_KV.put(khoaKV(ten), bytes, { metadata: { at: luc, soDong: soDong, etag: etag } });
 
         /* Chép sang D1 — SAU khi KV đã ghi xong, chạy nền bằng waitUntil (Apps
            Script nhận "success" ngay, không phải chờ). D1 lỗi, hay lượt chạy bị
            ngắt vì quá CPU, thì KV vẫn có dữ liệu mới và dashboard vẫn đọc được.
-           Lỗi được ghi vào bảng dong_bo để /api/trang-thai hiện ra. */
-        if (env.DB) {
-            context.waitUntil(dongBoD1(env.DB, ten, j, etag, Date.now()).then(function (kq) {
+           Lỗi được ghi vào bảng dong_bo để /api/trang-thai hiện ra.
+           Không cần đồng bộ (sổ D1 vừa đọc ở trên nói vậy) thì khỏi gọi. */
+        if (canDongBo) {
+            context.waitUntil(dongBoD1(env.DB, ten, j, etag, luc, truoc).then(function (kq) {
                 console.info('[D1] ' + ten + ': ' + (kq.boQua ? 'bỏ qua — ' + kq.boQua
                     : kq.soO + ' ô, ' + kq.soGhi + ' dòng đổi (' + kq.ghiChu + ')'));
             }).catch(function (e) {
@@ -498,6 +832,10 @@ export async function onRequest(context) {
     }
 
     const etag = '"' + (metadata.etag || metadata.at) + '"';
+    /* Mốc của CHÍNH bản cả sheet này (không lấy mốc đường khối-ngày): từ khi có
+       đường khối-ngày, bản này chỉ được làm mới vài giờ một lần — ai đọc bản này
+       (trình duyệt lúc D1 lỗi, db:chuan-bi) phải biết đúng tuổi của nó. */
+    const dayLuc = metadata.at;
     /* Ý nghĩa từng header:
        x-xtk2-at  mốc đẩy (ms). Gửi cả trong câu 304: trình duyệt chép header của
                   304 đè lên bản đã nhớ — thiếu thì trang đọc nhầm mốc lần trước.
@@ -513,8 +851,8 @@ export async function onRequest(context) {
         'cache-control': 'private, no-cache',
         'vary':          'Sec-Fetch-Site',
         'etag':          etag,
-        'x-xtk2-at':     String(metadata.at),
-        'x-xtk2-age':    String(Math.round((Date.now() - metadata.at) / 1000)),
+        'x-xtk2-at':     String(dayLuc),
+        'x-xtk2-age':    String(Math.round((Date.now() - dayLuc) / 1000)),
     };
     /* Cloudflare nén brotli biến ETag thành W/"..." — bỏ W/ trước khi so */
     if ((request.headers.get('if-none-match') || '').replace(/^W\//, '') === etag) {

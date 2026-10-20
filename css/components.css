@@ -18,6 +18,8 @@
  *   Chừa chỗ khi cuộn .... scroll-margin-top cho các khối (biến --ns-offset)
  *   Hàng quản lý kíp ..... lấp đầy bề ngang
  *   Mục Sản lượng ........ .kpi-grid, .kpi-card, .progress-bar, .sanluong-chart
+ *   Biểu đồ hai trang .... .lat-khung, .lat-nut (mũi tên ‹ ›), .lat-cham
+ *                          (đi cặp chart_cook.js: latTrangBieuDo)
  * ===========================================================================*/
 .hero-section {
     position: relative;
@@ -1283,4 +1285,88 @@ img.person-avatar--t3 { object-fit: cover; }
 
 @media (max-width: 900px) {
     .sanluong-chart__canvas { height: 320px; }
+}
+
+
+/* --- Biểu đồ hai trang (vôi, dolomite trong mục Tiêu hao) ---
+   .lat-khung bọc thẻ biểu đồ; hai nút .lat-nut nằm GIỮA LỀ XÁM hai bên thẻ, ngang
+   giữa chiều cao. Lề đó là padding 5% của .panel-section (layout.css) = 1/18 bề
+   ngang khung này, nên tâm nút cách mép khung 1/36 bề ngang (% của left/right
+   tính theo bề ngang khung). Màn hẹp, lề không đủ chỗ: nút vào góc trên thẻ,
+   hai bên tiêu đề. */
+.lat-khung {
+    position: relative;
+    width: 100%;
+}
+
+.lat-nut {
+    position: absolute;
+    top: 50%;
+    z-index: 2;
+    width: 40px;
+    height: 40px;
+    margin-top: -20px;
+    padding: 0 0 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: var(--white, #fff);
+    color: var(--primary-blue, #0033a1);
+    border: 2px solid var(--primary-blue, #0033a1);
+    border-radius: 50%;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, .15);
+    font: 700 28px/1 Roboto, sans-serif;
+    cursor: pointer;
+    transition: background .2s, color .2s, transform .15s;
+}
+
+.lat-nut--trai { left: calc(-100% / 36 - 20px); }
+.lat-nut--phai { right: calc(-100% / 36 - 20px); }
+
+.lat-nut:hover,
+.lat-nut:focus-visible {
+    background: var(--primary-blue, #0033a1);
+    color: var(--white, #fff);
+    outline: none;
+}
+
+.lat-nut:active { transform: scale(.92); }
+
+/* Chấm báo đang xem trang nào, dưới tiêu đề thẻ */
+.lat-cham {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.lat-cham > span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #c8d1dc;
+    transition: background .2s, width .2s;
+}
+
+.lat-cham > span.is-dang-xem {
+    width: 20px;
+    border-radius: 4px;
+    background: var(--primary-blue, #0033a1);
+}
+
+/* Lề 5% hẹp hơn nút (màn < ~1040px, hoặc < ~1340px khi menu bên đang mở và đẩy
+   nội dung sang phải 300px) -> nút vào trong thẻ, ngang hàng tiêu đề */
+@media (max-width: 1040px) {
+    .lat-nut { top: 14px; margin-top: 0; width: 34px; height: 34px; font-size: 24px; }
+    .lat-nut--trai { left: 10px; }
+    .lat-nut--phai { right: 10px; }
+    .lat-khung .lat-tieu-de { padding: 0 40px; }
+}
+
+@media (max-width: 1340px) {
+    #main-wrapper.shifted .lat-nut { top: 14px; margin-top: 0; width: 34px; height: 34px; font-size: 24px; }
+    #main-wrapper.shifted .lat-nut--trai { left: 10px; }
+    #main-wrapper.shifted .lat-nut--phai { right: 10px; }
+    #main-wrapper.shifted .lat-khung .lat-tieu-de { padding: 0 40px; }
 }

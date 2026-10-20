@@ -8,7 +8,8 @@
     "preview": "vite preview --port 4173",
     "deploy": "vite build && npx wrangler pages deploy dist --project-name xtk2-profile --branch production",
     "db:tao": "npx wrangler d1 create xtk2-db --location apac",
-    "db:schema": "npx wrangler d1 execute xtk2-db --remote --file=migrations/0001_khoi_tao.sql && npx wrangler d1 execute xtk2-db --remote --file=migrations/0002_dong_bo.sql && npx wrangler d1 execute xtk2-db --remote --file=migrations/0003_goi_thang.sql && npx wrangler d1 execute xtk2-db --remote --file=migrations/0004_moc_khoi.sql && npx wrangler d1 execute xtk2-db --remote --file=migrations/0005_nap_excel.sql",
+    "db:schema": "npx wrangler d1 execute xtk2-db --remote --file=migrations/0001_khoi_tao.sql && npx wrangler d1 execute xtk2-db --remote --file=migrations/0002_dong_bo.sql && npx wrangler d1 execute xtk2-db --remote --file=migrations/0003_goi_thang.sql && npx wrangler d1 execute xtk2-db --remote --file=migrations/0004_moc_khoi.sql && npx wrangler d1 execute xtk2-db --remote --file=migrations/0005_nap_excel.sql && npx wrangler d1 execute xtk2-db --remote --file=migrations/0006_khoi_ngay.sql && npx wrangler d1 execute xtk2-db --remote --file=migrations/0008_chi_so_nho.sql && npx wrangler d1 execute xtk2-db --remote --file=migrations/0009_nhan_su_xuong.sql",
+    "db:mo-tk12": "npx wrangler d1 execute xtk2-db --remote --file=migrations/0007_tk12.sql",
     "db:chuan-bi": "node scripts/nap-lich-su.mjs",
     "db:nap": "npx wrangler d1 execute xtk2-db --remote --file=.db-tam/nap-lich-su.sql",
     "db:kiem-tra": "npx wrangler d1 execute xtk2-db --remote --command \"SELECT day_chuyen, COUNT(*) AS so_gia_tri, COUNT(DISTINCT chi_tieu) AS so_chi_tieu, MIN(ngay) AS tu_ngay, MAX(ngay) AS den_ngay, ROUND(SUM(gia_tri), 2) AS tong FROM so_lieu AS s WHERE NOT EXISTS (SELECT 1 FROM ngay_nap AS n WHERE n.day_chuyen = s.day_chuyen AND n.ngay = s.ngay AND n.khoi = (SELECT khoi FROM chi_tieu WHERE ma = s.chi_tieu)) GROUP BY day_chuyen\""
