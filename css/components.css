@@ -1226,6 +1226,24 @@ img.person-avatar--t3 { object-fit: cover; }
 .kpi-trend.is-tot { color: var(--success-green, #27ae60); font-weight: 700; }
 .kpi-trend.is-cham { color: var(--danger-red, #e74c3c); font-weight: 700; }
 
+/* Nhãn mờ góc phải dưới thẻ: xưởng đang xem — X.TK2 (TK3 + TK4) / X.TK1 (TK1 + TK2).
+   chart_cook.js (kpiVe) đặt data-xuong theo trang ‹ › của biểu đồ sản lượng. Thẻ là
+   flex dọc và cao bằng nhau trong lưới -> margin-top: auto đẩy nhãn xuống đáy, không
+   đè lên dòng nhận xét / thanh tiến độ. */
+.kpi-card[data-xuong]::after {
+    content: attr(data-xuong);
+    margin-top: auto;
+    align-self: flex-end;
+    padding-top: 8px;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: .8px;
+    line-height: 1;
+    color: var(--primary-blue, #0033a1);
+    opacity: .3;
+    pointer-events: none;
+}
+
 /* Thẻ đang chờ nội dung: viền nét đứt cho biết chưa hoàn chỉnh */
 .kpi-card--cho {
     border-top-color: var(--warning-yellow, #f39c12);

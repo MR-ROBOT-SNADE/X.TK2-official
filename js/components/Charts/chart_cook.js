@@ -1637,9 +1637,13 @@ function ribbonVeHeSo(kq) {
 /* -----------------------------------------------------------------------------
  * MỤC "SẢN LƯỢNG" (#san-luong-theo-thang) — các thẻ chỉ số tháng này
  *   Kế hoạch | Thực tế | % đạt (+ thanh tiến độ, dòng nhận xét)
- *   + 2 thẻ hệ số lợi dụng TK3, TK4 (JS tự dựng thêm, index.html không có sẵn)
- * Dùng LẠI ribbonTinh() nên số luôn khớp với dải chỉ số trang chủ: cùng cột,
- * cùng cách cộng từ ngày 01 tới hôm nay, cùng gộp TK3 + TK4.
+ *   + 2 thẻ hệ số lợi dụng, mỗi dây một thẻ (JS tự dựng thêm, index.html không có sẵn)
+ * Thẻ đi theo TRANG đang xem của biểu đồ sản lượng bên dưới (‹ ›, SL_TRANG):
+ *   trang Xưởng TK2: ribbonTinh() — số luôn khớp dải chỉ số trang chủ (cùng cột,
+ *                    cùng cách cộng từ ngày 01 tới hôm nay, cùng gộp TK3 + TK4);
+ *   trang Xưởng TK1: cùng hàm tinhRibbon trên số liệu TK1 + TK2.
+ * Góc phải dưới mỗi thẻ có nhãn mờ X.TK2 / X.TK1 (data-xuong, CSS) cho biết đang
+ * xem xưởng nào.
  * -------------------------------------------------------------------------- */
 
 /** Ghi chữ vào một ô theo id. */
@@ -1654,23 +1658,38 @@ const kpiSo = function (v, le) {
         : v.toLocaleString('vi-VN', { minimumFractionDigits: le, maximumFractionDigits: le });
 };
 
-/** Dựng khung một thẻ hệ số lợi dụng (id kpi-heso-<ma>). Có rồi thì thôi — gọi
- *  lại nhiều lần không đẻ thêm thẻ. */
-function kpiDungTheHeSo(grid, ma, ten) {
-    if (document.getElementById('kpi-heso-' + ma)) return;
+/** Chỉ số tháng này của một trang biểu đồ sản lượng (phần tử của SL_TRANG):
+ *    trang TK3 + TK4 -> ribbonTinh() (bản máy chủ tính sẵn nếu có);
+ *    trang TK1 + TK2 -> tinhRibbon trên số liệu đang có của hai dây đó.
+ *  Kết quả tinhRibbon đặt tên hệ số theo VỊ TRÍ: tk3 = dây đầu, tk4 = dây sau của
+ *  trang (trang TK1 + TK2: tk3 là TK1, tk4 là TK2). Chưa có số liệu -> null. */
+function slChiSoTrang(trang) {
+    if (trang.day[0] === 'TK3') return ribbonTinh();
+    const a = window['masterSheetData' + trang.day[0]] || [];
+    const b = window['masterSheetData' + trang.day[1]] || [];
+    if (!a.length && !b.length) return null;
+    return tinhRibbon(a, b, new Date());
+}
+
+/** Dựng khung thẻ hệ số lợi dụng thứ `so` (1, 2 — dây đầu / dây sau của trang
+ *  đang xem; id kpi-heso-<so>). Có rồi thì thôi — gọi lại nhiều lần không đẻ thêm
+ *  thẻ. Tên dây trên tiêu đề do kpiVe ghi theo trang. */
+function kpiDungTheHeSo(grid, so) {
+    if (document.getElementById('kpi-heso-' + so)) return;
     const card = document.createElement('div');
     card.className = 'kpi-card kpi-card--heso';
-    card.innerHTML = '<h3>Hệ số lợi dụng ' + ten + '</h3>'
-        + '<div id="kpi-heso-' + ma + '" class="kpi-value heso">--'
+    card.innerHTML = '<h3 id="kpi-heso-' + so + '-ten">Hệ số lợi dụng</h3>'
+        + '<div id="kpi-heso-' + so + '" class="kpi-value heso">--'
         + '<span class="kpi-unit">t/m²·h</span></div>'
-        + '<div id="kpi-heso-' + ma + '-note" class="kpi-trend">Đang cập nhật...</div>';
+        + '<div id="kpi-heso-' + so + '-note" class="kpi-trend">Đang cập nhật...</div>';
     grid.appendChild(card);
 }
 
-/** Đổ số vào một thẻ hệ số lợi dụng, kèm dòng giải thích phép tính hoặc lý do lỗi. */
-function kpiVeMotHeSo(ma, d) {
+/** Đổ số vào một thẻ hệ số lợi dụng, kèm dòng giải thích phép tính hoặc lý do lỗi.
+ *  chuCho: trang chưa có số liệu -> '--' kèm dòng chữ này, KHÔNG tô đỏ như số sai. */
+function kpiVeMotHeSo(ma, d, chuCho) {
     const R = RIBBON_CFG.lamTron;
-    const kt = kiemTraHeSoLoiDung(d ? d.heSo : null);
+    const kt = chuCho ? { ok: true, loi: '' } : kiemTraHeSoLoiDung(d ? d.heSo : null);
 
     const el = document.getElementById('kpi-heso-' + ma);
     if (el) {
@@ -1684,12 +1703,13 @@ function kpiVeMotHeSo(ma, d) {
 
     const note = document.getElementById('kpi-heso-' + ma + '-note');
     if (note) {
-        note.textContent = kt.ok ? (d ? d.moTaMauSo : '') : kt.loi;
+        note.textContent = chuCho || (kt.ok ? (d ? d.moTaMauSo : '') : kt.loi);
         note.className = 'kpi-trend' + (kt.ok ? '' : ' is-cham');
     }
 }
 
-/** Vẽ mục Sản lượng: sắp lại thẻ, dựng thẻ hệ số, đổ số, thanh tiến độ, nhận xét. */
+/** Vẽ mục Sản lượng cho xưởng đang xem: sắp lại thẻ, dựng thẻ hệ số, nhãn xưởng,
+ *  đổ số, thanh tiến độ, nhận xét. */
 function kpiVe() {
     const sec = document.getElementById('san-luong-theo-thang');
     if (!sec) return;
@@ -1710,13 +1730,32 @@ function kpiVe() {
         const khungCu = theCu.closest('.kpi-card');
         if (khungCu) khungCu.remove();
     }
+    const trang = SL_TRANG[TRANG_DANG_XEM.sanLuong || 0];
     if (grid) {
-        kpiDungTheHeSo(grid, 'tk3', 'Thiêu kết 3');
-        kpiDungTheHeSo(grid, 'tk4', 'Thiêu kết 4');
+        kpiDungTheHeSo(grid, 1);
+        kpiDungTheHeSo(grid, 2);
+        /* Nhãn mờ góc phải dưới mọi thẻ (CSS .kpi-card[data-xuong]) */
+        grid.querySelectorAll('.kpi-card').forEach(function (c) { c.setAttribute('data-xuong', trang.nhan); });
     }
+    trang.ten.forEach(function (ten, i) { kpiGhi('kpi-heso-' + (i + 1) + '-ten', 'Hệ số lợi dụng ' + ten); });
 
-    const kq = ribbonTinh();
-    if (!kq) return;
+    const kq = slChiSoTrang(trang);
+    if (!kq) {
+        /* Xưởng đang xem chưa có số (TK1/TK2 chưa tải xong, đầu tháng chưa nhập):
+           xoá số của xưởng kia, kẻo nhãn X.TK1 đứng cạnh số của X.TK2 */
+        const chu = trang.day.some(function (d) { return appState['is' + d + 'Ready']; })
+            ? 'Chưa có số liệu tháng này' : 'Đang cập nhật...';
+        kpiGhi('kpi-target', '--');
+        kpiGhi('kpi-actual', '--');
+        kpiGhi('kpi-percen', '--%');
+        const bar0 = document.getElementById('kpi-progress-bar');
+        if (bar0) { bar0.style.width = '0%'; bar0.classList.remove('is-vuot'); }
+        const trend0 = document.getElementById('kpi-trend');
+        if (trend0) { trend0.textContent = chu; trend0.className = 'kpi-trend'; }
+        kpiVeMotHeSo(1, null, chu);
+        kpiVeMotHeSo(2, null, chu);
+        return;
+    }
 
     const R = RIBBON_CFG.lamTron;
     kpiGhi('kpi-target', kpiSo(kq.tongKH || null, 0));
@@ -1753,9 +1792,10 @@ function kpiVe() {
         }
     }
 
-    /* Hệ số lợi dụng: mỗi dây một thẻ, kèm kết quả kiểm tra hợp lệ */
-    kpiVeMotHeSo('tk3', kq.tk3);
-    kpiVeMotHeSo('tk4', kq.tk4);
+    /* Hệ số lợi dụng: mỗi dây một thẻ, kèm kết quả kiểm tra hợp lệ (tk3 / tk4 =
+       dây đầu / dây sau của trang — xem slChiSoTrang) */
+    kpiVeMotHeSo(1, kq.tk3);
+    kpiVeMotHeSo(2, kq.tk4);
 }
 
 /* -----------------------------------------------------------------------------
@@ -1765,10 +1805,11 @@ function kpiVe() {
  *   - ĐƯỜNG ĐỎ : mục tiêu (sản lượng kế hoạch tháng của cả 2 dây)
  *
  * HAI TRANG, mỗi xưởng một trang — KHÔNG gộp chung; mũi tên ‹ › hai bên khung đổi
- * trang như biểu đồ vôi / dolomite (trang đang xem được nhớ: TRANG_DANG_XEM.sanLuong):
- *   trang 1  Xưởng Thiêu kết 2: TK3 + TK4, có đường mục tiêu
- *   trang 2  Xưởng Thiêu kết 1: TK1 + TK2, CHƯA có mục tiêu (2 sheet nguồn của
- *            TK1/TK2 không có kế hoạch tháng)
+ * trang như biểu đồ vôi / dolomite (trang đang xem được nhớ: TRANG_DANG_XEM.sanLuong).
+ * Lật trang là các thẻ chỉ số phía trên (kpiVe) đổi theo xưởng đó:
+ *   trang 1  Xưởng Thiêu kết 2: TK3 + TK4
+ *   trang 2  Xưởng Thiêu kết 1: TK1 + TK2 — kế hoạch tháng và giờ dừng lấy từ sheet
+ *            "Báo cáo" của 2 file nguồn (apps-script/tk12-nguon.gs, từ 21/10/2026)
  *
  * HAI TRỤC là bắt buộc: cột mỗi ngày ~18 nghìn tấn, còn luỹ kế lên tới hơn 600
  * nghìn — để chung một trục thì mấy cột bẹp dí thành một vạch sát đáy.
@@ -1780,19 +1821,22 @@ function kpiVe() {
 
 let slChartInstance = null;      /* biểu đồ sản lượng đang vẽ (để huỷ khi vẽ lại) */
 
-/* Các trang của biểu đồ sản lượng (số trang phải bằng SO_TRANG_SAN_LUONG) */
+/* Các trang của biểu đồ sản lượng (số trang phải bằng SO_TRANG_SAN_LUONG).
+   nhan: nhãn mờ góc phải dưới các thẻ chỉ số khi đang xem trang đó */
 const SL_TRANG = [
-    { xuong: 'XƯỞNG THIÊU KẾT 2', day: ['TK3', 'TK4'], ten: ['Thiêu kết 3', 'Thiêu kết 4'],
-      mau: ['rgba(26,79,214,.85)', 'rgba(243,156,18,.85)'], mucTieu: true },
-    { xuong: 'XƯỞNG THIÊU KẾT 1', day: ['TK1', 'TK2'], ten: ['Thiêu kết 1', 'Thiêu kết 2'],
-      mau: [MAU_DAY_THEM.TK1, MAU_DAY_THEM.TK2], mucTieu: false },
+    { xuong: 'XƯỞNG THIÊU KẾT 2', nhan: 'X.TK2', day: ['TK3', 'TK4'], ten: ['Thiêu kết 3', 'Thiêu kết 4'],
+      mau: ['rgba(26,79,214,.85)', 'rgba(243,156,18,.85)'] },
+    { xuong: 'XƯỞNG THIÊU KẾT 1', nhan: 'X.TK1', day: ['TK1', 'TK2'], ten: ['Thiêu kết 1', 'Thiêu kết 2'],
+      mau: [MAU_DAY_THEM.TK1, MAU_DAY_THEM.TK2] },
 ];
 
-/** Nút ‹ (buoc -1) / › (buoc 1) của biểu đồ sản lượng: sang xưởng kia, nhớ trang, vẽ lại. */
+/** Nút ‹ (buoc -1) / › (buoc 1) của biểu đồ sản lượng: sang xưởng kia, nhớ trang,
+ *  vẽ lại biểu đồ và các thẻ chỉ số phía trên theo xưởng mới. */
 function latTrangSanLuong(buoc) {
     const n = SL_TRANG.length;
     TRANG_DANG_XEM.sanLuong = (((TRANG_DANG_XEM.sanLuong || 0) + buoc) % n + n) % n;
     ghiTrangDaNho();
+    try { kpiVe(); } catch (e) { console.error('[Mục sản lượng]', e); }
     veBieuDoSanLuong();
 }
 
@@ -1866,8 +1910,9 @@ function veBieuDoSanLuong() {
         return;
     }
 
-    /* Mục tiêu = kế hoạch tháng của TK3 + TK4 (ribbonTinh); xưởng TK1 chưa có */
-    const kq = trang.mucTieu ? ribbonTinh() : null;
+    /* Mục tiêu = kế hoạch tháng của hai dây đang xem (slChiSoTrang — cùng số với
+       thẻ "Kế hoạch tháng"); chưa có kế hoạch thì không vẽ đường đỏ */
+    const kq = slChiSoTrang(trang);
     const mucTieu = kq && kq.tongKH ? kq.tongKH : null;
 
     const ds = [

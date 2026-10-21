@@ -8,6 +8,9 @@
  *     - sheet thứ 3 "Tiêu hao từng ca": số gốc từng ca (sản lượng, điện, NNL...)
  *     - sheet "TH": suất tiêu hao từng ca (kg/tsp...) tính từ sheet 3
  *   Mỗi sheet 62 hàng = 31 ngày × 2 ca. Cột ngày chỉ ghi số 1..31, không có tháng.
+ *   Thêm sheet "Báo cáo" (từ 21/10/2026, tk12DocBaoCao_): kế hoạch sản lượng tháng
+ *   và giờ dừng (đình trệ sự cố + dừng theo kế hoạch) -> đường mục tiêu, % đạt, hệ
+ *   số lợi dụng của TK1/TK2 trên dashboard.
  *
  * CÁCH LÀM
  *   File .xlsx không gắn Apps Script vào được như Google Sheet TK3/TK4, nên dự án
@@ -112,7 +115,12 @@ var TK12_DANG_DOC = null;         /* bảng đã dựng của dây đang đẩy 
  * ------------------------------------------------------------------------- */
 var TK12_KHOI = [
   { khoi: 'Sản lượng', cot: [
-    { ten: 'Sản lượng (sản lượng)', nguon: 'ca', mau: /^san luong qtp/ }
+    { ten: 'Sản lượng (sản lượng)', nguon: 'ca', mau: /^san luong qtp/ },
+    /* bc: lấy ở sheet "Báo cáo" (tk12DocBaoCao_), đúng tên cột TK3 -> cùng mã chỉ tiêu,
+       dashboard tính kế hoạch / hệ số lợi dụng TK1, TK2 y như TK3, TK4 (ribbonQuet).
+       Kế hoạch tháng chỉ ghi ở ca đầu tháng; giờ dừng ghi vào đúng ca (ngày + kíp) */
+    { ten: 'Sản lượng kế hoạch', bc: 'keHoach' },
+    { ten: 'Thời gian dừng', bc: 'gioDung' }
   ] },
   { khoi: 'THthan', cot: [
     { ten: 'Tiêu hao theo nhiệt trị', nguon: 'th', mau: /^tieu hao quy doi theo than tieu chuan sau dieu chinh/, bo0: true },
@@ -173,6 +181,13 @@ var TK12_RE_KIP = /^kip$/;
 var TK12_RE_NGAY = /^ngay( thang)?$/;
 var TK12_RE_SHEET_CA = /^tieu hao tung ca$/;
 var TK12_RE_DAU = new RegExp('[' + String.fromCharCode(0x300) + '-' + String.fromCharCode(0x36f) + ']', 'g');
+/* Sheet "Báo cáo" (tk12DocBaoCao_): ô tiêu đề cột kế hoạch, hàng sản lượng của bảng
+   chỉ tiêu, cột giờ của các bảng giờ dừng, đầu một mục mới ("3. ...") */
+var TK12_BC_SO_HANG = 120;
+var TK12_RE_KE_HOACH = /^ke hoach thang/;
+var TK12_RE_HANG_SL = /^san luong$/;
+var TK12_RE_GIO_DUNG = /^tong so gio/;
+var TK12_RE_MUC = /^\d+\s*\.\s*\D/;
 
 /* ---------------------------------------------------------------------------
  * HÀM CHẠY
@@ -500,6 +515,8 @@ function tk12ChayMotDay_(tep, homNay, cheDo) {
     + (doc.thangTruoc ? ' (file còn số THÁNG TRƯỚC, chưa sang tháng mới)' : '')
     + ', ' + doc.rows.length + ' ca tới ngày ' + doc.ngayCuoi + ', ' + doc.soO + ' ô'
     + ', luỹ kế đã ghi cho ' + lk.soCa + ' ca' + (doc.lk.coTong ? '' : ' (lượt này không đọc được hàng Tổng)')
+    + ', kế hoạch ' + (doc.bc.keHoach === null ? '(không có)' : doc.bc.keHoach + ' t')
+    + ', giờ dừng ' + tk12SoGui_(doc.bc.tongGio) + ' h (' + doc.bc.soDong + ' dòng)'
     + (doc.ghiChu.length ? ' | ' + doc.ghiChu.join('; ') : '');
   if (cheDo === 'xem') return { hong: false, chu: tom + '\n' + tk12MoTa_(doc) };
 
@@ -615,8 +632,8 @@ function tk12DocFile_(ss, homNay) {
     var cot = [];
     for (var j = 0; j < TK12_KHOI[k].cot.length; j++) {
       var x = TK12_KHOI[k].cot[j];
-      cot.push({ ten: x.ten, nguon: x.nguon, tong: x.tong, bo0: x.bo0 === true,
-                 i: tim(x.nguon || x.tong, x.mau, x.ten + (x.tong ? ' (hàng Tổng)' : '')),
+      cot.push({ ten: x.ten, nguon: x.nguon, tong: x.tong, bc: x.bc, bo0: x.bo0 === true,
+                 i: x.bc ? -1 : tim(x.nguon || x.tong, x.mau, x.ten + (x.tong ? ' (hàng Tổng)' : '')),
                  tinh: x.tinh ? { tu: timNhe(x.tinh.tuSo, x.ten), mau: timNhe(x.tinh.mauSo, x.ten),
                                   heSo: x.tinh.heSo === undefined ? 100 : x.tinh.heSo } : null });
     }
@@ -660,6 +677,32 @@ function tk12DocFile_(ss, homNay) {
   var tieuDe = shBc ? tk12ThangTieuDe_(shBc) : null;
   if (tieuDe && tieuDe !== thangIso) ghiChu.push('tiêu đề sheet Báo cáo ghi tháng ' + tieuDe + ' (chỉ để đối chiếu)');
 
+  /* Sheet Báo cáo: kế hoạch tháng + các dòng giờ dừng của tháng này. Thiếu thì
+     vẫn đẩy (hai cột đó trống), chỉ ghi chú — không chặn số liệu từng ca */
+  var bc = { keHoach: null, dung: [] };
+  if (shBc) bc = tk12DocBaoCao_(shBc, nam, thang, ss.getSpreadsheetTimeZone(), ghiChu);
+  else ghiChu.push('không thấy sheet "Báo cáo" — lượt này không có kế hoạch tháng, giờ dừng');
+
+  /* Giờ dừng -> hàng ca cùng ngày + kíp. Kíp không khớp ca nào của ngày đó (ghi
+     kíp sai, ca đó trống kíp) -> ca đầu của ngày. Ngày chưa có hàng ca (sau ca cuối
+     có sản lượng) -> chưa ghi, lượt sau có hàng thì ghi */
+  var hangCa = {}, dauNgay = {};
+  for (var h0 = 0; h0 <= iCuoi; h0++) {
+    var ca0 = bCa.ca[h0];
+    if (!/^[A-D]$/.test(ca0.kip)) continue;
+    if (hangCa[ca0.ngay + '|' + ca0.kip] === undefined) hangCa[ca0.ngay + '|' + ca0.kip] = h0;
+    if (dauNgay[ca0.ngay] === undefined) dauNgay[ca0.ngay] = h0;
+  }
+  var gioCa = {}, chuaGhi = [], tongGio = 0;
+  for (var g = 0; g < bc.dung.length; g++) {
+    var x0 = bc.dung[g], h1 = hangCa[x0.ngay + '|' + x0.kip];
+    if (h1 === undefined) h1 = dauNgay[x0.ngay];
+    if (h1 === undefined) { chuaGhi.push(x0.ngay + (x0.kip ? ' kíp ' + x0.kip : '') + ' ' + x0.gio + 'h'); continue; }
+    gioCa[h1] = (gioCa[h1] || 0) + x0.gio;
+    tongGio += x0.gio;
+  }
+  if (chuaGhi.length) ghiChu.push('giờ dừng ngày chưa có hàng ca, chưa ghi: ' + chuaGhi.join(', '));
+
   /* Dựng bảng: mỗi ca từ đầu tháng tới ca cuối có sản lượng là một hàng; mỗi
      khối mở bằng cặp "Thời gian (khối)" | "Ca/kíp (khối)" như sheet TK3/TK4.
      Cột luỹ kế: ghi vị trí + số Tổng lượt này, ô trong hàng để trống. */
@@ -680,7 +723,7 @@ function tk12DocFile_(ss, homNay) {
       cols.push(y.ten);
     }
   }
-  var rows = [], soO = 0, lechKip = [], boKip = [], bo0 = 0;
+  var rows = [], soO = 0, lechKip = [], boKip = [], bo0 = 0, daGhiKH = false;
   for (var h = 0; h <= iCuoi; h++) {
     var ca = bCa.ca[h], th = thTheo[ca.ngay + '|' + ca.thu] || null;
     if (th && th.kip && ca.kip && th.kip !== ca.kip) lechKip.push(ca.ngay + ' ca ' + ca.thu + ' (' + ca.kip + '/' + th.kip + ')');
@@ -697,6 +740,10 @@ function tk12DocFile_(ss, homNay) {
             o = tk12OHien_(bb, hh.r, x2.i);
             if (x2.bo0 && tk12OSo_(bb, hh.r, x2.i) === 0) { o = ''; bo0++; }
           }
+        } else if (x2.bc === 'keHoach') {
+          if (!daGhiKH && bc.keHoach !== null) { o = tk12SoGui_(bc.keHoach); daGhiKH = true; }
+        } else if (x2.bc === 'gioDung') {
+          if (gioCa[h] !== undefined) o = tk12SoGui_(gioCa[h]);
         }
         if (o !== '') soO++;
         row.push(o);
@@ -712,7 +759,103 @@ function tk12DocFile_(ss, homNay) {
   lk.khoaCuoi = bCa.ca[iCuoi].ngay + '|' + bCa.ca[iCuoi].thu;
   lk.coTong = lk.tongNay.some(function (v) { return v !== ''; });
   return { cols: cols, rows: rows, thang: thangIso, thangTruoc: thangTruoc, ngayCuoi: ngayCuoi, soO: soO,
-           ghiChu: ghiChu, nguonCot: nguonCot, lk: lk };
+           ghiChu: ghiChu, nguonCot: nguonCot, lk: lk,
+           bc: { keHoach: bc.keHoach, soDong: bc.dung.length, tongGio: tongGio } };
+}
+
+/* ---------------------------------------------------------------------------
+ * SHEET "BÁO CÁO": KẾ HOẠCH THÁNG + GIỜ DỪNG
+ *   Kế hoạch: ô ở cột tiêu đề "Kế hoạch tháng", hàng "Sản lượng" của bảng chỉ tiêu
+ *     (21/10/2026: TK1 ô H7, TK2 ô H8 — TK2 lệch xuống một hàng). Tìm theo chữ
+ *     chứ không theo địa chỉ ô; cột đó còn có ô % đạt ở các hàng dưới.
+ *   Giờ dừng: các bảng "đình trệ do sự cố" và "dừng theo kế hoạch" (khoảng hàng
+ *     41–62). Bảng nào cũng có hàng tiêu đề chứa "Tổng số giờ đình trệ", "Kíp",
+ *     "Ngày" (thứ tự cột mỗi file một khác); bảng không có hàng tiêu đề riêng
+ *     (sự cố của TK2) dùng cột của bảng ngay trên. Cộng TỪNG DÒNG có ngày + số giờ,
+ *     KHÔNG lấy hàng "Tổng" của file: 21/10/2026 hàng Tổng sự cố TK2 ghi 1,5 trong
+ *     khi hai dòng là 1,5 + 1 (công thức chưa phủ dòng mới thêm).
+ * ------------------------------------------------------------------------- */
+
+/** Đọc sheet Báo cáo -> { keHoach: số tấn | null, dung: [{ ngay, kip, gio }] }.
+ *  Chỉ nhận dòng dừng của tháng thang/nam; dòng khác tháng, ô giờ không phải số ->
+ *  bỏ, ghi vào ghiChu. tz: múi giờ của bảng tính (đọc ô ngày kiểu Date). */
+function tk12DocBaoCao_(sh, nam, thang, tz, ghiChu) {
+  var ra = { keHoach: null, dung: [] };
+  var nR = Math.min(sh.getLastRow(), TK12_BC_SO_HANG), nC = sh.getLastColumn();
+  if (nR < 2 || nC < 2) { ghiChu.push('sheet Báo cáo trống'); return ra; }
+  var vung = sh.getRange(1, 1, nR, nC);
+  var b = { gt: vung.getValues(), hien: vung.getDisplayValues() };
+  var chu = b.hien.map(function (h) { return h.map(tk12Chuan_); });
+
+  /* Kế hoạch tháng */
+  var rKH = -1, cKH = -1;
+  for (var r = 0; r < Math.min(nR, 15) && cKH < 0; r++) {
+    for (var c = 0; c < nC; c++) if (TK12_RE_KE_HOACH.test(chu[r][c])) { rKH = r; cKH = c; break; }
+  }
+  if (cKH < 0) {
+    ghiChu.push('Báo cáo: không thấy ô "Kế hoạch tháng" — lượt này không có kế hoạch');
+  } else {
+    for (var r2 = rKH + 1; r2 < Math.min(nR, rKH + 6) && ra.keHoach === null; r2++) {
+      if (!chu[r2].slice(0, Math.min(cKH, 4)).some(function (s) { return TK12_RE_HANG_SL.test(s); })) continue;
+      var kh = tk12OSo_(b, r2, cKH);
+      if (kh !== null && kh > 0) ra.keHoach = kh;
+      else break;
+    }
+    if (ra.keHoach === null) ghiChu.push('Báo cáo: cột "Kế hoạch tháng" không có số ở hàng "Sản lượng" — lượt này không có kế hoạch');
+  }
+
+  /* Giờ dừng */
+  var cot = null, boQua = [];
+  for (var r3 = 0; r3 < nR; r3++) {
+    if (TK12_RE_MUC.test(chu[r3][0])) { cot = null; continue; }      /* "2. Thời gian đình trệ...", "3. ..." */
+    var cGio = tk12TimO_(chu[r3], TK12_RE_GIO_DUNG);
+    if (cGio >= 0) {
+      cot = { gio: cGio, ngay: tk12TimO_(chu[r3], TK12_RE_NGAY), kip: tk12TimO_(chu[r3], TK12_RE_KIP) };
+      if (cot.ngay < 0) { ghiChu.push('Báo cáo hàng ' + (r3 + 1) + ': bảng giờ dừng không có cột "Ngày" — bỏ bảng này'); cot = null; }
+      continue;
+    }
+    if (!cot) continue;
+    var ngay = tk12NgayBC_(b.gt[r3][cot.ngay], b.hien[r3][cot.ngay], tz, nam, thang);
+    if (!ngay) continue;                                      /* hàng Tổng, hàng trống */
+    var oGio = String(b.hien[r3][cot.gio]).trim();
+    var gio = tk12OSo_(b, r3, cot.gio);
+    if (gio === null || gio < 0) { if (oGio) boQua.push('hàng ' + (r3 + 1) + ' giờ "' + oGio + '"'); continue; }
+    if (!gio) continue;
+    if (ngay.y !== nam || ngay.m !== thang) { boQua.push('hàng ' + (r3 + 1) + ' ngày ' + ngay.d + '/' + ngay.m + '/' + ngay.y + ' khác tháng'); continue; }
+    ra.dung.push({ ngay: ngay.d, kip: cot.kip >= 0 ? String(b.hien[r3][cot.kip]).trim().toUpperCase() : '', gio: gio });
+  }
+  if (boQua.length) ghiChu.push('Báo cáo: bỏ ' + boQua.length + ' dòng giờ dừng: ' + boQua.slice(0, 5).join(', '));
+  return ra;
+}
+
+/** Vị trí ô đầu tiên của hàng (đã chuẩn) khớp mau, không có -> -1 */
+function tk12TimO_(hang, mau) {
+  for (var c = 0; c < hang.length; c++) if (mau.test(hang[c])) return c;
+  return -1;
+}
+
+/** Ô ngày của bảng giờ dừng -> { y, m, d } hoặc null. Ô ngày thật (Date) đọc theo
+ *  múi giờ bảng tính tz; ô chữ đọc kiểu Việt dd/mm/yyyy (dd/mm/yy); ô chỉ ghi số
+ *  1..31 là ngày của tháng thang/nam. */
+function tk12NgayBC_(v, hien, tz, nam, thang) {
+  if (v instanceof Date && !isNaN(v.getTime())) {
+    var s = Utilities.formatDate(v, tz, 'yyyy-MM-dd');
+    return { y: +s.substring(0, 4), m: +s.substring(5, 7), d: +s.substring(8, 10) };
+  }
+  var t = String(hien === null || hien === undefined ? '' : hien).trim();
+  var m = t.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4}|\d{2})$/);
+  if (m) {
+    var y = +m[3] < 100 ? 2000 + +m[3] : +m[3];
+    return +m[2] >= 1 && +m[2] <= 12 && +m[1] >= 1 && +m[1] <= 31 ? { y: y, m: +m[2], d: +m[1] } : null;
+  }
+  var d = tk12SoNgay_(t);
+  return d ? { y: nam, m: thang, d: d } : null;
+}
+
+/** Số tự tính (kế hoạch, giờ dừng cộng dồn) -> chữ gửi lên: số nguyên không dấu nghìn,
+ *  số lẻ 2 chữ số sau dấu chấm — không bao giờ ra dạng mơ hồ kiểu '1.125' */
+function tk12SoGui_(v) {
+  return Math.round(v) === v ? String(v) : (Math.round(v * 100) / 100).toFixed(2);
 }
 
 /** Luỹ kế TÍNH của một cột (xem "tinh" dưới TK12_KHOI): heSo x Σ tử / Σ mẫu của sheet 3

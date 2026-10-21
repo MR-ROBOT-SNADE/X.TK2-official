@@ -85,7 +85,14 @@ Link deploy dự án lên CloudFlare thông qua node.js: https://xtk2-profile.pa
       chart_cook.js DAY_THEM_VAI_TRO, dayThem). Ô "Dây chuyền":
       cả 4 / 3+4 / 1+2 / từng dây (hienDay). Nhãn số chỉ hiện khi <= 7 ngày (trước
       15). Biểu đồ sản lượng: 2 trang ‹ › — Xưởng TK2 (TK3+TK4) / Xưởng TK1
-      (TK1+TK2, chưa có mục tiêu). KHOAN: hơi nước, biểu đồ chất lượng.
+      (TK1+TK2). KHOAN: hơi nước, biểu đồ chất lượng.
+      21/10/2026: trang Xưởng TK1 có đường mục tiêu; các thẻ Kế hoạch / Sản lượng
+      đã đạt / Tỉ lệ đạt / Hệ số lợi dụng đổi theo trang ‹ › (nhãn mờ X.TK2 /
+      X.TK1 góc phải dưới — chart_cook.js slChiSoTrang, kpiVe). Kế hoạch tháng (ô
+      "Kế hoạch tháng" hàng "Sản lượng": TK1 H7, TK2 H8) và giờ dừng (bảng đình
+      trệ sự cố + dừng theo kế hoạch, ~hàng 41–62) đọc từ sheet "Báo cáo" của 2
+      file (tk12DocBaoCao_), gửi thành cột "Sản lượng kế hoạch" / "Thời gian dừng"
+      của khối Sản lượng như TK3 -> công thức hệ số lợi dụng y hệt TK3/TK4 (360 m²).
       10/10/2026: điện có định mức riêng TK1 55, TK2 44 kWh/tsp (chart_cook.js
       DINH_MUC_DAY_THEM; cột vượt nhấp nháy) và tách tầng cột / đường
       (chart_core.js tachCotVaDuong); quặng chứa sắt TK1/TK2 vẽ vùng; luỹ kế HLC
