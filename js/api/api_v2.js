@@ -31,7 +31,7 @@
  *   bảng từ cả kho. Hai quy tắc:
  *     - kho luôn là một dải tháng LIỀN NHAU, từ kho.tu đến hết;
  *     - TK3 và TK4 luôn cùng một dải: biểu đồ gộp hai dây (ghép theo ngày + kíp,
- *       Charts/bep/ghep_so_lieu.js ghepTheoNgayKip) — lệch dải tháng thì một dây bị hụt số ở
+ *       Charts/controller/data_merge.js ghepTheoNgayKip) — lệch dải tháng thì một dây bị hụt số ở
  *       những tháng dây kia có.
  *
  * CHẠY Ở HAI NƠI

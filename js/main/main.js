@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', function () {
     /* =========================================================================
      * 0. BỌC showSubContent — phải làm TRƯỚC mọi thứ khác
      * ---------------------------------------------------------------------
-     * DieuPhoi (Charts/bep/dieu_phoi.js) cần biết khối nào đang mở để quyết định vẽ gì và
+     * DieuPhoi (Charts/controller/dispatcher.js) cần biết khối nào đang mở để quyết định vẽ gì và
      * nhấp nháy cái nào. Bọc ở ĐÂY chứ không sửa sidebar.js vì: main.js nạp sau
      * cùng nên chắc chắn showSubContent đã tồn tại; và bọc thì phủ được MỌI
      * đường gọi — bấm menu bên, onclick còn sót trong HTML, bảng nhận xét.

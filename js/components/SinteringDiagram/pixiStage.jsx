@@ -10,22 +10,22 @@
  * CÁC FILE CỦA SƠ ĐỒ (trước 24/10/2026 là 3 file lớn, nay tách theo việc)
  *   DiagramApp.jsx        điểm vào: chỉ tải sơ đồ khi người xem mở tới
  *   pixiStage.jsx         FILE NÀY: <Stage> + camera + pop-up + nút điều khiển
- *   cau_hinh.js           STAGE, CFG — MUỐN DỜI / CO GIÃN SƠ ĐỒ: CHỈ SỬA SỐ Ở ĐÂY
- *   bo_cuc.js             buildLayout(): từ CFG tính toạ độ chi tiết (LAYOUT)
- *   lap_rap/              ghép thiết bị thành từng khu:
- *     nha_tram.jsx          vá góc băng tải, nhà trạm S1 / S2
- *     khu_thanh_pham.jsx    nhà sàng, bãi liệu, khu xe tải, trạm S3 / S4
- *     khu_lay_mau.jsx       khu lấy mẫu, silo máng, trạm S3
- *     day_chuyen.jsx        SinterLinePartA..E (một dây chuyền)
- *     day_chuyen_2.jsx      SinterLine2: dây 2 = ẢNH GƯƠNG dây 1 qua tâm Trạm S1
- *     vung_bat_chuot.js     HOTSPOTS, FLOW_ROWS: vùng bắt chuột cho pop-up
- *     cum_nap_lieu.jsx      TopFeedingSection: xếp lớp cả sơ đồ
- *     tiet_kiem.js          TickerGuard, PerfGuard: dừng vẽ khi không ai nhìn, tự hạ tải
- *   diagramContainer.jsx  MỤC LỤC thiết bị; mã từng thiết bị ở thiet_bi/
- *   hang_muc.js           NỘI DUNG pop-up: tên, mô tả, thông số, ảnh / video
+ *   stageConfig.js        STAGE, CFG — MUỐN DỜI / CO GIÃN SƠ ĐỒ: CHỈ SỬA SỐ Ở ĐÂY
+ *   layout.js             buildLayout(): từ CFG tính toạ độ chi tiết (LAYOUT)
+ *   assembly/             ghép thiết bị thành từng khu:
+ *     stations.jsx          vá góc băng tải, nhà trạm S1 / S2
+ *     productArea.jsx       nhà sàng, bãi liệu, khu xe tải, trạm S3 / S4
+ *     sampleArea.jsx        khu lấy mẫu, silo máng, trạm S3
+ *     sinterLine.jsx        SinterLinePartA..E (một dây chuyền)
+ *     sinterLine2.jsx       SinterLine2: dây 2 = ẢNH GƯƠNG dây 1 qua tâm Trạm S1
+ *     hotspotRegions.js     HOTSPOTS, FLOW_ROWS: vùng bắt chuột cho pop-up
+ *     feedingSection.jsx    TopFeedingSection: xếp lớp cả sơ đồ
+ *     perfGuards.js         TickerGuard, PerfGuard: dừng vẽ khi không ai nhìn, tự hạ tải
+ *   diagramContainer.jsx  MỤC LỤC thiết bị; mã từng thiết bị ở equipment/
+ *   hotspotData.js        NỘI DUNG pop-up: tên, mô tả, thông số, ảnh / video
  *   diagramHotspots.jsx   giao diện pop-up + bắt chuột + bảng danh mục
  *
- * Thứ tự đọc gợi ý: cau_hinh.js -> lap_rap/cum_nap_lieu.jsx -> file này.
+ * Thứ tự đọc gợi ý: stageConfig.js -> assembly/feedingSection.jsx -> file này.
  * ===========================================================================*/
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -34,11 +34,11 @@ import {
     DiagramSidePanel, HotspotLayer, HotspotPopup, ProcessVideo, useHotspotPointer
 } from './diagramHotspots.jsx';
 
-import { CFG, STAGE } from './cau_hinh.js';
-import { StationS2 } from './lap_rap/nha_tram.jsx';
-import { FLOW_ROWS, HOTSPOTS, feedRectToCanvas } from './lap_rap/vung_bat_chuot.js';
-import { TopFeedingSection } from './lap_rap/cum_nap_lieu.jsx';
-import { PerfGuard, TickerGuard } from './lap_rap/tiet_kiem.js';
+import { CFG, STAGE } from './stageConfig.js';
+import { StationS2 } from './assembly/stations.jsx';
+import { FLOW_ROWS, HOTSPOTS, feedRectToCanvas } from './assembly/hotspotRegions.js';
+import { TopFeedingSection } from './assembly/feedingSection.jsx';
+import { PerfGuard, TickerGuard } from './assembly/perfGuards.js';
 
 /* =============================================================================
  * STAGE GỐC

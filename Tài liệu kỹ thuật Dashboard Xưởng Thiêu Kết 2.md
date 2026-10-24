@@ -271,24 +271,26 @@ Portfolio_Xuongthieuket2/
 │   ├── chung/chi_so.js         công thức, ngưỡng cảnh báo (dùng chung với máy chủ)
 │   ├── components/
 │   │   ├── Charts/
-│   │   │   ├── ve/             HÀM VẼ Chart.js, 7 file (trước là chart_core.js):
-│   │   │   │                   chung, nhap_nhay, tien_ich, rut_loc, tieu_hao,
-│   │   │   │                   chat_luong, da_nang — đọc ve/chung.js trước
-│   │   │   ├── bep/            CHỌN SỐ LIỆU + ĐIỀU PHỐI, 8 file (trước là chart_cook.js):
-│   │   │   │                   cot_bieu_do (moduleConfigs), ghep_so_lieu (ghép
-│   │   │   │                   TK1..TK4), dieu_phoi (DieuPhoi), bo_loc (chartConfigs),
-│   │   │   │                   lat_trang, kip_co_hat_than, trang_chu, san_luong
+│   │   │   ├── render/         HÀM VẼ Chart.js, 7 file (trước là chart_core.js):
+│   │   │   │                   setup, overlimit_flash, utils, extract_filter,
+│   │   │   │                   consumption_charts, quality_charts, combo_chart
+│   │   │   │                   — đọc render/setup.js trước
+│   │   │   ├── controller/     CHỌN SỐ LIỆU + ĐIỀU PHỐI, 8 file (trước là chart_cook.js):
+│   │   │   │                   module_configs (moduleConfigs), data_merge (ghép
+│   │   │   │                   TK1..TK4), dispatcher (DieuPhoi), chart_configs
+│   │   │   │                   (chartConfigs), pagination, coal_size_shift,
+│   │   │   │                   home_ribbon, production
 │   │   │   ├── canhbao.js      bảng nhận xét / cảnh báo
 │   │   │   └── vattu.js        ba mục vật tư
 │   │   ├── SinteringDiagram/   sơ đồ công nghệ React + Pixi (ES module)
 │   │   │   ├── DiagramApp.jsx  điểm vào: chỉ tải sơ đồ khi người xem mở tới
 │   │   │   ├── pixiStage.jsx   sân khấu Pixi + camera + pop-up + nút điều khiển
-│   │   │   ├── cau_hinh.js     CFG: toạ độ, kích thước mọi thiết bị
-│   │   │   ├── bo_cuc.js       buildLayout() -> LAYOUT
-│   │   │   ├── lap_rap/        8 file: ghép thiết bị thành từng khu
+│   │   │   ├── stageConfig.js  CFG: toạ độ, kích thước mọi thiết bị
+│   │   │   ├── layout.js       buildLayout() -> LAYOUT
+│   │   │   ├── assembly/       8 file: ghép thiết bị thành từng khu
 │   │   │   ├── diagramContainer.jsx  mục lục thiết bị
-│   │   │   ├── thiet_bi/       25 file: mỗi file một nhóm thiết bị
-│   │   │   ├── hang_muc.js     nội dung pop-up (HOTSPOT_DEFS)
+│   │   │   ├── equipment/      25 file: mỗi file một nhóm thiết bị
+│   │   │   ├── hotspotData.js  nội dung pop-up (HOTSPOT_DEFS)
 │   │   │   └── diagramHotspots.jsx   giao diện pop-up, bắt chuột, bảng danh mục
 │   │   ├── personnel.js        sơ đồ tổ chức 3 kíp
 │   │   ├── sidebar.js          menu bên, mở khối biểu đồ
@@ -311,16 +313,16 @@ Portfolio_Xuongthieuket2/
 
 | Lớp | Phía trình duyệt | Phía máy chủ / nguồn | Trách nhiệm |
 | --- | --- | --- | --- |
-| Presentation | `index.html`, `nap-lieu.html`, `css/`, `Charts/ve/`, `personnel.js`, `sidebar.js`, `nav_fit.js`, `SinteringDiagram/`, `main.js` | — | Vẽ biểu đồ, bảng, sơ đồ; điều hướng; màn hình “đang tải” |
-| Business Logic | `chi_so.js`, `Charts/bep/`, `canhbao.js`, `vattu.js`, `mau_nap.js` | `chuan-hoa.mjs`, `chi-so.mjs`, `khoi-ngay.gs` | Công thức, ngưỡng cảnh báo, chọn cột cho từng biểu đồ, ghép TK3+TK4 theo ngày + kíp, chuẩn hoá sheet, đổi phiếu BK sang ô |
+| Presentation | `index.html`, `nap-lieu.html`, `css/`, `Charts/render/`, `personnel.js`, `sidebar.js`, `nav_fit.js`, `SinteringDiagram/`, `main.js` | — | Vẽ biểu đồ, bảng, sơ đồ; điều hướng; màn hình “đang tải” |
+| Business Logic | `chi_so.js`, `Charts/controller/`, `canhbao.js`, `vattu.js`, `mau_nap.js` | `chuan-hoa.mjs`, `chi-so.mjs`, `khoi-ngay.gs` | Công thức, ngưỡng cảnh báo, chọn cột cho từng biểu đồ, ghép TK3+TK4 theo ngày + kíp, chuẩn hoá sheet, đổi phiếu BK sang ô |
 | Data Access | `api_config.js`, `api_loaded.js`, `api_v2.js`, `api_thang.js`, `doc_xlsx.js` | `[[route]].js`, `dong-bo-d1.mjs`, `day-khoi-ngay.mjs`, `goi-v2.mjs`, `nap-excel.mjs`, `migrations/` | Gọi API, cache localStorage, ETag; định tuyến, xác thực khoá, đọc ghi D1/KV, dựng gói tháng |
 | Công cụ | — | `scripts/nap-lich-su.mjs`, `vite.config.js`, `package.json` | Build, deploy, nạp lại lịch sử, kiểm đối chiếu D1 |
 
-Ranh giới lớp chưa tuyệt đối: thư mục `Charts/bep/` vừa chọn số liệu vừa điều phối vẽ, `canhbao.js` vừa tính vừa dựng HTML.
+Ranh giới lớp chưa tuyệt đối: thư mục `Charts/controller/` vừa chọn số liệu vừa điều phối vẽ, `canhbao.js` vừa tính vừa dựng HTML.
 
-**Tách file nhỏ (24/10/2026).** Bốn file lớn nhất được chia theo việc để người nhận bàn giao đọc theo tên file: `chart_core.js` (1.581 dòng) thành `Charts/ve/` 7 file, `chart_cook.js` (1.984 dòng) thành `Charts/bep/` 8 file, `diagramContainer.jsx` (4.773 dòng) thành mục lục + `thiet_bi/` 25 file, `pixiStage.jsx` (2.390 dòng) thành `cau_hinh.js`, `bo_cuc.js`, `lap_rap/` 8 file + phần sân khấu; nội dung pop-up tách khỏi `diagramHotspots.jsx` thành `hang_muc.js`. Ba file không còn dùng đã xoá. Chỉ dời mã, không đổi logic: gói build của các script biểu đồ giống từng byte bản trước, gói sơ đồ có đúng cùng tập dòng mã (chỉ khác thứ tự module). Hai loại file khác nhau: `Charts/ve/`, `Charts/bep/` là script thường dùng chung biến toàn cục, thứ tự thẻ `<script>` trong `index.html` là bắt buộc; `SinteringDiagram/` là ES module, mỗi file tự `import` thứ nó cần. Cố ý KHÔNG tách: `js/chung/chi_so.js` (máy chủ import nguyên file và băm mã nguồn các hàm làm ETag), `apps-script/*.gs` (dán tay sang Google, thêm file là thêm bước dán), `index.html`.
+**Tách file nhỏ (24/10/2026).** Bốn file lớn nhất được chia theo việc để người nhận bàn giao đọc theo tên file: `chart_core.js` (1.581 dòng) thành `Charts/render/` 7 file, `chart_cook.js` (1.984 dòng) thành `Charts/controller/` 8 file, `diagramContainer.jsx` (4.773 dòng) thành mục lục + `equipment/` 25 file, `pixiStage.jsx` (2.390 dòng) thành `stageConfig.js`, `layout.js`, `assembly/` 8 file + phần sân khấu; nội dung pop-up tách khỏi `diagramHotspots.jsx` thành `hotspotData.js`. Ba file không còn dùng đã xoá. Chỉ dời mã, không đổi logic: gói build của các script biểu đồ giống từng byte bản trước, gói sơ đồ có đúng cùng tập dòng mã (chỉ khác thứ tự module). Hai loại file khác nhau: `Charts/render/`, `Charts/controller/` là script thường dùng chung biến toàn cục, thứ tự thẻ `<script>` trong `index.html` là bắt buộc; `SinteringDiagram/` là ES module, mỗi file tự `import` thứ nó cần. Cố ý KHÔNG tách: `js/chung/chi_so.js` (máy chủ import nguyên file và băm mã nguồn các hàm làm ETag), `apps-script/*.gs` (dán tay sang Google, thêm file là thêm bước dán), `index.html`.
 
-Những chỗ hay sửa nhất: ngưỡng cảnh báo ở `js/chung/chi_so.js`; cột của một biểu đồ ở `moduleConfigs` trong `Charts/bep/cot_bieu_do.js`; cấu hình vẽ, lật trang của từng biểu đồ ở `chartConfigs` trong `Charts/bep/bo_loc.js`; toạ độ sơ đồ ở `CFG` trong `SinteringDiagram/cau_hinh.js`; nội dung pop-up ở `HOTSPOT_DEFS` trong `SinteringDiagram/hang_muc.js`; cột không gửi ra trình duyệt ở `COT_KHONG_GUI` trong `db/goi-v2.mjs`; dạng file Excel mới ở `CAC_MAU` trong `js/nap/mau_nap.js`.
+Những chỗ hay sửa nhất: ngưỡng cảnh báo ở `js/chung/chi_so.js`; cột của một biểu đồ ở `moduleConfigs` trong `Charts/controller/module_configs.js`; cấu hình vẽ, lật trang của từng biểu đồ ở `chartConfigs` trong `Charts/controller/chart_configs.js`; toạ độ sơ đồ ở `CFG` trong `SinteringDiagram/stageConfig.js`; nội dung pop-up ở `HOTSPOT_DEFS` trong `SinteringDiagram/hotspotData.js`; cột không gửi ra trình duyệt ở `COT_KHONG_GUI` trong `db/goi-v2.mjs`; dạng file Excel mới ở `CAC_MAU` trong `js/nap/mau_nap.js`.
 
 ## 5. Quản lý state và luồng dữ liệu
 
@@ -336,8 +338,8 @@ State chảy một chiều: D1 → gói tháng → kho tháng của trình duy�
 | Bộ nhớ đệm HTTP | ETag + `Cache-Control` | Function | Trình duyệt (304 khi không đổi) | Mỗi request |
 | Bản nhớ trong máy | `localStorage` `xtk2.sheet.v2.<tuyến>`, nén theo cột | `api_loaded.js`, lúc trình duyệt rảnh | `api_loaded.js` lúc mở trang | Tới lần tải sau; hết chỗ (\~5 MB) thì xoá bản cũ |
 | Kho tháng | `API_V2_KHO.TK3/TK4` (`vanTay`, `cot`, `thang`, `mucLuc`, `etag`) | `apiV2NhanGoi` | `apiV2BangNgang`, `api_thang.js` | Một phiên trang; thay hẳn khi danh mục cột đổi |
-| Dữ liệu trang | `window.masterSheetDataTK3/TK4/VATTU`, `XTK2_CHI_SO_MAY` | `apiApDung`, `apiNhanChiSo` | `Charts/bep/`, `canhbao`, `personnel`, `vattu` | Thay khi vân tay đổi; chỉ số máy chủ chỉ dùng cho đúng ngày hôm nay |
-| Dữ liệu biểu đồ | `window.AppChartData[namespaceKey]` (TK3 + TK4 đã ghép theo ngày + kíp) | `processAllModulesData` | Hàm vẽ trong `Charts/ve/` | Tính lại mỗi lần `*DataReady` |
+| Dữ liệu trang | `window.masterSheetDataTK3/TK4/VATTU`, `XTK2_CHI_SO_MAY` | `apiApDung`, `apiNhanChiSo` | `Charts/controller/`, `canhbao`, `personnel`, `vattu` | Thay khi vân tay đổi; chỉ số máy chủ chỉ dùng cho đúng ngày hôm nay |
+| Dữ liệu biểu đồ | `window.AppChartData[namespaceKey]` (TK3 + TK4 đã ghép theo ngày + kíp) | `processAllModulesData` | Hàm vẽ trong `Charts/render/` | Tính lại mỗi lần `*DataReady` |
 | State giao diện | `DieuPhoi.khoiDangMo`, `daVe`, `khoiCu`; ô lọc ngày / kíp trong DOM; mục đang mở theo `#hash` | Người xem | `DieuPhoi`, `applyUniversalFilter` | Giữ nguyên qua các lần dữ liệu mới về |
 
 ### Một chu kỳ cập nhật
@@ -399,7 +401,7 @@ Phía máy chủ dùng cùng nguyên tắc: số liệu và vân tay khối-ngà
 
 ## 7. Kế hoạch mở rộng cho TK1, TK2 và khi dữ liệu tăng
 
-Dung lượng và hạn mức D1 không phải nút thắt khi lên 4 dây chuyền: khoảng 26 MB mỗi năm so với giới hạn 500 MB. Nút thắt thật là mã đang viết cứng cho hai dây (khoảng 670 dòng có nhắc TK3/TK4 trong 29 file, 434 dòng nằm ở `chart_cook.js` và `chart_core.js` — nay là `Charts/bep/` và `Charts/ve/`), danh mục cột dùng chung một vân tay, và các request còn vượt 10 ms CPU. Kế hoạch vì vậy đi theo thứ tự: tổng quát hoá trước, nối nguồn TK1/TK2 sau, giao diện đa xưởng cuối cùng.
+Dung lượng và hạn mức D1 không phải nút thắt khi lên 4 dây chuyền: khoảng 26 MB mỗi năm so với giới hạn 500 MB. Nút thắt thật là mã đang viết cứng cho hai dây (khoảng 670 dòng có nhắc TK3/TK4 trong 29 file, 434 dòng nằm ở `chart_cook.js` và `chart_core.js` — nay là `Charts/controller/` và `Charts/render/`), danh mục cột dùng chung một vân tay, và các request còn vượt 10 ms CPU. Kế hoạch vì vậy đi theo thứ tự: tổng quát hoá trước, nối nguồn TK1/TK2 sau, giao diện đa xưởng cuối cùng.
 
 &#91;embedded content: Lộ trình mở rộng · 4 giai đoạn, 3 cổng; chưa gắn ngày\]
 
@@ -436,8 +438,8 @@ Hạn mức Free tính theo tài khoản, nên tách mỗi xưởng một dự �
 
 **Trình duyệt**
 
-- [ ] Thay `masterSheetDataTK3/TK4`, `API_V2_KHO.TK3/TK4` và các vòng `['TK3', 'TK4']` trong `api_thang.js`, `Charts/bep/` bằng danh sách dây của xưởng đang xem.
-- [ ] Đổi khoá `mapping` dạng `...TK3` / `...TK4` và loại biểu đồ `QTHTK3` / `QTHTK4` trong `Charts/bep/` (cot_bieu_do.js, bo_loc.js) sang dạng tham số theo dây.
+- [ ] Thay `masterSheetDataTK3/TK4`, `API_V2_KHO.TK3/TK4` và các vòng `['TK3', 'TK4']` trong `api_thang.js`, `Charts/controller/` bằng danh sách dây của xưởng đang xem.
+- [ ] Đổi khoá `mapping` dạng `...TK3` / `...TK4` và loại biểu đồ `QTHTK3` / `QTHTK4` trong `Charts/controller/` (module_configs.js, chart_configs.js) sang dạng tham số theo dây.
 - [ ] Thêm bộ chọn xưởng; chỉ tải và lưu bản nhớ cho dây của xưởng đang chọn.
 - [ ] Kiểm thử hồi quy: sau khi tổng quát hoá, 21 biểu đồ và dải chỉ số của TK3/TK4 phải ra y hệt trước.
 

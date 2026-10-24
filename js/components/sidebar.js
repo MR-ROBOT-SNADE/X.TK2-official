@@ -13,7 +13,7 @@
  *     closeSidebar()                 đóng ngăn kéo
  *
  *   showSubContent được "bọc" thêm ở hai nơi (mỗi lớp gọi lại lớp bên trong):
- *     - main.js     báo cho DieuPhoi (Charts/bep/dieu_phoi.js) vẽ khối vừa mở;
+ *     - main.js     báo cho DieuPhoi (Charts/controller/dispatcher.js) vẽ khối vừa mở;
  *     - canhbao.js  ẩn bảng nhận xét khi đã chọn một khối.
  * ===========================================================================*/
 

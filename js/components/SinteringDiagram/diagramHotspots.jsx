@@ -2,7 +2,7 @@
  * diagramHotspots.jsx — BẮT CHUỘT + BẢNG THÔNG TIN CỦA SƠ ĐỒ CÔNG NGHỆ
  * =============================================================================
  * Phần GIAO DIỆN của các hạng mục; NỘI DUNG (tên, mô tả, thông số, ảnh) ở
- * hang_muc.js. pixiStage.jsx chỉ việc gọi các hàm / component xuất ra ở đây:
+ * hotspotData.js. pixiStage.jsx chỉ việc gọi các hàm / component xuất ra ở đây:
  *   3)  HotspotLayer, useHotspotPointer   tô sáng + bắt chuột trên canvas
  *   4)  HotspotPopup                      bảng thông tin (HTML)
  *   5)  DiagramSidePanel, ProcessVideo,   bảng danh mục bên cạnh sơ đồ + video
@@ -12,7 +12,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Graphics, useTick } from '@pixi/react';
 
-import { FLOW_NOTE, FLOW_ORDER, MEDIA_BASE, PROCESS_VIDEO, VIDEO_BASE } from './hang_muc.js';
+import { FLOW_NOTE, FLOW_ORDER, MEDIA_BASE, PROCESS_VIDEO, VIDEO_BASE } from './hotspotData.js';
 
 /* =============================================================================
  * 3) TÔ SÁNG HẠNG MỤC + BẮT CHUỘT
@@ -379,7 +379,7 @@ export const buildFlowRows = (items) => FLOW_ORDER.map((f, i) => {
     };
 });
 
-/* Khung mô tả luồng công nghệ — nội dung lấy từ FLOW_NOTE (hang_muc.js, mục 1c). */
+/* Khung mô tả luồng công nghệ — nội dung lấy từ FLOW_NOTE (hotspotData.js, mục 1c). */
 const FlowNote = () => {
     const { title, lead, paragraphs, bullets } = FLOW_NOTE;
     const empty = !lead && !(paragraphs && paragraphs.length) && !(bullets && bullets.length);
@@ -389,7 +389,7 @@ const FlowNote = () => {
             {empty ? (
                 <div className="sd-card__empty">
                     <span>Chưa có nội dung</span>
-                    <code>soạn tại FLOW_NOTE trong hang_muc.js</code>
+                    <code>soạn tại FLOW_NOTE trong hotspotData.js</code>
                 </div>
             ) : (
                 <div className="sd-flow">

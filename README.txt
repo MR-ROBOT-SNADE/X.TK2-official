@@ -81,21 +81,21 @@ Link deploy dự án lên CloudFlare thông qua node.js: https://xtk2-profile.pa
       0001/0005.
     + TK1/TK2 TRÊN BIỂU ĐỒ (09/10/2026): 9 biểu đồ tiêu hao (than nhiệt trị, Ccd,
       vôi, dolomite cả 2 trang, điện, quặng chứa sắt, khí than, HLC, hồi nguội) vẽ
-      CHUNG 4 dây — cột TK1 xanh ngọc, TK2 hồng (Charts/ve/tien_ich.js
-      datasetDayThem; Charts/bep/cot_bieu_do.js DAY_THEM_VAI_TRO, dayThem). Ô "Dây chuyền":
+      CHUNG 4 dây — cột TK1 xanh ngọc, TK2 hồng (Charts/render/utils.js
+      datasetDayThem; Charts/controller/module_configs.js DAY_THEM_VAI_TRO, dayThem). Ô "Dây chuyền":
       cả 4 / 3+4 / 1+2 / từng dây (hienDay). Nhãn số chỉ hiện khi <= 7 ngày (trước
       15). Biểu đồ sản lượng: 2 trang ‹ › — Xưởng TK2 (TK3+TK4) / Xưởng TK1
       (TK1+TK2). KHOAN: hơi nước, biểu đồ chất lượng.
       21/10/2026: trang Xưởng TK1 có đường mục tiêu; các thẻ Kế hoạch / Sản lượng
       đã đạt / Tỉ lệ đạt / Hệ số lợi dụng đổi theo trang ‹ › (nhãn mờ X.TK2 /
-      X.TK1 góc phải dưới — Charts/bep/san_luong.js slChiSoTrang, kpiVe). Kế hoạch tháng (ô
+      X.TK1 góc phải dưới — Charts/controller/production.js slChiSoTrang, kpiVe). Kế hoạch tháng (ô
       "Kế hoạch tháng" hàng "Sản lượng": TK1 H7, TK2 H8) và giờ dừng (bảng đình
       trệ sự cố + dừng theo kế hoạch, ~hàng 41–62) đọc từ sheet "Báo cáo" của 2
       file (tk12DocBaoCao_), gửi thành cột "Sản lượng kế hoạch" / "Thời gian dừng"
       của khối Sản lượng như TK3 -> công thức hệ số lợi dụng y hệt TK3/TK4 (360 m²).
-      10/10/2026: điện có định mức riêng TK1 55, TK2 44 kWh/tsp (Charts/bep/cot_bieu_do.js
+      10/10/2026: điện có định mức riêng TK1 55, TK2 44 kWh/tsp (Charts/controller/module_configs.js
       DINH_MUC_DAY_THEM; cột vượt nhấp nháy) và tách tầng cột / đường
-      (Charts/ve/tieu_hao.js tachCotVaDuong); quặng chứa sắt TK1/TK2 vẽ vùng; luỹ kế HLC
+      (Charts/render/consumption_charts.js tachCotVaDuong); quặng chứa sắt TK1/TK2 vẽ vùng; luỹ kế HLC
       DQ1 nối từ hàng Tổng (file có số từ tối 10/10; trước đó công thức ra 0,00).
       10/10/2026 tối: cột xếp TK1 -> TK4 từ trái qua (xepCotTheoDay), chú giải gom
       theo dây TK1 -> TK4 (chuGiaiTheoDay), bỏ mọi nét đứt — luỹ kế TK1/TK2 nét liền,
@@ -208,7 +208,7 @@ Link deploy dự án lên CloudFlare thông qua node.js: https://xtk2-profile.pa
         y hệt file thì KHÔNG gửi lại (phiếu BK ngày cũ không đổi). Ngày chưa nạp,
         ngày lần trước còn thiếu ca thì vẫn gửi. Cần nhập khoá ở bước 1 trước.
         Mỗi lượt tối đa 10.000 ô (giới hạn 10 ms CPU) — file lớn tự chia theo ngày.
-      Biểu đồ ghép TK3 + TK4 theo NGÀY + KÍP (Charts/bep/ghep_so_lieu.js, ghepTheoNgayKip),
+      Biểu đồ ghép TK3 + TK4 theo NGÀY + KÍP (Charts/controller/data_merge.js, ghepTheoNgayKip),
       không theo thứ tự hàng: hai dây khác số hàng mỗi ngày vẫn đúng ngày.
       Cỡ hạt than: biểu đồ CỘT, 3 mốc (<1 / 1-3 / >3mm) hoặc 4 mốc khi phiếu ghi
       thêm 0,5-1. Cảnh báo "Cỡ hạt <0,5mm > 20%" tính <0,5 = <1 − (0,5-1) — chỉ
@@ -265,17 +265,19 @@ CẦN NHỚ GÌ. Bảng dưới chỉ để biết nên mở file nào.
    js/api/                     tải dữ liệu (4 file — đọc đầu api_config.js trước)
    js/chung/chi_so.js          CÔNG THỨC + NGƯỠNG CẢNH BÁO (dùng chung với máy chủ)
    js/components/Charts/
-       ve/                     các hàm VẼ biểu đồ — 7 file, mở ve/chung.js trước
+       render/                 các hàm VẼ biểu đồ — 7 file, mở render/setup.js trước
                                (trước 24/10/2026 là một file chart_core.js)
-       bep/                    chọn số liệu, điều phối, bộ lọc, lật trang, dải chỉ
-                               số, mục Sản lượng — 8 file, mở bep/cot_bieu_do.js
-                               trước: có cách THÊM MỘT BIỂU ĐỒ MỚI
+       controller/             chọn số liệu, điều phối, bộ lọc, lật trang, dải chỉ
+                               số, mục Sản lượng — 8 file, mở
+                               controller/module_configs.js trước: có cách THÊM
+                               MỘT BIỂU ĐỒ MỚI
                                (trước 24/10/2026 là một file chart_cook.js)
        canhbao.js              bảng nhận xét / cảnh báo
        vattu.js                ba mục vật tư
-       Các file trong ve/ và bep/ là SCRIPT THƯỜNG (không import / export): hàm
-       của file này gọi thẳng được ở file khác, nên THỨ TỰ thẻ <script> trong
-       index.html là thứ tự bắt buộc. Thêm / bớt file thì sửa danh sách thẻ đó.
+       Các file trong render/ và controller/ là SCRIPT THƯỜNG (không import /
+       export): hàm của file này gọi thẳng được ở file khác, nên THỨ TỰ thẻ
+       <script> trong index.html là thứ tự bắt buộc. Thêm / bớt file thì sửa
+       danh sách thẻ đó.
    js/components/personnel.js  sơ đồ tổ chức 3 kíp
    js/components/nav_fit.js    thanh menu tự co giãn
    js/components/sidebar.js    menu bên, mở khối biểu đồ
@@ -288,12 +290,12 @@ CẦN NHỚ GÌ. Bảng dưới chỉ để biết nên mở file nào.
                                import / export) — đầu pixiStage.jsx có bản đồ đủ file
        DiagramApp.jsx          điểm vào: chỉ tải sơ đồ khi người xem mở tới
        pixiStage.jsx           sân khấu Pixi + camera + pop-up + nút điều khiển
-       cau_hinh.js             CFG: toạ độ, kích thước mọi thiết bị
-       bo_cuc.js               buildLayout(): từ CFG tính toạ độ chi tiết
-       lap_rap/                ghép thiết bị thành từng khu (8 file)
-       diagramContainer.jsx    MỤC LỤC thiết bị -> mã ở thiet_bi/ (25 file,
+       stageConfig.js          CFG: toạ độ, kích thước mọi thiết bị
+       layout.js               buildLayout(): từ CFG tính toạ độ chi tiết
+       assembly/               ghép thiết bị thành từng khu (8 file)
+       diagramContainer.jsx    MỤC LỤC thiết bị -> mã ở equipment/ (25 file,
                                mỗi file một nhóm: băng tải, máy trộn, lò cao...)
-       hang_muc.js             NỘI DUNG pop-up: tên, mô tả, thông số, ảnh / video
+       hotspotData.js          NỘI DUNG pop-up: tên, mô tả, thông số, ảnh / video
        diagramHotspots.jsx     giao diện pop-up, bắt chuột, bảng danh mục
        (trước 24/10/2026 chỉ có pixiStage / diagramContainer / diagramHotspots,
        mỗi file vài nghìn dòng)
@@ -307,20 +309,20 @@ CẦN NHỚ GÌ. Bảng dưới chỉ để biết nên mở file nào.
    Đã xoá 24/10/2026 (xem lại được trong lịch sử git): js/components/stats_ribbon.js,
    js/sections/FlowDiagram.jsx, js/components/SinteringDiagram/diagramStore.jsx.
    Còn lại một component cũ không dùng: CoalCrusherPlaceholder
-   (SinteringDiagram/thiet_bi/silo_phoi_lieu.jsx).
+   (SinteringDiagram/equipment/blendingSilos.jsx).
 
 6) MUỐN SỬA NHANH
    Ngưỡng cảnh báo, công thức hệ số lợi dụng ....... js/chung/chi_so.js
-   Tên cột bảng tính của một biểu đồ ................ Charts/bep/cot_bieu_do.js (col..., moduleConfigs)
-   Biểu đồ nhiều trang (mũi tên ‹ › vôi, dolomite) .. Charts/bep/bo_loc.js (chartConfigs[...].cacTrang)
-   Màu, chú giải, tuỳ chọn chung của biểu đồ ........ Charts/ve/tien_ich.js
+   Tên cột bảng tính của một biểu đồ ................ Charts/controller/module_configs.js (col..., moduleConfigs)
+   Biểu đồ nhiều trang (mũi tên ‹ › vôi, dolomite) .. Charts/controller/chart_configs.js (chartConfigs[...].cacTrang)
+   Màu, chú giải, tuỳ chọn chung của biểu đồ ........ Charts/render/utils.js
    Quy tắc xếp nhân sự vào nhóm ..................... personnel.js (NHOM_RULES)
    Cách gọt / thống nhất tên vị trí nhân sự ......... apps-script/nhan-su.gs (nhanSuViTri_)
    Cột không gửi ra trình duyệt ..................... db/goi-v2.mjs (COT_KHONG_GUI)
-   Vị trí / kích thước trong sơ đồ công nghệ ........ SinteringDiagram/cau_hinh.js (CFG)
+   Vị trí / kích thước trong sơ đồ công nghệ ........ SinteringDiagram/stageConfig.js (CFG)
    Hình dáng / hoạt ảnh một thiết bị trong sơ đồ .... SinteringDiagram/diagramContainer.jsx
-                                                      (mục lục) -> file trong thiet_bi/
-   Ảnh / video / thông số pop-up của sơ đồ .......... SinteringDiagram/hang_muc.js (HOTSPOT_DEFS)
+                                                      (mục lục) -> file trong equipment/
+   Ảnh / video / thông số pop-up của sơ đồ .......... SinteringDiagram/hotspotData.js (HOTSPOT_DEFS)
    Thêm một dạng file Excel để nạp ................. js/nap/mau_nap.js (CAC_MAU)
    Phiếu BK: vật liệu nào vào khối / cột nào ........ js/nap/mau_nap.js (QUY_TAC_KCS)
 

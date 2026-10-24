@@ -13,7 +13,7 @@
  *        rồi bắn sự kiện 'TK3DataReady' / 'TK4DataReady' / 'TK1DataReady' /
  *        'TK2DataReady' / 'VATTUDataReady';
  *     3) nhận chỉ số trang chủ máy chủ tính sẵn, bắn 'ChiSoReady'.
- *   Các file biểu đồ (Charts/bep/, canhbao.js, personnel.js, vattu.js...) chỉ
+ *   Các file biểu đồ (Charts/controller/, canhbao.js, personnel.js, vattu.js...) chỉ
  *   việc lắng nghe các sự kiện đó và đọc các biến trên.
  *
  * BỐN MẸO GIẢM THỜI GIAN CHỜ
@@ -225,7 +225,7 @@ function apiLayLoiHua(ten) {
  * -----------------------------------------------------------------------------
  * Dải chỉ số, mục Sản lượng, bảng cảnh báo dùng kết quả này NẾU nó được tính cho
  * ĐÚNG ngày hôm nay theo đồng hồ máy người xem; không thì tự tính
- * (Charts/bep/trang_chu.js + san_luong.js, canhbao.js gọi chiSoMayChu() để hỏi).
+ * (Charts/controller/home_ribbon.js + production.js, canhbao.js gọi chiSoMayChu() để hỏi).
  * ===========================================================================*/
 window.XTK2_CHI_SO_MAY = null;              /* kết quả gần nhất, hoặc null */
 

@@ -19,7 +19,7 @@
  *   Hàng quản lý kíp ..... lấp đầy bề ngang
  *   Mục Sản lượng ........ .kpi-grid, .kpi-card, .progress-bar, .sanluong-chart
  *   Biểu đồ hai trang .... .lat-khung, .lat-nut (mũi tên ‹ ›), .lat-cham
- *                          (đi cặp Charts/bep/lat_trang.js: latTrangBieuDo)
+ *                          (đi cặp Charts/controller/pagination.js: latTrangBieuDo)
  * ===========================================================================*/
 .hero-section {
     position: relative;
@@ -167,7 +167,7 @@
 }
 
 /* Ô HỆ SỐ LỢI DỤNG (trang chủ): hai cột TK3 | TK4, mỗi cột nhãn nhỏ phía trên
-   và số lớn phía dưới — do ribbonVeHeSo() trong Charts/bep/trang_chu.js dựng.*/
+   và số lớn phía dưới — do ribbonVeHeSo() trong Charts/controller/home_ribbon.js dựng.*/
 .stat-box h3 .heso-donvi {
     text-transform: none;
     letter-spacing: 0;
@@ -1227,7 +1227,7 @@ img.person-avatar--t3 { object-fit: cover; }
 .kpi-trend.is-cham { color: var(--danger-red, #e74c3c); font-weight: 700; }
 
 /* Nhãn mờ góc phải dưới thẻ: xưởng đang xem — X.TK2 (TK3 + TK4) / X.TK1 (TK1 + TK2).
-   Charts/bep/san_luong.js (kpiVe) đặt data-xuong theo trang ‹ › của biểu đồ sản lượng. Thẻ là
+   Charts/controller/production.js (kpiVe) đặt data-xuong theo trang ‹ › của biểu đồ sản lượng. Thẻ là
    flex dọc và cao bằng nhau trong lưới -> margin-top: auto đẩy nhãn xuống đáy, không
    đè lên dòng nhận xét / thanh tiến độ. */
 .kpi-card[data-xuong]::after {

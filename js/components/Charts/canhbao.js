@@ -1,5 +1,5 @@
 /* XTK2-CANHBAO v3 — canhbao.js
- * Đi CẶP với css/cb.css (giao diện bảng) và Charts/bep/.
+ * Đi CẶP với css/cb.css (giao diện bảng) và Charts/controller/.
  * =============================================================================
  * BẢNG CẢNH BÁO ("BẢNG NHẬN XÉT") Ở ĐẦU HAI MỤC TIÊU HAO VÀ CHẤT LƯỢNG
  * =============================================================================

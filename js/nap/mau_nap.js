@@ -215,7 +215,7 @@ const MAU_CHUAN = {
  *   - MỖI CA MỘT HÀNG: mọi lần kiểm tra cùng ngày + ca + kíp được gộp lại, mỗi chỉ
  *     tiêu lấy TRUNG BÌNH CỘNG (trungBinh). Hàng của khối nào cũng là "dd/mm - kíp"
  *     như sheet, nên biểu đồ ghép TK3 + TK4 theo ngày + kíp khớp từng ca
- *     (js/components/Charts/bep/ghep_so_lieu.js, ghepTheoNgayKip).
+ *     (js/components/Charts/controller/data_merge.js, ghepTheoNgayKip).
  *   - Vôi nung: hai silo của cùng ca thành hai cột của một hàng. Cỡ hạt than: xem
  *     coHatThan (4 số -> có thêm cột 0,5-1mm).
  * Phiếu là số chuẩn cho CẢ khoảng ngày của nó: ngày nào khối không có mẫu thì nạp
@@ -362,7 +362,7 @@ function coHatNhan(mau, re) {
  *  "0,5-3mm", ">3mm", nhưng số sheet vẫn nhập vào đó là <1 / 1-3 / >3 (dạng 3 số)
  *  — ghi đúng như vậy để đường biểu đồ liền mạch giữa số cũ và số mới. Số 0,5-1
  *  vào cột "Cỡ hạt 0,5-1mm (...)" (cột mới — sheet không có, nạp lần đầu thì máy
- *  chủ tạo). Biểu đồ đọc đủ 4 cột: js/components/Charts/ve/chat_luong.js, drawCoalSizeChart.
+ *  chủ tạo). Biểu đồ đọc đủ 4 cột: js/components/Charts/render/quality_charts.js, drawCoalSizeChart.
  *  Dạng khác: để trống và báo. */
 function coHatThan(mau, nhac) {
     if (mau.than) return mau.than;            /* bốn cột cùng gọi: tính (và nhắc) một lần */
