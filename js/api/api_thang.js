@@ -8,24 +8,24 @@
  *   tải cả lịch sử, nhưng có hai lúc người xem cần tháng cũ hơn:
  *
  *   1) LỌC LÙI NGÀY: chọn "Từ ngày" sớm hơn phần đã tải.
- *      -> bọc applyUniversalFilter (hàm lọc của chart_cook.js).
+ *      -> bọc applyUniversalFilter (hàm lọc của Charts/bep/bo_loc.js).
  *   2) MỞ MỘT KHỐI có số liệu đã NGỪNG từ lâu (vd chất lượng quặng thiêu kết
  *      TK3 dừng ở 25/08). Biểu đồ mặc định vẽ 7 ngày CUỐI CÙNG CÓ SỐ, nên phải có
  *      tháng chứa các ngày đó. Ngày cuối có số của từng khối nằm sẵn trong
  *      muc_luc của gói /api/v2 (bảng moc_khoi trong D1).
- *      -> bọc DieuPhoi.moKhoi (hàm mở khối biểu đồ của chart_cook.js).
+ *      -> bọc DieuPhoi.moKhoi (hàm mở khối biểu đồ của Charts/bep/dieu_phoi.js).
  *
  *   Tải xong thì gộp vào kho (api_v2.js) và bắn TK3DataReady / TK4DataReady như
  *   mọi lần dữ liệu mới về: biểu đồ đang mở tự vẽ lại, GIỮ NGUYÊN bộ lọc đang chọn.
  *
  * QUY TẮC VÀNG: LUÔN TẢI CHO CẢ HAI DÂY CÙNG LÚC
- *   Biểu đồ gộp TK3 + TK4 (ghép theo ngày + kíp, chart_cook.js ghepTheoNgayKip).
+ *   Biểu đồ gộp TK3 + TK4 (ghép theo ngày + kíp, Charts/bep/ghep_so_lieu.js ghepTheoNgayKip).
  *   Một dây có thêm tháng mà dây kia không thì biểu đồ trông như dây kia không
  *   có số những tháng đó. Vì vậy chỉ gộp khi CẢ HAI dây cùng tải về được, và
  *   cùng danh mục cột. TK1, TK2 (Xưởng Thiêu kết 1, có số từ 10/2026) tải cùng
  *   khoảng tháng nhưng là dây "thêm": hỏng thì bỏ, không chặn TK3, TK4.
  *
- * VỊ TRÍ NẠP: SAU chart_cook.js (cần DieuPhoi, chartConfigs, moduleConfigs) và
+ * VỊ TRÍ NẠP: SAU các file Charts/bep/ (cần DieuPhoi, chartConfigs, moduleConfigs) và
  * TRƯỚC main.js. Đang dùng bản KV (vốn đủ mọi tháng) thì file này không làm gì.
  * ===========================================================================*/
 
@@ -119,7 +119,7 @@ function apiThangDamBao(tu, lyDo) {
 /* --- 1) LỌC LÙI NGÀY ---------------------------------------------------- */
 
 /** Đọc ô "Từ ngày" / "Đến ngày" của một loại biểu đồ — đúng cách
- *  applyUniversalFilter (chart_cook.js) đọc. Ra { tu, den } dạng 'YYYY-MM-DD'.
+ *  applyUniversalFilter (Charts/bep/bo_loc.js) đọc. Ra { tu, den } dạng 'YYYY-MM-DD'.
  *  Riêng biểu đồ cỡ hạt than chỉ có MỘT ô ngày. */
 function apiThangOLoc(loai) {
     if (loai === 'CoHatThan') {

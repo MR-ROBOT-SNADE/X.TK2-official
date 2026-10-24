@@ -281,7 +281,7 @@ function taoSql(kq, luc) {
  * ===========================================================================*/
 
 /** Dựng lại chuỗi (nhãn, giá trị) của một cột Y NHƯ extractChartData() trong
- *  js/components/Charts/chart_core.js làm — kể cả cách đọc số "ngây thơ" của
+ *  js/components/Charts/ve/rut_loc.js làm — kể cả cách đọc số "ngây thơ" của
  *  nó: chỉ thay dấu phẩy ĐẦU TIÊN bằng dấu chấm. */
 function thamChieuTrinhDuyet(rows, cotNgay, cotCa, cot) {
     const ra = [];

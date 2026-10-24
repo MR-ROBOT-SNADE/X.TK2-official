@@ -7,7 +7,7 @@
  *     - dải chỉ số tổng quan: sản lượng tháng, % đạt kế hoạch, hệ số lợi dụng;
  *     - sản lượng từng ngày (4 thẻ mục Sản lượng + biểu đồ sản lượng tháng);
  *     - 3 bảng cảnh báo: Tiêu hao, Trợ dung, Chất lượng (ngưỡng + cách chấm).
- *   Phần VẼ lên màn hình thì ở chart_cook.js (dải chỉ số, sản lượng) và
+ *   Phần VẼ lên màn hình thì ở Charts/bep/ (trang_chu.js, san_luong.js) và
  *   canhbao.js (bảng cảnh báo).
  *
  * MUỐN ĐỔI NGƯỠNG CẢNH BÁO / CÔNG THỨC?
@@ -18,7 +18,7 @@
  *   Trình duyệt và máy chủ cùng đổi theo.
  *
  * CHẠY Ở HAI NƠI — CÙNG MỘT FILE
- *   - Trình duyệt: index.html nạp như script thường (trước chart_core.js) —
+ *   - Trình duyệt: index.html nạp như script thường (trước các file Charts/ve/) —
  *     mọi hàm / biến bên dưới thành biến toàn cục.
  *   - Máy chủ: db/chi-so.mjs import file này, tính sẵn rồi trả /api/v2/chi-so.
  *     Trang chủ hiện số ngay từ gói ~4 KB đó, không phải đợi tải số liệu TK3/TK4.
@@ -206,7 +206,7 @@ function soNgayTrongThang(thang, nam) {
  * Tất cả tính cho THÁNG HIỆN TẠI (theo now truyền vào): từ ngày 01 tới hôm nay,
  * cộng CẢ HAI dây chuyền TK3 + TK4 (riêng hệ số lợi dụng tính RIÊNG từng dây).
  * Sang tháng mới là tự nhảy, không phải sửa gì.
- * Trình duyệt gọi qua ribbonTinh() (chart_cook.js), máy chủ qua tinhChiSo().
+ * Trình duyệt gọi qua ribbonTinh() (Charts/bep/trang_chu.js), máy chủ qua tinhChiSo().
  * ===========================================================================*/
 
 const RIBBON_CFG = {
@@ -735,7 +735,7 @@ function cbTimCot(rows, ds) {
  *  Ra: { ngay: {d,m,y}, giaTriNgay, giaTriLuyKe (null nếu không có) } hoặc null.
  *
  *  Ngày trong bảng tính chỉ ghi ở hàng đầu mỗi ngày (ô gộp) nên phải nhớ ngày
- *  gần nhất rồi gán tiếp — giống cách chart_core làm. */
+ *  gần nhất rồi gán tiếp — giống extractChartData (Charts/ve/rut_loc.js). */
 function cbLayMoiNhat(rows, cfg, dsColNgay, dsColLuyKe, cong, now) {
     if (!rows || !rows.length) return null;
     var cNgay = cbTimCot(rows, [cfg.ngayCol]);

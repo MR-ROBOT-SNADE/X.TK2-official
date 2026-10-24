@@ -27,7 +27,7 @@
  *     { chi_tieu: 'dien.dien_nang', day_chuyen: 'TK3', ngay: '2026-10-01',
  *       stt: 1, ca: 1, kip: 'A', gia_tri: 1234, chu: null }
  *
- * CÁC QUY TẮC ĐỌC (giữ y như extractChartData() ở js/components/Charts/chart_core.js,
+ * CÁC QUY TẮC ĐỌC (giữ y như extractChartData() ở js/components/Charts/ve/rut_loc.js,
  * để D1 và trình duyệt hiểu bảng tính giống nhau)
  *   - Ô ngày GỘP: chỉ hàng đầu của một ngày ghi ngày, các hàng sau để trống ->
  *     ngày được "điền xuôi" xuống các hàng sau.

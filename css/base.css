@@ -2,7 +2,7 @@
  * base.css — NỀN TẢNG: BIẾN MÀU, PHÔNG CHỮ, KIỂU DÙNG CHUNG
  * =============================================================================
  * Nạp ĐẦU TIÊN trong các file CSS. Khai các biến màu (:root) mà mọi file CSS
- * khác dùng — và cả JS: chart_core.js đọc màu biểu đồ bằng getCSS('--primary-blue').
+ * khác dùng — và cả JS: Charts/ve/tien_ich.js đọc màu biểu đồ bằng getCSS('--primary-blue').
  * Đổi màu chủ đạo của cả trang: sửa ở đây.
  * Cuối file: màn hình <= 1080px thu nhỏ cả trang còn 90% (zoom) — nav_fit.js
  * đã tính tới việc này khi đo thanh menu.
