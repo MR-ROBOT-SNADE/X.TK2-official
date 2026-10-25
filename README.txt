@@ -1,4 +1,5 @@
-Muốn đọc hiểu code: xem mục BẢN ĐỒ MÃ NGUỒN ở cuối file này.
+Muốn đọc hiểu code: bắt đầu ở mục HƯỚNG DẪN ĐỌC CODE ở cuối file này (ngay trước
+BẢN ĐỒ MÃ NGUỒN).
 
 Link Apps Script (dữ liệu nguồn thiêu kết 3, thiêu kết 4): KHÔNG ghi vào đây.
     Ai có link /exec là tải được toàn bộ dữ liệu, không cần đăng nhập. Xem trong
@@ -222,6 +223,88 @@ Link deploy dự án lên CloudFlare thông qua node.js: https://xtk2-profile.pa
       Chạy lại được bất cứ lúc nào: ô không đổi thì D1 không ghi lại, không tốn
       hạn mức 100.000 dòng ghi/ngày.
     + Máy công ty: thay "npm run ..." bằng d:\node-v24.15.0-win-x64\npm.cmd run ...
+
+================================================================================
+HƯỚNG DẪN ĐỌC CODE — CHO NGƯỜI MỚI NHẬN BÀN GIAO
+================================================================================
+Không cần đọc hết. Đọc theo thứ tự A -> C; phần D chỉ đọc khi cần sửa đúng chỗ
+đó. Với mỗi file, đọc KHUNG CHÚ THÍCH ĐẦU FILE là đủ — file nào cũng có: file làm
+gì, ai gọi, nên đọc file nào trước. Tra tên file: mục BẢN ĐỒ MÃ NGUỒN ngay dưới;
+tra từ ngữ (tuyến, khối, kíp, gói tháng...): mục 7 của bản đồ.
+
+A) HIỂU TỔNG THỂ TRƯỚC KHI MỞ CODE (khoảng 30 phút)
+   1. Mục 1 của BẢN ĐỒ MÃ NGUỒN: số liệu đi từ Google Sheet tới màn hình.
+   2. "Tài liệu kỹ thuật Dashboard Xưởng Thiêu Kết 2.md": mục 1 (Kiến trúc tổng
+      quan), mục 3 (Luồng hệ thống), mục 4 (Cấu trúc mã nguồn).
+   3. Mở trang thật https://xtk2-profile.pages.dev, bấm thử các menu để biết
+      trang có những phần nào.
+
+B) ĐI THEO ĐƯỜNG ĐI CỦA SỐ LIỆU, TỪ MÁY CHỦ TỚI BIỂU ĐỒ (khoảng 1 buổi)
+   1. functions/api/[[route]].js
+         Máy chủ nhận và trả dữ liệu thế nào? Hàm onRequest cuối file cho biết
+         mỗi đường /api/... rẽ đi đâu.
+   2. db/chuan-hoa.mjs
+         Bảng tính "ngang" của Google Sheet thành các dòng "dọc" trong D1.
+   3. js/api/api_config.js -> api_v2.js -> api_loaded.js
+         Trình duyệt tải số về, đổ vào biến chung window.masterSheetDataTK3...
+         rồi báo cho các phần khác bằng sự kiện (TK3DataReady...).
+   4. js/components/Charts/controller/module_configs.js
+         Mỗi biểu đồ lấy những cột nào. Đầu file có tổng quan cả thư mục
+         controller/ và cách THÊM MỘT BIỂU ĐỒ MỚI.
+   5. controller/data_merge.js -> dispatcher.js -> chart_configs.js
+         Ghép số các dây chuyền, chỉ vẽ khối đang mở, đọc ô lọc rồi gọi hàm vẽ.
+   6. js/components/Charts/render/setup.js -> render/consumption_charts.js
+         Biểu đồ được vẽ bằng Chart.js thế nào.
+   7. js/chung/chi_so.js
+         Công thức hệ số lợi dụng, ngưỡng cảnh báo (máy chủ dùng chung đúng
+         file này để tính sẵn số trang chủ).
+
+C) BÀI TẬP: LẦN THEO BIỂU ĐỒ "TIÊU HAO THAN" (khoảng 30 phút)
+   Mọi biểu đồ đều đi đúng các chặng này — hiểu một cái là hiểu tất cả.
+   1. index.html: tìm coal-chart-nhietri — khung vẽ (canvas) của biểu đồ.
+   2. Charts/controller/dispatcher.js: tìm 'tieu-hao-than' — khối này gồm hai
+      biểu đồ 'nhietri' và 'ccd'.
+   3. Charts/controller/module_configs.js: tìm colThanNhietri — tên các cột trong
+      Google Sheet mà biểu đồ đọc; mục dùng nó có namespaceKey 'CoalNhietri'.
+   4. Charts/controller/chart_configs.js: tìm   'nhietri': {   — dòng draw: cho
+      biết hàm vẽ nào được gọi.
+   5. Charts/render/consumption_charts.js: tìm drawCoalConsumeChart — chỗ biểu đồ
+      thật sự được vẽ.
+   6. Mở trang thật, vào menu TÌNH HÌNH SẢN XUẤT-CHẤT LƯỢNG -> Tiêu hao than,
+      bấm F12 -> Console, gõ   AppChartData.CoalNhietri   để xem đúng bộ số mà
+      biểu đồ đang vẽ.
+
+D) KHI CẦN SỬA PHẦN KHÁC
+   Sơ đồ công nghệ (React + Pixi) — độc lập với biểu đồ, đọc theo thứ tự:
+      SinteringDiagram/pixiStage.jsx (đầu file có bản đồ đủ các file)
+      -> stageConfig.js (CFG: mọi toạ độ, kích thước)
+      -> assembly/feedingSection.jsx (xếp lớp cả sơ đồ)
+      -> diagramContainer.jsx (mục lục thiết bị) -> một file trong equipment/
+      Ví dụ dời lò cao: assembly/sampleArea.jsx đặt lò cao bằng
+      <BlastFurnacePlant {...CFG.BLAST_FURNACE} /> -> sửa số ở BLAST_FURNACE
+      trong stageConfig.js; hình dáng lò cao ở equipment/blastFurnace.jsx.
+   Trang nạp Excel: nap-lieu.html -> js/nap/nap_lieu.js (đầu file).
+   Apps Script (đẩy dữ liệu từ Google): apps-script/khoi-ngay.gs, đọc kèm mục
+      "ĐẨY THEO KHỐI-NGÀY" ở phần đầu README này.
+   Cơ sở dữ liệu D1: migrations/0001_khoi_tao.sql (các bảng chính), rồi
+      0002..0009.
+
+E) MẸO KHI ĐỌC
+   - VS Code: Ctrl+P rồi gõ tên file để mở nhanh.
+   - VS Code: Ctrl+Shift+F tìm một tên hàm khắp dự án. Các file trong
+     Charts/render/ và Charts/controller/ KHÔNG có dòng import (script thường,
+     dùng chung tên với nhau) — đây là cách tìm nơi một hàm được khai báo.
+   - VS Code: F12 (Go to Definition) chạy tốt trong SinteringDiagram/ (có
+     import / export).
+   - Tên file, thư mục bằng tiếng Anh; tên hàm / biến nhiều chỗ là tiếng Việt
+     không dấu: DieuPhoi = bộ điều phối, dayThem = dây "thêm" TK1/TK2, kip =
+     kíp A/B/C, luyKe = luỹ kế...
+   - npm run dev ở máy chỉ mở được khung trang, KHÔNG có số liệu (api_config.js
+     chỉ gọi /api khi tên miền có "pages.dev"). Muốn xem số liệu khi tìm hiểu,
+     dùng trang thật + F12.
+   - Sửa xong: npm run build phải chạy không lỗi, rồi mở trang xem bằng mắt — dự
+     án chưa có bộ kiểm thử tự động. Không đổi thứ tự các thẻ <script> trong
+     index.html.
 
 ================================================================================
 BẢN ĐỒ MÃ NGUỒN — MUỐN HIỂU CODE, ĐỌC THEO THỨ TỰ NÀY
