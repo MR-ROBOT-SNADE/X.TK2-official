@@ -1388,3 +1388,62 @@ img.person-avatar--t3 { object-fit: cover; }
     #main-wrapper.shifted .lat-nut--phai { right: 10px; }
     #main-wrapper.shifted .lat-khung .lat-tieu-de { padding: 0 40px; }
 }
+
+
+/* =============================================================================
+ * CÁC KIỂU NHỎ — trước 25/10/2026 viết thẳng trong index.html (style=...)
+ * ===========================================================================*/
+/* Ảnh nền ba trang trình chiếu ở trang chủ */
+.slide--1 { background-image: url('../images/anh_so_1.webp'); }
+.slide--2 { background-image: url('../images/anh_so_2.webp'); }
+.slide--3 { background-image: url('../images/anh_so_3.webp'); }
+
+/* Thanh tiến độ mục Sản lượng: rỗng khi chưa có số (JS đặt lại width) */
+.progress-bar--empty {
+    width: 0%;
+}
+
+/* Khung chờ dữ liệu (album ảnh, sáng kiến) */
+.album-panel {
+    border-radius: 8px;
+    padding: 20px;
+}
+.empty-hint {
+    width: 100%;
+    text-align: center;
+    padding: 40px;
+    color: #888;
+}
+
+/* Mục Sáng kiến, đổi mới */
+.spaced-block {
+    margin-bottom: 40px;
+}
+.kpi-card--purple { border-top-color: #8e44ad; }
+/* .kpi-value.kpi-value--... : đủ mạnh để thắng .kpi-value.actual (màu xanh) */
+.kpi-value.kpi-value--purple { color: #8e44ad; }
+.kpi-card--orange { border-top-color: #f39c12; }
+.kpi-value.kpi-value--orange { color: #f39c12; }
+.initiative-title {
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 20px;
+}
+.col-index { width: 50px; }
+.col-progress { width: 200px; }
+
+/* Màn hình chờ tải dữ liệu (#loading-screen) */
+.spinner--loading {
+    width: 50px;
+    height: 25px;
+    border: 5px solid #ecf0f1;
+    border-top: 5px solid #0033a1;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 20px auto;
+}
+.loading-title {
+    color: var(--primary-blue);
+    margin-top: 20px;
+    text-align: center;
+}

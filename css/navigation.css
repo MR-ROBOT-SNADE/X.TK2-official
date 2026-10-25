@@ -77,8 +77,44 @@
     padding: 0;
 }
 
+/* Mục có menu con (.dropbtn) và mục nút trong menu bên / nút × là <button>
+   (trước 25/10/2026 là <a href="javascript:void(0)">). Bỏ kiểu mặc định của
+   trình duyệt cho nút để trông y như liên kết. :where() = độ ưu tiên 0: mọi
+   luật bên dưới vẫn đè được, giống hệt với thẻ <a> trước kia. */
+:where(.nav-links button.dropbtn, .side-nav-drawer button) {
+    appearance: none;
+    background: none;
+    border: 0;
+    margin: 0;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    letter-spacing: inherit;
+    word-spacing: inherit;
+    text-transform: inherit;
+    text-indent: inherit;
+    text-shadow: inherit;
+    text-align: inherit;
+    line-height: inherit;
+    cursor: pointer;
+}
+/* <button> display:block KHÔNG tự giãn hết bề ngang như <a> — giãn cho bằng
+   (chỉ các mục trong danh sách menu bên; nút × định vị tuyệt đối nên để nguyên) */
+:where(.side-nav-content button) {
+    width: -webkit-fill-available;
+    width: stretch;
+}
+/* Chế độ GỌN (điện thoại): mỗi mục là cả một dòng -> mục <button> (có menu con)
+   cũng phải giãn hết dòng như mục <a> */
+:where(.nav-bar--gon .nav-links li > button) {
+    width: -webkit-fill-available;
+    width: stretch;
+}
+
 .nav-links li a.dropbtn,
-.nav-links li > a {
+.nav-links li button.dropbtn,
+.nav-links li > a,
+.nav-links li > button {
     color: var(--white);
     padding: 0 0.85em;
     height: 60px;
@@ -120,7 +156,8 @@
     min-width: 0;
 }
 
-.nav-bar--hai-dong .nav-links li > a {
+.nav-bar--hai-dong .nav-links li > a,
+.nav-bar--hai-dong .nav-links li > button {
     white-space: normal;
     line-height: 1.25;
     text-align: center;
@@ -152,7 +189,9 @@
 }
 
 .nav-bar--gon .nav-links li a.dropbtn,
-.nav-bar--gon .nav-links li > a {
+.nav-bar--gon .nav-links li button.dropbtn,
+.nav-bar--gon .nav-links li > a,
+.nav-bar--gon .nav-links li > button {
     height: auto;
     padding: 12px 5%;
     font-size: 14px;
@@ -185,7 +224,8 @@
 }
 
 .nav-links li:hover .dropbtn,
-.nav-links li > a:hover {
+.nav-links li > a:hover,
+.nav-links li > button:hover {
     background-color: var(--secondary-blue);
 }
 
@@ -260,7 +300,8 @@
     padding-top: 30px;
 }
 
-.side-nav-content a {
+.side-nav-content a,
+.side-nav-content button {
     color: white !important;
     font-size: 17px !important;
     padding: 12px 10px o !important;
@@ -270,7 +311,8 @@
     transition: 0.2s;
 }
 
-.side-nav-content a:hover {
+.side-nav-content a:hover,
+.side-nav-content button:hover {
     background-color: rgba(255,255,255, 0.15);
     border-left: 4px solid white;
     padding-left: 16px !important;
@@ -295,7 +337,8 @@
     background: rgba(255, 60, 60, 0.8);
 }
 
-.side-nav-drawer a {
+.side-nav-drawer a,
+.side-nav-drawer button {
     padding: 12px 20px;
     margin: 4px 10px;
     color: #c9d1d9;
@@ -305,7 +348,8 @@
     font-size: 14px;
 }
 
-.side-nav-drawer a:hover {
+.side-nav-drawer a:hover,
+.side-nav-drawer button:hover {
     background-color: #161b22;
     color: #58a6ff;
 }
@@ -382,4 +426,28 @@
 @keyframes text-pulse {
     0%, 100% { opacity: 0.5; }
     50% { opacity: 1; }
+}
+
+/* =============================================================================
+ * MENU BÊN — các kiểu trước 25/10/2026 viết thẳng trong index.html (style=...)
+ * ===========================================================================*/
+/* Khối menu của từng mục (#sidebar-menu-...): ẩn sẵn, sidebar.js hiện đúng khối
+   của mục đang xem */
+.side-nav-menu {
+    display: none;
+}
+/* Chữ MENU trên đầu ngăn kéo. Hai class để thắng .side-nav-content h3 (màu #e0e0e0) */
+.side-nav-content .side-nav-title {
+    color: white;
+    font-size: 12px;
+    text-align: center;
+    padding-left: 20px;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+}
+/* Liên kết sang trang nạp Excel, tách khỏi các mục biểu đồ phía trên. Hai class
+   để thắng .side-nav-drawer a (margin: 4px 10px) */
+.side-nav-drawer .side-nav-upload {
+    margin-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, .2);
 }

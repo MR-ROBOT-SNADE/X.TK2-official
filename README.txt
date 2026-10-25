@@ -366,6 +366,9 @@ CẦN NHỚ GÌ. Bảng dưới chỉ để biết nên mở file nào.
    js/components/sidebar.js    menu bên, mở khối biểu đồ
    js/api/api_thang.js         tải thêm tháng cũ khi lọc lùi ngày / mở khối cũ
    js/main/main.js             khởi động trang, làm mới mỗi 15 phút
+   js/components/ui_events.js  gắn sự kiện bấm cho nút trong index.html (nút lọc,
+                               nút ☰ / ×, mũi tên ‹ ›) — HTML chỉ ghi data-..., KHÔNG
+                               viết onclick="..." trong thẻ
    nap-lieu.html + js/nap/     trang nạp Excel (trang riêng, gói riêng):
        nap_lieu.js (điều khiển) -> doc_xlsx.js (đọc .xlsx, không thư viện ngoài)
        -> mau_nap.js (dạng file -> các ô gửi lên); ghi_xlsx.js tạo file mẫu
@@ -382,7 +385,10 @@ CẦN NHỚ GÌ. Bảng dưới chỉ để biết nên mở file nào.
        diagramHotspots.jsx     giao diện pop-up, bắt chuột, bảng danh mục
        (trước 24/10/2026 chỉ có pixiStage / diagramContainer / diagramHotspots,
        mỗi file vài nghìn dòng)
-   css/                        giao diện — đầu mỗi file ghi rõ dùng cho phần nào
+   css/                        giao diện — đầu mỗi file ghi rõ dùng cho phần nào;
+                               charts.css: thanh lọc, khung, canvas của các biểu đồ.
+                               index.html KHÔNG viết style="..." trong thẻ: thêm
+                               class vào file CSS hợp chỗ (từ 25/10/2026)
 
 4) CÔNG CỤ
    scripts/nap-lich-su.mjs     nạp lại toàn bộ lịch sử vào D1 (npm run db:chuan-bi)

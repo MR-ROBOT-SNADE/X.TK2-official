@@ -49,8 +49,9 @@
  *
  * MUỐN THÊM MỘT BIỂU ĐỒ MỚI
  *   1) index.html: trong khối .chart-group, thêm <canvas id="X-chart"> và các ô
- *      lọc id start-X, end-X, shift-X, sinterline-X + nút
- *      onclick="applyUniversalFilter('X')" / "clearUniversalFilter('X')".
+ *      lọc id start-X, end-X, shift-X, sinterline-X + hai nút
+ *      data-filter="apply" / data-filter="clear" kèm data-chart="X"
+ *      (js/components/ui_events.js gắn sự kiện).
  *   2) File này: khai mảng tên cột (colX) + một mục trong moduleConfigs.
  *   3) chart_configs.js: khai chartConfigs['X'] (dataSource, canvasId, filterSuffix '-X', draw).
  *   4) dispatcher.js: thêm 'X' vào đúng khối trong KHOI_BIEU_DO.

@@ -384,7 +384,7 @@ function cbVeTongHop(m) {
     cbHien(m, true);
     var menu = document.getElementById(m.menu);
     if (menu) {
-        menu.querySelectorAll('a').forEach(function (x) { x.classList.remove('is-dang-xem'); });
+        menu.querySelectorAll('a, button').forEach(function (x) { x.classList.remove('is-dang-xem'); });
         var mi = menu.querySelector('.cb-menu-item');
         if (mi) mi.classList.add('is-dang-xem');
     }
@@ -437,12 +437,12 @@ function cbThemMucMenu(m) {
     var menu = document.getElementById(m.menu);
     if (!menu || menu.querySelector('.cb-menu-item')) return;
 
-    var a = document.createElement('a');
-    a.href = 'javascript:void(0)';
-    a.className = 'cb-menu-item';
-    a.textContent = '📋 Bảng nhận xét';
-    a.addEventListener('click', function () { cbVeTongHop(m); });
-    menu.insertBefore(a, menu.firstChild);
+    var nut = document.createElement('button');
+    nut.type = 'button';
+    nut.className = 'cb-menu-item';
+    nut.textContent = '📋 Bảng nhận xét';
+    nut.addEventListener('click', function () { cbVeTongHop(m); });
+    menu.insertBefore(nut, menu.firstChild);
 }
 
 /** Sau khi dựng xong một bảng: gắn các sự kiện trên (mỗi thứ chỉ gắn một lần)

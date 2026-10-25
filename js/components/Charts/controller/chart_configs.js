@@ -343,7 +343,7 @@ const chartConfigs = {
     }
 };
 
-/** Nút "Lọc dữ liệu" của biểu đồ chartType (index.html gọi qua onclick; DieuPhoi
+/** Nút "Lọc dữ liệu" của biểu đồ chartType (nút data-filter="apply", ui_events.js gắn; DieuPhoi
  *  gọi khi vẽ lại). Đọc các ô lọc theo filterSuffix, lọc bằng smartFilter rồi vẽ.
  *  'CoHatThan' là tên gộp: lọc cùng lúc hai biểu đồ cỡ hạt than nghiền + coke.
  *  (api_thang.js "bọc" hàm này: lọc xong thì xét có cần tải thêm tháng cũ.) */

@@ -50,7 +50,7 @@ function updateSidebarVisibility(targetId) {
     if (sidebarToggle) sidebarToggle.style.display = menuDangDung ? 'block' : 'none';
 }
 
-/** Mở / đóng ngăn kéo menu bên (ĐẢO trạng thái). index.html gọi qua onclick của
+/** Mở / đóng ngăn kéo menu bên (ĐẢO trạng thái). ui_events.js gắn vào
  *  nút ☰ và nút × trong ngăn kéo.
  *    #my-sidebar   thêm/bỏ lớp .open    -> ngăn kéo trượt ra / vào (navigation.css)
  *    #main-wrapper thêm/bỏ lớp .shifted -> nội dung đẩy sang phải, không bị che

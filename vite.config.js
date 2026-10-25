@@ -36,8 +36,8 @@ import path from 'node:path';
  *      thứ tự và đúng VỊ TRÍ (nhóm ở <head> vẫn ở <head> để gọi API sớm; nhóm
  *      sau thanh menu vẫn ở đó).
  *   2) Thu nhỏ: bỏ chú thích, khoảng trắng, đổi tên biến CỤC BỘ. Tên hàm/biến
- *      cấp ngoài cùng GIỮ NGUYÊN vì các file gọi chéo nhau và HTML gọi thẳng
- *      (onclick="showSubContent(...)").
+ *      cấp ngoài cùng GIỮ NGUYÊN vì các file gọi chéo nhau qua tên toàn cục
+ *      (ui_events.js cũng gọi hàm theo tên: window['applyUniversalFilter']...).
  *   3) Đặt tên theo mã băm nội dung vào assets/ -> trình duyệt nhớ 1 năm
  *      (public/_headers), sửa code là tên đổi, không kẹt bản cũ.
  *   4) Bỏ chú thích <!-- --> trong index.html.

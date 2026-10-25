@@ -70,7 +70,7 @@
 
     /** Có mục nào phải xuống quá 2 dòng không (khi đó chế độ hai dòng không đạt). */
     function quaHaiDong() {
-        const cac = links.querySelectorAll(':scope > li > a');
+        const cac = links.querySelectorAll(':scope > li > a, :scope > li > button');
         for (let i = 0; i < cac.length; i++) if (soDong(cac[i]) > 2) return true;
         return false;
     }

@@ -220,13 +220,16 @@ function veBieuDoSanLuong() {
         const khung = document.createElement('div');
         khung.className = 'lat-khung';
         khung.id = 'lat-sanLuong';
-        khung.innerHTML = '<button type="button" class="lat-nut lat-nut--trai" onclick="latTrangSanLuong(-1)" aria-label="Xưởng trước">&#8249;</button>'
+        khung.innerHTML = '<button type="button" class="lat-nut lat-nut--trai" data-page-step="-1" aria-label="Xưởng trước">&#8249;</button>'
             + '<div id="sanluong-chart-box" class="chart-container sanluong-chart">'
             + '<h3 class="sanluong-chart__title lat-tieu-de"></h3>'
             + '<div class="lat-cham" aria-hidden="true">' + SL_TRANG.map(function () { return '<span></span>'; }).join('') + '</div>'
             + '<div class="sanluong-chart__canvas"><canvas id="sanluong-chart"></canvas></div>'
             + '</div>'
-            + '<button type="button" class="lat-nut lat-nut--phai" onclick="latTrangSanLuong(1)" aria-label="Xưởng sau">&#8250;</button>';
+            + '<button type="button" class="lat-nut lat-nut--phai" data-page-step="1" aria-label="Xưởng sau">&#8250;</button>';
+        khung.querySelectorAll('[data-page-step]').forEach(function (nut) {
+            nut.addEventListener('click', function () { latTrangSanLuong(Number(nut.dataset.pageStep)); });
+        });
         sec.appendChild(khung);
         box = document.getElementById('sanluong-chart-box');
     }

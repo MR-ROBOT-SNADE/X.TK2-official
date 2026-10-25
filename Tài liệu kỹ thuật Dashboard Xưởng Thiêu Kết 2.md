@@ -294,6 +294,7 @@ Portfolio_Xuongthieuket2/
 │   │   │   └── diagramHotspots.jsx   giao diện pop-up, bắt chuột, bảng danh mục
 │   │   ├── personnel.js        sơ đồ tổ chức 3 kíp
 │   │   ├── sidebar.js          menu bên, mở khối biểu đồ
+│   │   ├── ui_events.js        gắn sự kiện bấm cho nút (thay onclick trong HTML)
 │   │   └── nav_fit.js          thanh menu tự co giãn
 │   ├── main/main.js            khởi động, điều hướng, làm mới 15 phút
 │   └── nap/                    trang nạp Excel
@@ -301,7 +302,8 @@ Portfolio_Xuongthieuket2/
 │       ├── doc_xlsx.js         đọc .xlsx bằng DecompressionStream
 │       ├── mau_nap.js          dạng file -> ô gửi lên (CAC_MAU, QUY_TAC_KCS)
 │       └── ghi_xlsx.js         tạo file mẫu
-├── css/                        8 file, mỗi file ghi rõ dùng cho phần nào
+├── css/                        9 file, mỗi file ghi rõ dùng cho phần nào
+│                               (charts.css: khối biểu đồ, nạp cuối)
 ├── images/                     ảnh thiết bị, sơ đồ (jpg/png + webp)
 ├── public/                     _headers (cache 1 năm cho /assets), 404.html
 ├── scripts/nap-lich-su.mjs     nạp lại toàn bộ lịch sử vào D1 (db:chuan-bi)

@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', function () {
      * DieuPhoi (Charts/controller/dispatcher.js) cần biết khối nào đang mở để quyết định vẽ gì và
      * nhấp nháy cái nào. Bọc ở ĐÂY chứ không sửa sidebar.js vì: main.js nạp sau
      * cùng nên chắc chắn showSubContent đã tồn tại; và bọc thì phủ được MỌI
-     * đường gọi — bấm menu bên, onclick còn sót trong HTML, bảng nhận xét.
+     * đường gọi — bấm menu bên, gọi từ file khác, bảng nhận xét.
      * =======================================================================*/
     (function bocShowSubContent() {
         const goc = window.showSubContent;
@@ -113,22 +113,17 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     /* =========================================================================
-     * 2. MENU BÊN — các mục <a onclick="showSubContent('id-khối')">
+     * 2. MENU BÊN — các mục data-block="id-khối"
      * ---------------------------------------------------------------------
-     * Thay onclick gốc bằng trình nghe riêng: vẫn mở khối như cũ, nhưng nếu số
-     * liệu chưa về thì phủ lớp chờ lên khối cho tới khi có.
+     * Bấm một mục: mở khối như showSubContent('id-khối'), và nếu số liệu chưa về
+     * thì phủ lớp chờ lên khối cho tới khi có.
      * Gắn TRƯỚC initPage() để cú mở khối tự động (nếu có) cũng đi qua trình
      * nghe này.
      * =======================================================================*/
-    const sidebarItems = document.querySelectorAll('.side-nav-content a[onclick^="showSubContent"]');
+    const sidebarItems = document.querySelectorAll('.side-nav-content [data-block]');
 
     sidebarItems.forEach(function (item) {
-        /* Lấy id khối từ chuỗi onclick: showSubContent('tieu-hao-than') -> tieu-hao-than */
-        const match = item.getAttribute('onclick').match(/'([^']+)'/);
-        if (!match) return;
-        const targetId = match[1];
-
-        item.removeAttribute('onclick');   /* vô hiệu hoá onclick gốc trong HTML */
+        const targetId = item.dataset.block;
 
         item.addEventListener('click', function (e) {
             e.preventDefault();

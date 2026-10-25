@@ -11,7 +11,8 @@
  * trang chỉ có tieuDe thì dùng nguyên cấu hình gốc. canvasId và filterSuffix là
  * của chung, nên bộ lọc đang chọn giữ nguyên khi lật trang và khi số liệu mới về.
  * HTML: khung id="lat-<loại>" chứa h3.lat-tieu-de, .lat-cham (mỗi trang một
- * <span>) và hai nút onclick="latTrangBieuDo('<loại>', -1 | 1)".
+ * <span>) và hai nút data-chart="<loại>" data-page-step="-1" | "1"
+ * (js/components/ui_events.js gắn sự kiện, gọi latTrangBieuDo).
  *
  * NHỚ TRANG ĐANG XEM: mỗi lần lật, trang của mọi biểu đồ được ghi vào
  * localStorage của máy người xem (khoá TRANG_KHOA_NHO) — tải lại trang, mở lại
